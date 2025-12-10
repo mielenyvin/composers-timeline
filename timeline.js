@@ -36,6 +36,29 @@ let currentPlaceholderSizePx = 100;
 let currentCardHeightPx = 120;
 let currentLaneHeightPx = 140;
 
+function getViewportHeight(scrollContainer) {
+  const candidates = [];
+  if (scrollContainer && scrollContainer.clientHeight) {
+    candidates.push(scrollContainer.clientHeight);
+  }
+  if (window.visualViewport && window.visualViewport.height) {
+    candidates.push(window.visualViewport.height);
+  }
+  if (typeof window.innerHeight === "number") {
+    candidates.push(window.innerHeight);
+  }
+  if (
+    document.documentElement &&
+    typeof document.documentElement.clientHeight === "number" &&
+    document.documentElement.clientHeight > 0
+  ) {
+    candidates.push(document.documentElement.clientHeight);
+  }
+
+  if (!candidates.length) return 0;
+  return Math.min(...candidates);
+}
+
 function updateVisibilityForElements(
   scrollContainer,
   { allowReveal = true } = {}
@@ -195,10 +218,7 @@ let lastMaxVisibleLaneCount = 0; // сколько рядов мы готовы 
  * на основе высоты viewport, чтобы максимум 4 ряда помещались
  */
 function computeDynamicLaneMetrics(scrollContainer) {
-  const viewportHeight =
-    (scrollContainer && scrollContainer.clientHeight) ||
-    window.innerHeight ||
-    0;
+  const viewportHeight = getViewportHeight(scrollContainer);
 
   const extraCardSpace =
     placeholderTopPx + placeholderGapPx + cardBottomPaddingPx;
@@ -761,10 +781,7 @@ function computeLaneCountForCenterYear(
 }
 
 function computeMaxVerticalStacksForViewport(scrollContainer) {
-  const viewportHeight =
-    (scrollContainer && scrollContainer.clientHeight) ||
-    window.innerHeight ||
-    0;
+  const viewportHeight = getViewportHeight(scrollContainer);
 
   const metrics = ensureDynamicLaneMetrics(scrollContainer);
 
