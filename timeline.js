@@ -11,6 +11,7 @@ const paddingLeft = 80;
 const paddingRight = 80;
 const axisBottom = 80;
 const maxVerticalLanes = 4; // по высоте помещаем не больше 4 рядов
+const extraViewportWidthPx = 600; // считаем зум как будто по 300px слева и справа
 const placeholderMinPx = 50; // нижняя граница квадратика
 const placeholderTopPx = 10; // отступ от верхнего края карточки до начала квадрата
 const placeholderGapPx = 4; // расстояние между низом квадрата и датой рождения
@@ -35,6 +36,12 @@ let revealLocked = false; // блокируем показ новых элеме
 let currentPlaceholderSizePx = 100;
 let currentCardHeightPx = 120;
 let currentLaneHeightPx = 140;
+
+function getEffectiveViewportWidth(scrollContainer) {
+  const baseWidth =
+    (scrollContainer && scrollContainer.clientWidth) || window.innerWidth || 0;
+  return baseWidth + extraViewportWidthPx; // шире на 300px с каждой стороны
+}
 
 function getViewportHeight(scrollContainer) {
   const candidates = [];
@@ -66,54 +73,29 @@ function updateVisibilityForElements(
   const container = document.getElementById("timeline-inner");
   if (!container || !scrollContainer) return;
 
-  const viewportWidth = scrollContainer.clientWidth || window.innerWidth;
-  const viewportLeft = scrollContainer.scrollLeft;
-  const viewportRight = viewportLeft + viewportWidth;
-
   const containerRect = scrollContainer.getBoundingClientRect();
+
+  const viewportTopPx = 0;
+  const viewportBottomPx =
+    window.innerHeight || document.documentElement.clientHeight || 0;
   const viewportLeftPx = containerRect.left;
   const viewportRightPx = containerRect.right;
 
   const nodes = container.querySelectorAll("[data-x]");
+
   nodes.forEach((el) => {
-    const isComposer = el.classList.contains("composer");
+    // 1) Базовая видимость: по пересечению реального прямоугольника элемента
+    //    с видимой областью окна и контейнера таймлайна.
+    const rect = el.getBoundingClientRect();
+    const horizontallyVisible =
+      rect.right >= viewportLeftPx - visibilityBufferPx &&
+      rect.left <= viewportRightPx + visibilityBufferPx;
+    const verticallyVisible =
+      rect.bottom >= viewportTopPx && rect.top <= viewportBottomPx;
 
-    let shouldBeVisible;
+    let shouldBeVisible = horizontallyVisible && verticallyVisible;
 
-    if (isComposer) {
-      // Для карточек композиторов: видимы только если целиком внутри окна браузера
-      // (по вертикали) и контейнера таймлайна (по горизонтали).
-      const rect = el.getBoundingClientRect();
-      const elementLeftPx = rect.left;
-      const elementRightPx = rect.right;
-      const elementTopPx = rect.top;
-      const elementBottomPx = rect.bottom;
-
-      const viewportTopPx = 0;
-      const viewportBottomPx =
-        window.innerHeight || document.documentElement.clientHeight || 0;
-
-      shouldBeVisible =
-        elementLeftPx >= viewportLeftPx &&
-        elementRightPx <= viewportRightPx &&
-        elementTopPx >= viewportTopPx &&
-        elementBottomPx <= viewportBottomPx;
-    } else {
-      // Для остальных элементов оставляем старую схему с буфером
-      const x = parseFloat(el.dataset.x);
-      if (!isFinite(x)) return;
-
-      const elementLeft = x;
-      const elementRight = x;
-
-      shouldBeVisible =
-        elementLeft >= viewportLeft - visibilityBufferPx &&
-        elementRight <= viewportRight + visibilityBufferPx;
-    }
-
-    // Дополнительно: вертикальный лимит по количеству рядов.
-    // Если элемент принадлежит ряду с индексом >= допустимого количества,
-    // мы его временно скрываем (до тех пор, пока авто-зум не уменьшит число рядов).
+    // 2) Вертикальный лимит по количеству рядов.
     const laneIndexAttr = el.dataset.laneIndex;
     if (laneIndexAttr != null) {
       const laneIndexNum = parseInt(laneIndexAttr, 10);
@@ -127,6 +109,7 @@ function updateVisibilityForElements(
       }
     }
 
+    // 3) Применяем класс offscreen с учётом блокировки reveal во время зума.
     const isVisible = !el.classList.contains("offscreen");
 
     if (shouldBeVisible && (allowReveal || isVisible)) {
@@ -251,10 +234,7 @@ function computeDynamicLaneMetrics(scrollContainer) {
     availableAfterFirstRow > 0
       ? Math.floor(availableAfterFirstRow / laneHeight)
       : 0;
-  const maxStacks = Math.max(
-    1,
-    Math.min(maxVerticalLanes, 1 + extraStacks)
-  );
+  const maxStacks = Math.max(1, Math.min(maxVerticalLanes, 1 + extraStacks));
 
   return { laneHeight, placeholderSize, cardHeight, maxStacks };
 }
@@ -290,8 +270,7 @@ const zoomOutFactor = 0.93; // шаг уменьшения зума
 let basePxPerYear = null; // базовый зум для крайних положений
 
 function computeInitialPxPerYear(scrollContainer) {
-  const viewportWidth =
-    (scrollContainer && scrollContainer.clientWidth) || window.innerWidth;
+  const viewportWidth = getEffectiveViewportWidth(scrollContainer);
   const availableWidth = Math.max(
     200,
     viewportWidth - paddingLeft - paddingRight
@@ -491,7 +470,7 @@ function renderTimeline(arg = null) {
     deathLabel.className = "death-label";
     deathLabel.style.left = deathX + "px";
     // slightly below the death dot
-    deathLabel.style.bottom = (lifeY - 16) + "px";
+    deathLabel.style.bottom = lifeY - 16 + "px";
     deathLabel.dataset.x = deathX;
     deathLabel.dataset.laneIndex = String(laneIndex);
 
@@ -565,9 +544,7 @@ function renderTimeline(arg = null) {
   finalScrollLeft = Math.max(0, Math.min(maxScrollLeft, finalScrollLeft));
   scrollContainer.scrollLeft = finalScrollLeft;
   updateVisibilityForElements(scrollContainer, {
-    allowReveal:
-      forceReveal ||
-      (!revealLocked && !isUserPanning && zoomAnimation === null),
+    allowReveal: forceReveal || (!revealLocked && zoomAnimation === null),
   });
 
   // считаем, сколько реально рядов и композиторов сейчас видно
@@ -590,8 +567,8 @@ function renderTimeline(arg = null) {
 function computeLayoutMetrics(scrollContainer, options = {}) {
   const { pxPerYearOverride = null, centerYearOverride = null } = options;
 
-  const viewportWidth = scrollContainer.clientWidth || window.innerWidth;
-  const viewportHeight = scrollContainer.clientHeight || window.innerHeight;
+  const viewportWidth = getEffectiveViewportWidth(scrollContainer);
+  const viewportHeight = getViewportHeight(scrollContainer);
 
   const pxPerYear =
     pxPerYearOverride != null ? pxPerYearOverride : currentPxPerYear;
@@ -641,8 +618,8 @@ function computeLayoutMetrics(scrollContainer, options = {}) {
 
   const cardHalfWidthApprox = 190; // тот же запас, что и выше
   const visiblePlacements = placements.filter(
-    (p) => p.x >= xStart - cardHalfWidthApprox &&
-           p.x <= xEnd + cardHalfWidthApprox
+    (p) =>
+      p.x >= xStart - cardHalfWidthApprox && p.x <= xEnd + cardHalfWidthApprox
   );
 
   const visibleLaneSet = new Set();
@@ -723,7 +700,7 @@ function computeLaneCountForCenterYear(
   pxPerYear,
   maxVerticalStacks
 ) {
-  const viewportWidth = scrollContainer.clientWidth || window.innerWidth;
+  const viewportWidth = getEffectiveViewportWidth(scrollContainer);
   const axisWidth = span * pxPerYear;
   const axisLeft = paddingLeft;
 
@@ -798,13 +775,8 @@ function computeMaxVerticalStacksForViewport(scrollContainer) {
   }
 
   const extraStacks =
-    metrics.laneHeight > 0
-      ? Math.floor(available / metrics.laneHeight)
-      : 0;
-  const maxStacks = Math.max(
-    1,
-    Math.min(maxVerticalLanes, 1 + extraStacks)
-  );
+    metrics.laneHeight > 0 ? Math.floor(available / metrics.laneHeight) : 0;
+  const maxStacks = Math.max(1, Math.min(maxVerticalLanes, 1 + extraStacks));
 
   lastMaxVisibleLaneCount = maxStacks;
 
@@ -970,7 +942,7 @@ function autoZoomDuringPan(scrollContainer, direction) {
     currentPxPerYear,
     maxStacks
   );
-  
+
   // ИСПРАВЛЕННАЯ ЛОГИКА:
   // Блокируем только если всё помещается И хотят увеличить зум
   // Разрешаем уменьшение зума (desiredPxPerYear < currentPxPerYear)
@@ -988,7 +960,7 @@ function autoZoomDuringPan(scrollContainer, direction) {
     centerYear: centerYear.toFixed(2),
     pxPerYearCurrent: currentPxPerYear.toFixed(2),
     pxPerYearTarget: desiredPxPerYear.toFixed(2),
-    isZoomOut: desiredPxPerYear < currentPxPerYear
+    isZoomOut: desiredPxPerYear < currentPxPerYear,
   });
 
   let anchorYearForZoom = centerYear;
@@ -1039,8 +1011,9 @@ function initPanning() {
     const currentScrollLeft = scrollContainer.scrollLeft;
     lastScrollLeftDuringPan = currentScrollLeft;
 
-    // сразу обновляем видимость, чтобы обрезанные карточки скрывались
-    updateVisibilityForElements(scrollContainer, { allowReveal: false });
+    // сразу обновляем видимость, разрешая появляться новым элементам,
+    // которые входят в область экрана во время перетаскивания
+    updateVisibilityForElements(scrollContainer, { allowReveal: true });
   });
 
   function endPan(e) {
@@ -1080,7 +1053,9 @@ window.addEventListener("load", () => {
 
   scrollContainer.addEventListener("scroll", () =>
     updateVisibilityForElements(scrollContainer, {
-      allowReveal: !isUserPanning && zoomAnimation === null,
+      // во время анимации зума новые элементы не показываем (revealLocked),
+      // при обычной прокрутке — да
+      allowReveal: zoomAnimation === null && !revealLocked,
     })
   );
   initPanning();
