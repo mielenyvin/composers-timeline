@@ -831,18 +831,12 @@ function applyAutoZoom(
   );
   if (desiredPxPerYear == null) return;
 
-  if (Math.abs(desiredPxPerYear - currentPxPerYear) < 0.05) {
+  if (Math.abs(desiredPxPerYear - currentPxPerYear) < 0.5) {
     return;
   }
 
   if (!animate) {
-    const blended =
-      currentPxPerYear +
-      (desiredPxPerYear - currentPxPerYear) * 0.3; // мягкая подстройка без рывков
-    currentPxPerYear = Math.max(
-      minPxPerYear,
-      Math.min(maxPxPerYear, blended)
-    );
+    currentPxPerYear = desiredPxPerYear;
     renderTimeline({ anchorYear: centerYear, anchorSide });
     revealLocked = false;
     updateVisibilityForElements(targetContainer, { allowReveal: true });
