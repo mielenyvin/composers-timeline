@@ -57,6 +57,7 @@
         bottom: 80px;
         height: 2px;
         background: #666666;
+        z-index: 10;
       }
       .axis-tick {
         position: absolute;
@@ -86,6 +87,12 @@
         transform: translateX(-50%);
         z-index: 1;
       }
+
+      .stem.stem-active {
+        background: rgb(202, 22, 154); /* или любой другой цвет */
+        width: 5px; /* можно слегка утолщить */
+      }
+
       .death-dot {
         position: absolute;
         width: 10px;

@@ -7,12 +7,12 @@ const span = maxYear - minYear;
 
 const sortedComposers = [...composers].sort((a, b) => a.birth - b.birth);
 
-const paddingLeft = 0;
+const paddingLeft = 0; // даём запас, чтобы самая левая карточка не уезжала за край
 const paddingRight = 0;
 const axisBottom = 80;
 const maxVerticalLanes = 4; // по высоте помещаем не больше 4 рядов
 const extraViewportWidthPx = 600; // считаем зум как будто по 300px слева и справа
-const zoomMultiplier = 3; // множитель для базового зума по горизонтали
+const zoomMultiplier = 1; // множитель для базового зума по горизонтали
 const placeholderMinPx = 50; // нижняя граница квадратика
 const placeholderTopPx = 10; // отступ от верхнего края карточки до начала квадрата
 const placeholderGapPx = 4; // расстояние между низом квадрата и датой рождения
@@ -36,6 +36,9 @@ let yearZoomMap = null; // предрассчитанные зумы по год
 
 let zoomAnimation = null; // состояние текущей анимации зума
 let revealLocked = false; // блокируем показ новых элементов до завершения зума
+let autoZoomRafPending = false; // не даём запускать пересчёт зума слишком часто
+
+let isPanning = false; // находимся ли сейчас в режиме перетаскивания таймлайна мышкой
 
 // Динамические размеры, которые зависят от высоты viewport
 let currentPlaceholderSizePx = 100;
@@ -184,28 +187,34 @@ function animateZoomTo(targetPxPerYear, anchorYear, anchorSide = "center") {
     if (t < 1) {
       requestAnimationFrame(step);
     } else {
-      currentPxPerYear = zoomAnimation.targetPxPerYear;
-      zoomAnimation = null;
-      revealLocked = false;
-      renderTimeline({
-        anchorYear,
-        anchorSide,
-        forceReveal: true,
-      });
+  currentPxPerYear = zoomAnimation.targetPxPerYear;
+  const finishedAnchorYear = zoomAnimation.anchorYear;
+  const finishedAnchorSide = zoomAnimation.anchorSide;
+  zoomAnimation = null;
+  revealLocked = false;
+  renderTimeline({
+    anchorYear: finishedAnchorYear,
+    anchorSide: finishedAnchorSide,
+    forceReveal: true,
+  });
 
-      // After the first auto-zoom on init we may have hidden the timeline.
-      // Make sure it is visible once the animation is fully finished.
-      const scrollContainer = document.getElementById("timeline");
-      if (scrollContainer && scrollContainer.style.visibility === "hidden") {
-        scrollContainer.style.visibility = "visible";
-      }
-    }
+  const scrollContainer = document.getElementById("timeline");
+  if (scrollContainer && scrollContainer.style.visibility === "hidden") {
+    scrollContainer.style.visibility = "visible";
+  }
+
+  if (scrollContainer) {
+    // Держим тот же тип якоря, что и в анимации (в твоём случае — left)
+    scheduleAutoZoom(scrollContainer, {
+      anchorSide: finishedAnchorSide,
+    });
+  }
+}
   }
 
   requestAnimationFrame(step);
 }
 
-let isUserPanning = false;
 let lastLaneCount = 0; // общее количество рядов по всему таймлайну
 let lastVisibleLaneCount = 0; // сколько рядов реально видно в текущем окне
 let lastVisibleComposersCount = 0; // сколько композиторов реально внутри текущего окна
@@ -289,12 +298,6 @@ function ensureDynamicLaneMetrics(scrollContainer) {
   return metrics;
 }
 
-const minHorizontalGapPx = 50; // минимальное расстояние между вертикальными линиями в пикселях
-const maxHorizontalGapFactor = 3; // во сколько раз "слишком далеко" по горизонтали
-const zoomInFactor = 1.08; // шаг увеличения зума
-const zoomOutFactor = 0.93; // шаг уменьшения зума
-let basePxPerYear = null; // базовый зум для крайних положений
-
 function computeInitialPxPerYear(scrollContainer) {
   const viewportWidth = getEffectiveViewportWidth(scrollContainer);
   const availableWidth = Math.max(
@@ -320,7 +323,7 @@ function renderTimeline(arg = null) {
 
   // Разбираем аргументы: либо число (центр), либо объект настроек привязки
   let anchorYear = null;
-  let anchorSide = "center"; // "center" или "left"
+  let anchorSide = "left"; // "center" или "left"
   let forceReveal = false;
 
   if (arg && typeof arg === "object") {
@@ -587,132 +590,6 @@ function renderTimeline(arg = null) {
   lastVisibleComposersCount = visibleCount;
 }
 
-function computeLayoutMetrics(scrollContainer, options = {}) {
-  const { pxPerYearOverride = null, centerYearOverride = null } = options;
-
-  const viewportWidth = getEffectiveViewportWidth(scrollContainer);
-  const viewportHeight = getViewportHeight(scrollContainer);
-
-  const pxPerYear =
-    pxPerYearOverride != null ? pxPerYearOverride : currentPxPerYear;
-  const axisWidth = span * pxPerYear;
-  const axisLeft = paddingLeft;
-
-  let xStart;
-  let xEnd;
-
-  if (centerYearOverride != null) {
-    const centerX =
-      axisLeft + ((centerYearOverride - minYear) / span) * axisWidth;
-    xStart = centerX - viewportWidth / 2;
-    xEnd = centerX + viewportWidth / 2;
-  } else {
-    xStart = scrollContainer.scrollLeft;
-    xEnd = xStart + viewportWidth;
-  }
-
-  // размещаем композиторов так же, как в renderTimeline, но без создания DOM
-  const minDistancePx = minLaneDistancePx;
-  const placements = [];
-  const lanesLastX = [];
-  const sorted = sortedComposers;
-
-  for (const c of sorted) {
-    const ratio = (c.birth - minYear) / span;
-    const x = paddingLeft + ratio * axisWidth;
-
-    let laneIndex = 0;
-    while (
-      laneIndex < lanesLastX.length &&
-      x - lanesLastX[laneIndex] < minDistancePx
-    ) {
-      laneIndex++;
-    }
-    if (laneIndex === lanesLastX.length) {
-      lanesLastX.push(x);
-    } else {
-      lanesLastX[laneIndex] = x;
-    }
-
-    placements.push({ composer: c, x, laneIndex });
-  }
-
-  const laneCount = Math.max(1, lanesLastX.length);
-
-  const cardHalfWidthApprox = 190; // тот же запас, что и выше
-  const visiblePlacements = placements.filter(
-    (p) =>
-      p.x >= xStart - cardHalfWidthApprox && p.x <= xEnd + cardHalfWidthApprox
-  );
-
-  const visibleLaneSet = new Set();
-  const visibleYearSet = new Set();
-
-  for (const p of visiblePlacements) {
-    visibleLaneSet.add(p.laneIndex);
-    // несколько композиторов с одним годом воспринимаем как одну палочку
-    if (p.composer && typeof p.composer.birth === "number") {
-      visibleYearSet.add(p.composer.birth);
-    }
-  }
-
-  const visibleLaneCount = visibleLaneSet.size;
-
-  let minHorizontalDistPx = Infinity;
-  const visibleYears = Array.from(visibleYearSet);
-  if (visibleYears.length > 1) {
-    visibleYears.sort((a, b) => a - b);
-    for (let i = 0; i < visibleYears.length - 1; i++) {
-      const dy = visibleYears[i + 1] - visibleYears[i];
-      const dPx = dy * pxPerYear;
-      if (dPx < minHorizontalDistPx) {
-        minHorizontalDistPx = dPx;
-      }
-    }
-  } else {
-    // если один или ноль уникальных годов, считаем, что по горизонтали "просторно"
-    minHorizontalDistPx = viewportWidth;
-  }
-
-  // видимый диапазон лет
-  const axisRight = axisLeft + axisWidth;
-  const visibleAxisStart = Math.max(axisLeft, xStart);
-  const visibleAxisEnd = Math.min(axisRight, xEnd);
-
-  let visibleStartYear = minYear;
-  let visibleEndYear = maxYear;
-
-  if (visibleAxisEnd > visibleAxisStart) {
-    const ratioStart = (visibleAxisStart - axisLeft) / axisWidth;
-    const ratioEnd = (visibleAxisEnd - axisLeft) / axisWidth;
-    visibleStartYear = minYear + ratioStart * span;
-    visibleEndYear = minYear + ratioEnd * span;
-  }
-
-  const hasLeft = visibleStartYear > minBirth;
-  const hasRight = visibleEndYear < maxBirth;
-
-  // вертикальная вместимость по высоте экрана — используем ту же функцию,
-  // что и авто-зум, чтобы не было расхождений.
-  const maxVerticalStacks =
-    computeMaxVerticalStacksForViewport(scrollContainer);
-  const minVerticalStacksDesired = Math.max(
-    1,
-    Math.ceil(maxVerticalStacks / 2)
-  );
-
-  return {
-    laneCount,
-    visibleLaneCount,
-    minHorizontalDistPx,
-    maxVerticalStacks,
-    minVerticalStacksDesired,
-    hasLeft,
-    hasRight,
-    viewportWidth,
-  };
-}
-
 /**
  * Оцениваем, сколько вертикальных рядов потребуется,
  * если указанный год находится в центре экрана при данном zуме.
@@ -818,24 +695,14 @@ function computeOptimalPxPerYearForCenter(scrollContainer, centerYear) {
     maxVerticalStacks
   );
 
-  console.log("computeOptimalPxPerYearForCenter:", {
-    centerYear: centerYear.toFixed(2),
-    currentPxPerYear: currentPxPerYear?.toFixed(2),
-    minPxPerYear,
-    lanesAtMin,
-    maxVerticalStacks,
-  });
-
   if (lanesAtMin <= maxVerticalStacks) {
-    // Минимальный зум подходит - но мы хотим автозум в 2 раза больше
-    const scaled = Math.min(maxPxPerYear, minPxPerYear * 2);
-    console.log("  -> Возвращаем 2x minPxPerYear:", scaled.toFixed(2));
-    return scaled;
+    // Можно использовать минимальный зум — это даёт максимальный охват «пустынь».
+    return minPxPerYear;
   }
 
   // Минимальный не подходит - ищем минимальный зум, при котором всё помещается
   let low = minPxPerYear;
-  let high = maxPxPerYear * 3;
+  let high = maxPxPerYear;
   let best = high;
 
   for (let iter = 0; iter < 15; iter++) {
@@ -855,10 +722,7 @@ function computeOptimalPxPerYearForCenter(scrollContainer, centerYear) {
     }
   }
 
-  console.log("  -> Бинарный поиск вернул:", best.toFixed(2));
-  const scaled = Math.min(maxPxPerYear, best * 2);
-  console.log("  -> С учётом коэффициента 2x:", scaled.toFixed(2));
-  return scaled;
+  return Math.min(maxPxPerYear, best);
 }
 
 /**
@@ -866,50 +730,12 @@ function computeOptimalPxPerYearForCenter(scrollContainer, centerYear) {
  * исходя из того, сколько рядов помещается по вертикали.
  */
 function precomputeYearZoomMap(scrollContainer) {
-  const maxVerticalStacks =
-    computeMaxVerticalStacksForViewport(scrollContainer);
-
-  const effectiveMaxVerticalStacks = Math.max(1, maxVerticalStacks);
-
   const map = {};
   const stepYear = 1;
 
   for (let y = minYear; y <= maxYear; y += stepYear) {
-    const lanesAtMin = computeLaneCountForCenterYear(
-      scrollContainer,
-      y,
-      minPxPerYear,
-      effectiveMaxVerticalStacks
-    );
-
-    let best;
-    if (lanesAtMin <= effectiveMaxVerticalStacks) {
-      best = minPxPerYear;
-    } else {
-      let low = minPxPerYear;
-      let high = maxPxPerYear * 2; // уменьшаем с *3 до *2
-      best = high;
-
-      for (let iter = 0; iter < 12; iter++) {
-        const mid = (low + high) / 2;
-        const lanes = computeLaneCountForCenterYear(
-          scrollContainer,
-          y,
-          mid,
-          effectiveMaxVerticalStacks
-        );
-
-        if (lanes <= effectiveMaxVerticalStacks) {
-          best = mid;
-          high = mid;
-        } else {
-          low = mid;
-        }
-      }
-    }
-
     const key = Math.round(y);
-    const zoom = Math.min(maxPxPerYear, best * 2);
+    const zoom = computeOptimalPxPerYearForCenter(scrollContainer, y);
     map[key] = zoom;
   }
 
@@ -920,7 +746,7 @@ function precomputeYearZoomMap(scrollContainer) {
 
   // Минимальное сглаживание
   const smoothed = {};
-  const radius = 1; // ТОЛЬКО ближайшие соседи
+  const radius = 2; // небольшой радиус, чтобы не было резких скачков при прокрутке
 
   for (const key of keys) {
     let maxZoom = map[key]; // начинаем с текущего значения
@@ -935,12 +761,14 @@ function precomputeYearZoomMap(scrollContainer) {
   yearZoomMap = smoothed;
 }
 
-function autoZoomDuringPan(scrollContainer, direction) {
-  if (currentPxPerYear == null) return;
-
-  const viewportWidth = scrollContainer.clientWidth || window.innerWidth;
+function getCenterYear(scrollContainer) {
+  const viewportWidth = scrollContainer.clientWidth || window.innerWidth || 0;
   const axisWidth = span * currentPxPerYear;
   const axisLeft = paddingLeft;
+
+  if (!isFinite(axisWidth) || axisWidth <= 0) {
+    return (minYear + maxYear) / 2;
+  }
 
   const centerX = scrollContainer.scrollLeft + viewportWidth / 2;
   let centerRatio = (centerX - axisLeft) / axisWidth;
@@ -948,74 +776,131 @@ function autoZoomDuringPan(scrollContainer, direction) {
     centerRatio = 0.5;
   }
   centerRatio = Math.max(0, Math.min(1, centerRatio));
-  const centerYear = minYear + centerRatio * span;
+  return minYear + centerRatio * span;
+}
 
-  const desiredPxPerYear = computeOptimalPxPerYearForCenter(
-    scrollContainer,
-    centerYear
-  );
+function lookupZoomFromMap(centerYear) {
+  if (!yearZoomMap) return null;
 
-  if (
-    desiredPxPerYear == null ||
-    Math.abs(desiredPxPerYear - currentPxPerYear) < 1.0
-  ) {
+  const rounded = Math.round(centerYear);
+  const radius = 2;
+  let maxZoom = -Infinity;
+
+  for (let y = rounded - radius; y <= rounded + radius; y++) {
+    if (Object.prototype.hasOwnProperty.call(yearZoomMap, y)) {
+      maxZoom = Math.max(maxZoom, yearZoomMap[y]);
+    }
+  }
+
+  return Number.isFinite(maxZoom) ? maxZoom : null;
+}
+
+function computeDesiredPxPerYear(scrollContainer, centerYear) {
+  const fromMap = lookupZoomFromMap(centerYear);
+  if (fromMap != null) {
+    return fromMap;
+  }
+  return computeOptimalPxPerYearForCenter(scrollContainer, centerYear);
+}
+
+function scheduleAutoZoom(scrollContainer, options = {}) {
+  if (autoZoomRafPending) return;
+  autoZoomRafPending = true;
+  const opts = { ...options };
+  requestAnimationFrame(() => {
+    autoZoomRafPending = false;
+    applyAutoZoom(scrollContainer, opts);
+  });
+}
+
+function applyAutoZoom(
+  scrollContainer,
+  { anchorSide = "center", animate = true } = {}
+) {
+  const targetContainer =
+    scrollContainer || document.getElementById("timeline");
+  if (!targetContainer) return;
+  if (currentPxPerYear == null) return;
+  if (zoomAnimation && !animate) {
+    // мгновенная подстройка важнее текущей анимации
+    zoomAnimation = null;
+  } else if (zoomAnimation) {
     return;
   }
 
-  const maxStacks = computeMaxVerticalStacksForViewport(scrollContainer);
-  const currentLanes = computeLaneCountForCenterYear(
-    scrollContainer,
+  const centerYear = getCenterYear(targetContainer);
+  const maxStacks = computeMaxVerticalStacksForViewport(targetContainer);
+  const lanesNow = computeLaneCountForCenterYear(
+    targetContainer,
     centerYear,
     currentPxPerYear,
     maxStacks
   );
 
-  // ИСПРАВЛЕННАЯ ЛОГИКА:
-  // Блокируем только если всё помещается И хотят увеличить зум
-  // Разрешаем уменьшение зума (desiredPxPerYear < currentPxPerYear)
-  if (currentLanes <= maxStacks && desiredPxPerYear >= currentPxPerYear) {
-    // Всё помещается и нам НЕ предлагают уменьшить - не нужно
+  const desiredPxPerYear = computeDesiredPxPerYear(
+    targetContainer,
+    centerYear
+  );
+  if (desiredPxPerYear == null) return;
+
+  // Если уже больше 4 рядов — сразу ставим необходимый зум без анимации и бленда,
+  // чтобы никто не скрывался.
+if (lanesNow > maxStacks) {
+  const forcedPxPerYear = computeOptimalPxPerYearForCenter(
+    targetContainer,
+    centerYear
+  );
+  currentPxPerYear = Math.min(
+    maxPxPerYear,
+    Math.max(minPxPerYear, forcedPxPerYear)
+  );
+  // Если якорь по левому краю — фиксируем именно minYear
+  const forcedAnchorYear =
+    anchorSide === "left" ? minYear : centerYear;
+  renderTimeline({ anchorYear: forcedAnchorYear, anchorSide });
+  revealLocked = false;
+  updateVisibilityForElements(targetContainer, { allowReveal: true });
+  return;
+}
+
+  if (Math.abs(desiredPxPerYear - currentPxPerYear) < 0.05) {
+    return;
+  }
+
+  if (!animate) {
+    const blended =
+      currentPxPerYear +
+      (desiredPxPerYear - currentPxPerYear) * 0.3; // ещё мягче подстраиваем без рывков
+    currentPxPerYear = Math.max(
+      minPxPerYear,
+      Math.min(maxPxPerYear, blended)
+    );
+    renderTimeline({ anchorYear: centerYear, anchorSide });
+    revealLocked = false;
+    updateVisibilityForElements(targetContainer, { allowReveal: true });
     return;
   }
 
   revealLocked = true;
-  updateVisibilityForElements(scrollContainer, { allowReveal: false });
+  updateVisibilityForElements(targetContainer, { allowReveal: false });
 
-  console.log("Auto-zoom:", {
-    reason: "maximize_horizontal_subject_to_vertical",
-    direction,
-    centerYear: centerYear.toFixed(2),
-    pxPerYearCurrent: currentPxPerYear.toFixed(2),
-    pxPerYearTarget: desiredPxPerYear.toFixed(2),
-    isZoomOut: desiredPxPerYear < currentPxPerYear,
-  });
+  const anchorYear = anchorSide === "left" ? minYear : centerYear;
 
-  let anchorYearForZoom = centerYear;
-  let anchorSideForZoom = "center";
-  if (direction === "init") {
-    anchorYearForZoom = minYear;
-    anchorSideForZoom = "left";
-  }
-
-  animateZoomTo(desiredPxPerYear, anchorYearForZoom, anchorSideForZoom);
+  animateZoomTo(desiredPxPerYear, anchorYear, anchorSide);
 }
 
 function initPanning() {
   const scrollContainer = document.getElementById("timeline");
-  let isPanning = false;
   let startX = 0;
   let startScrollLeft = 0;
   let activePointerId = null;
-  let lastScrollLeftDuringPan = 0;
 
   scrollContainer.addEventListener("pointerdown", (e) => {
     isPanning = true;
-    isUserPanning = true;
     activePointerId = e.pointerId;
     scrollContainer.setPointerCapture(e.pointerId);
     startX = e.clientX;
     startScrollLeft = scrollContainer.scrollLeft;
-    lastScrollLeftDuringPan = scrollContainer.scrollLeft;
     scrollContainer.style.cursor = "grabbing";
   });
 
@@ -1023,10 +908,6 @@ function initPanning() {
     if (!isPanning || e.pointerId !== activePointerId) return;
     const dx = e.clientX - startX;
     scrollContainer.scrollLeft = startScrollLeft - dx;
-
-    // просто запоминаем последний scrollLeft во время перетаскивания
-    const currentScrollLeft = scrollContainer.scrollLeft;
-    lastScrollLeftDuringPan = currentScrollLeft;
 
     // обновляем видимость с throttle через requestAnimationFrame,
     // чтобы не тормозить перетаскивание
@@ -1036,11 +917,13 @@ function initPanning() {
   function endPan(e) {
     if (!isPanning || (e && e.pointerId !== activePointerId)) return;
 
-    // просто завершаем перетаскивание без какого-либо авто-зумирования
+    // просто завершаем перетаскивание
     isPanning = false;
     activePointerId = null;
-    isUserPanning = false;
     scrollContainer.style.cursor = "grab";
+
+    // после того, как пользователь отпустил мышь, один раз плавно подстраиваем зум
+    scheduleAutoZoom(scrollContainer);
   }
 
   scrollContainer.addEventListener("pointerup", endPan);
@@ -1051,27 +934,29 @@ function initPanning() {
 window.addEventListener("load", () => {
   const scrollContainer = document.getElementById("timeline");
 
-  // Hide timeline during the very first layout + auto-zoom,
-  // so the user sees only the final, correctly zoomed state.
-  if (scrollContainer) {
-    // scrollContainer.style.visibility = "hidden";
-  }
-
   currentPxPerYear = computeInitialPxPerYear(scrollContainer);
-  basePxPerYear = currentPxPerYear;
   precomputeYearZoomMap(scrollContainer);
-  renderTimeline();
 
-  // (отключён) начальный авто-зум — теперь оставляем зум, посчитанный computeInitialPxPerYear и renderTimeline()
+  // Сразу рисуем так, как будто проскроллили максимально влево
+  renderTimeline({ anchorYear: minYear, anchorSide: "left" });
 
-  scrollContainer.addEventListener("scroll", () =>
+  // Автозум тоже привязываем к левому краю
+  scheduleAutoZoom(scrollContainer, { anchorSide: "left" });
+
+  scrollContainer.addEventListener("scroll", () => {
     scheduleVisibilityUpdate(
       scrollContainer,
       // во время анимации зума новые элементы не показываем (revealLocked),
       // при обычной прокрутке — да
       zoomAnimation === null && !revealLocked
-    )
-  );
+    );
+
+    // Во время обычного скролла (колёсико, ползунок) — подстраиваем зум сразу,
+    // а во время перетаскивания мышкой не трогаем зум, чтобы не было дёрганий.
+    if (!isPanning) {
+      scheduleAutoZoom(scrollContainer, { animate: false });
+    }
+  });
   initPanning();
 });
 
@@ -1079,6 +964,7 @@ window.addEventListener("resize", () => {
   const scrollContainer = document.getElementById("timeline");
   if (scrollContainer) {
     precomputeYearZoomMap(scrollContainer);
+    scheduleAutoZoom(scrollContainer);
   }
   renderTimeline();
 });
