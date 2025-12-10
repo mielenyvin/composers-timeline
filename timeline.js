@@ -40,7 +40,6 @@ let autoZoomRafPending = false; // не даём запускать пересч
 let isPointerDown = false; // во время удержания пальца/мыши не авто-зумим, чтобы не дёргалось
 
 let isPanning = false; // находимся ли сейчас в режиме перетаскивания таймлайна мышкой
-let scrollZoomTimeout = null; // debounce для авто-зумов после прокрутки
 
 // Динамические размеры, которые зависят от высоты viewport
 let currentPlaceholderSizePx = 100;
@@ -154,7 +153,7 @@ function animateZoomTo(targetPxPerYear, anchorYear, anchorSide = "center") {
     return;
   }
 
-  const durationMs = 320;
+  const durationMs = 200;
 
   // сбрасываем прошлую анимацию
   zoomAnimation = {
@@ -921,10 +920,6 @@ function initPanning() {
   scrollContainer.addEventListener("pointerdown", (e) => {
     isPanning = true;
     isPointerDown = true;
-    if (scrollZoomTimeout) {
-      clearTimeout(scrollZoomTimeout);
-      scrollZoomTimeout = null;
-    }
     activePointerId = e.pointerId;
     scrollContainer.setPointerCapture(e.pointerId);
     startX = e.clientX;
@@ -951,11 +946,6 @@ function initPanning() {
     activePointerId = null;
     scrollContainer.style.cursor = "grab";
 
-    if (scrollZoomTimeout) {
-      clearTimeout(scrollZoomTimeout);
-      scrollZoomTimeout = null;
-    }
-
     // после того, как пользователь отпустил мышь, один раз плавно подстраиваем зум
     scheduleAutoZoom(scrollContainer);
   }
@@ -969,10 +959,6 @@ function initPanning() {
     "touchstart",
     () => {
       isPointerDown = true;
-      if (scrollZoomTimeout) {
-        clearTimeout(scrollZoomTimeout);
-        scrollZoomTimeout = null;
-      }
     },
     { passive: true }
   );
@@ -980,10 +966,6 @@ function initPanning() {
     "touchend",
     () => {
       isPointerDown = false;
-      if (scrollZoomTimeout) {
-        clearTimeout(scrollZoomTimeout);
-        scrollZoomTimeout = null;
-      }
       scheduleAutoZoom(scrollContainer);
     },
     { passive: true }
@@ -992,10 +974,6 @@ function initPanning() {
     "touchcancel",
     () => {
       isPointerDown = false;
-      if (scrollZoomTimeout) {
-        clearTimeout(scrollZoomTimeout);
-        scrollZoomTimeout = null;
-      }
       scheduleAutoZoom(scrollContainer);
     },
     { passive: true }
@@ -1021,15 +999,6 @@ window.addEventListener("load", () => {
       // при обычной прокрутке — да
       zoomAnimation === null && !revealLocked
     );
-
-    // Дебаунс: зум подстраиваем только после окончания прокрутки
-    if (scrollZoomTimeout) clearTimeout(scrollZoomTimeout);
-    scrollZoomTimeout = setTimeout(() => {
-      scrollZoomTimeout = null;
-      if (!isPointerDown) {
-        scheduleAutoZoom(scrollContainer, { animate: false });
-      }
-    }, 140);
   });
   initPanning();
 });
