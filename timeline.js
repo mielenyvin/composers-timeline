@@ -1,23 +1,28 @@
 const minBirth = Math.min(...composers.map((c) => c.birth));
 const maxBirth = Math.max(...composers.map((c) => c.birth));
 const maxDeath = Math.max(...composers.map((c) => c.death));
-const minYear = minBirth - 5;
-const maxYear = Math.max(maxBirth, maxDeath) + 1;
+const minYear = minBirth - 10;
+const maxYear = Math.max(maxBirth, maxDeath) + 5;
 const span = maxYear - minYear;
 
 const sortedComposers = [...composers].sort((a, b) => a.birth - b.birth);
 
-const paddingLeft = 80;
-const paddingRight = 80;
+const paddingLeft = 0;
+const paddingRight = 0;
 const axisBottom = 80;
 const maxVerticalLanes = 4; // по высоте помещаем не больше 4 рядов
 const extraViewportWidthPx = 600; // считаем зум как будто по 300px слева и справа
+const zoomMultiplier = 3; // множитель для базового зума по горизонтали
 const placeholderMinPx = 50; // нижняя граница квадратика
 const placeholderTopPx = 10; // отступ от верхнего края карточки до начала квадрата
 const placeholderGapPx = 4; // расстояние между низом квадрата и датой рождения
 const cardBottomPaddingPx = 6; // запас под датой рождения
 const laneGapPx = 20; // вертикальный зазор между рядами
 const cardOffsetPx = 50; // отступ от оси до первого ряда карточек
+
+// делаем палочки и ряды в 1.5 раза ниже
+const verticalScale = 2 / 4;
+
 const topMarginPx = 40; // запас сверху, чтобы верхний ряд не упирался в край окна
 
 const minLaneDistancePx = 290; // минимальное расстояние по X между элементами в одном ряду
@@ -120,6 +125,18 @@ function updateVisibilityForElements(
   });
 }
 
+// --- Throttle for visibility updates ---
+let visibilityRafPending = false;
+
+function scheduleVisibilityUpdate(scrollContainer, allowReveal) {
+  if (visibilityRafPending) return;
+  visibilityRafPending = true;
+  requestAnimationFrame(() => {
+    visibilityRafPending = false;
+    updateVisibilityForElements(scrollContainer, { allowReveal });
+  });
+}
+
 function animateZoomTo(targetPxPerYear, anchorYear, anchorSide = "center") {
   const startPxPerYear = currentPxPerYear;
   const delta = targetPxPerYear - startPxPerYear;
@@ -206,37 +223,46 @@ function computeDynamicLaneMetrics(scrollContainer) {
   const extraCardSpace =
     placeholderTopPx + placeholderGapPx + cardBottomPaddingPx;
 
-  // Раскладываем 4 ряда (или меньше, если экран низкий) в доступную высоту.
-  // Из высоты окна вычитаем верхний запас, ось, отступ до первого ряда,
-  // вертикальные зазоры и "дополнительное" место у карточки (текст + отступы).
+  // скейлим отступ от оси и межрядный зазор
+  const scaledCardOffset = cardOffsetPx * verticalScale;
+  const scaledLaneGap = laneGapPx * verticalScale;
+
+  // Раскладываем maxVerticalLanes рядов в доступную высоту
   const rawPlaceholder =
     (viewportHeight -
       topMarginPx -
       axisBottom -
-      cardOffsetPx -
-      (maxVerticalLanes - 1) * laneGapPx -
+      scaledCardOffset -
+      (maxVerticalLanes - 1) * scaledLaneGap -
       maxVerticalLanes * extraCardSpace) /
     maxVerticalLanes;
 
-  // Минимальный размер — 50px, вверх не ограничиваем, чтобы на высоких
-  // экранах карточки крупнели и вмещалось не больше 4 рядов.
   const placeholderSize = Math.max(
     placeholderMinPx,
     Math.floor(rawPlaceholder || 0)
   );
   const cardHeight = placeholderSize + extraCardSpace;
-  const laneHeight = cardHeight + laneGapPx;
+  const laneHeight = cardHeight + scaledLaneGap;
 
-  // Сколько рядов реально поместится с текущими размерами.
+  // Сколько рядов реально поместится
   const availableAfterFirstRow =
-    viewportHeight - topMarginPx - axisBottom - cardOffsetPx - cardHeight;
+    viewportHeight - topMarginPx - axisBottom - scaledCardOffset - cardHeight;
+
   const extraStacks =
     availableAfterFirstRow > 0
       ? Math.floor(availableAfterFirstRow / laneHeight)
       : 0;
+
   const maxStacks = Math.max(1, Math.min(maxVerticalLanes, 1 + extraStacks));
 
-  return { laneHeight, placeholderSize, cardHeight, maxStacks };
+  // важно – возвращаем ещё и отступ от оси
+  return {
+    laneHeight,
+    placeholderSize,
+    cardHeight,
+    maxStacks,
+    cardOffset: scaledCardOffset,
+  };
 }
 
 function applyDynamicLaneMetrics(metrics) {
@@ -275,7 +301,9 @@ function computeInitialPxPerYear(scrollContainer) {
     200,
     viewportWidth - paddingLeft - paddingRight
   );
-  const pxPerYear = availableWidth / span;
+  const basePxPerYear = availableWidth / span;
+  // Делаем стартовый зум в zoomMultiplier раз крупнее
+  const pxPerYear = basePxPerYear * zoomMultiplier;
   return Math.max(minPxPerYear, Math.min(maxPxPerYear, pxPerYear));
 }
 
@@ -399,9 +427,9 @@ function renderTimeline(arg = null) {
 
   // Lane height берём из метрик, зависящих от текущей высоты окна.
   const laneCount = Math.max(1, lanesLastX.length);
-  lastLaneCount = laneCount; // запоминаем актуальное количество рядов по вертикали
-  const cardOffset = cardOffsetPx; // distance from axis to the first row of cards
-  const laneHeight = metrics.laneHeight;
+  lastLaneCount = laneCount;
+  const cardOffset = metrics.cardOffset; // уже сжатый отступ
+  const laneHeight = metrics.laneHeight; // уже сжатый шаг по вертикали
 
   lastLaneScale = 1;
   lastLaneHeight = laneHeight;
@@ -766,7 +794,7 @@ function computeMaxVerticalStacksForViewport(scrollContainer) {
     viewportHeight -
     topMarginPx -
     axisBottom -
-    cardOffsetPx -
+    metrics.cardOffset -
     metrics.cardHeight;
 
   if (available <= 0 || !isFinite(available)) {
@@ -804,9 +832,10 @@ function computeOptimalPxPerYearForCenter(scrollContainer, centerYear) {
   });
 
   if (lanesAtMin <= maxVerticalStacks) {
-    // Минимальный зум подходит - это оптимально
-    console.log("  -> Возвращаем minPxPerYear:", minPxPerYear);
-    return minPxPerYear;
+    // Минимальный зум подходит - но мы хотим автозум в 2 раза больше
+    const scaled = Math.min(maxPxPerYear, minPxPerYear * 2);
+    console.log("  -> Возвращаем 2x minPxPerYear:", scaled.toFixed(2));
+    return scaled;
   }
 
   // Минимальный не подходит - ищем минимальный зум, при котором всё помещается
@@ -832,7 +861,9 @@ function computeOptimalPxPerYearForCenter(scrollContainer, centerYear) {
   }
 
   console.log("  -> Бинарный поиск вернул:", best.toFixed(2));
-  return best;
+  const scaled = Math.min(maxPxPerYear, best * 2);
+  console.log("  -> С учётом коэффициента 2x:", scaled.toFixed(2));
+  return scaled;
 }
 
 /**
@@ -883,7 +914,8 @@ function precomputeYearZoomMap(scrollContainer) {
     }
 
     const key = Math.round(y);
-    map[key] = best;
+    const zoom = Math.min(maxPxPerYear, best * 2);
+    map[key] = zoom;
   }
 
   // Сглаживание
@@ -981,16 +1013,6 @@ function initPanning() {
   let activePointerId = null;
   let lastScrollLeftDuringPan = 0;
 
-  // вспомогательная функция для авто-зума после завершения перетаскивания
-  function triggerAutoZoomAfterPan() {
-    const endScrollLeft = scrollContainer.scrollLeft;
-    if (endScrollLeft === startScrollLeft) {
-      return; // не было реального сдвига
-    }
-    const direction = endScrollLeft > startScrollLeft ? "right" : "left";
-    autoZoomDuringPan(scrollContainer, direction);
-  }
-
   scrollContainer.addEventListener("pointerdown", (e) => {
     isPanning = true;
     isUserPanning = true;
@@ -1011,17 +1033,15 @@ function initPanning() {
     const currentScrollLeft = scrollContainer.scrollLeft;
     lastScrollLeftDuringPan = currentScrollLeft;
 
-    // сразу обновляем видимость, разрешая появляться новым элементам,
-    // которые входят в область экрана во время перетаскивания
-    updateVisibilityForElements(scrollContainer, { allowReveal: true });
+    // обновляем видимость с throttle через requestAnimationFrame,
+    // чтобы не тормозить перетаскивание
+    scheduleVisibilityUpdate(scrollContainer, true);
   });
 
   function endPan(e) {
     if (!isPanning || (e && e.pointerId !== activePointerId)) return;
 
-    // один раз запускаем авто-зум после окончания перетаскивания
-    triggerAutoZoomAfterPan();
-
+    // просто завершаем перетаскивание без какого-либо авто-зумирования
     isPanning = false;
     activePointerId = null;
     isUserPanning = false;
@@ -1047,16 +1067,15 @@ window.addEventListener("load", () => {
   precomputeYearZoomMap(scrollContainer);
   renderTimeline();
 
-  // Run initial auto-zoom (with anchor on the left edge) while the
-  // timeline is hidden. It will unhide itself when the animation ends.
-  autoZoomDuringPan(scrollContainer, "init");
+  // (отключён) начальный авто-зум — теперь оставляем зум, посчитанный computeInitialPxPerYear и renderTimeline()
 
   scrollContainer.addEventListener("scroll", () =>
-    updateVisibilityForElements(scrollContainer, {
+    scheduleVisibilityUpdate(
+      scrollContainer,
       // во время анимации зума новые элементы не показываем (revealLocked),
       // при обычной прокрутке — да
-      allowReveal: zoomAnimation === null && !revealLocked,
-    })
+      zoomAnimation === null && !revealLocked
+    )
   );
   initPanning();
 });
