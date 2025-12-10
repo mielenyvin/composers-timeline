@@ -825,36 +825,11 @@ function applyAutoZoom(
   }
 
   const centerYear = getCenterYear(targetContainer);
-  const maxStacks = computeMaxVerticalStacksForViewport(targetContainer);
-  const lanesNow = computeLaneCountForCenterYear(
-    targetContainer,
-    centerYear,
-    currentPxPerYear,
-    maxStacks
-  );
-
   const desiredPxPerYear = computeDesiredPxPerYear(
     targetContainer,
     centerYear
   );
   if (desiredPxPerYear == null) return;
-
-  // Если уже больше 4 рядов — сразу ставим необходимый зум без анимации и бленда,
-  // чтобы никто не скрывался.
-  if (lanesNow > maxStacks) {
-    const forcedPxPerYear = computeOptimalPxPerYearForCenter(
-      targetContainer,
-      centerYear
-    );
-    currentPxPerYear = Math.min(
-      maxPxPerYear,
-      Math.max(minPxPerYear, forcedPxPerYear)
-    );
-    renderTimeline({ anchorYear: centerYear, anchorSide });
-    revealLocked = false;
-    updateVisibilityForElements(targetContainer, { allowReveal: true });
-    return;
-  }
 
   if (Math.abs(desiredPxPerYear - currentPxPerYear) < 0.05) {
     return;
@@ -863,7 +838,7 @@ function applyAutoZoom(
   if (!animate) {
     const blended =
       currentPxPerYear +
-      (desiredPxPerYear - currentPxPerYear) * 0.3; // ещё мягче подстраиваем без рывков
+      (desiredPxPerYear - currentPxPerYear) * 0.3; // мягкая подстройка без рывков
     currentPxPerYear = Math.max(
       minPxPerYear,
       Math.min(maxPxPerYear, blended)
