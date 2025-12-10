@@ -7,8 +7,8 @@ const span = maxYear - minYear;
 
 const sortedComposers = [...composers].sort((a, b) => a.birth - b.birth);
 
-const paddingLeft = 0; // даём запас, чтобы самая левая карточка не уезжала за край
-const paddingRight = 0;
+const paddingLeft = 220; // даём запас, чтобы самая левая карточка не уезжала за край
+const paddingRight = 220;
 const axisBottom = 80;
 const maxVerticalLanes = 4; // по высоте помещаем не больше 4 рядов
 const extraViewportWidthPx = 600; // считаем зум как будто по 300px слева и справа
@@ -37,9 +37,6 @@ let yearZoomMap = null; // предрассчитанные зумы по год
 let zoomAnimation = null; // состояние текущей анимации зума
 let revealLocked = false; // блокируем показ новых элементов до завершения зума
 let autoZoomRafPending = false; // не даём запускать пересчёт зума слишком часто
-let isPointerDown = false; // во время удержания пальца/мыши не авто-зумим, чтобы не дёргалось
-
-let isPanning = false; // находимся ли сейчас в режиме перетаскивания таймлайна мышкой
 
 // Динамические размеры, которые зависят от высоты viewport
 let currentPlaceholderSizePx = 100;
@@ -153,7 +150,7 @@ function animateZoomTo(targetPxPerYear, anchorYear, anchorSide = "center") {
     return;
   }
 
-  const durationMs = 200;
+  const durationMs = 320;
 
   // сбрасываем прошлую анимацию
   zoomAnimation = {
@@ -188,29 +185,27 @@ function animateZoomTo(targetPxPerYear, anchorYear, anchorSide = "center") {
     if (t < 1) {
       requestAnimationFrame(step);
     } else {
-  currentPxPerYear = zoomAnimation.targetPxPerYear;
-  const finishedAnchorYear = zoomAnimation.anchorYear;
-  const finishedAnchorSide = zoomAnimation.anchorSide;
-  zoomAnimation = null;
-  revealLocked = false;
-  renderTimeline({
-    anchorYear: finishedAnchorYear,
-    anchorSide: finishedAnchorSide,
-    forceReveal: true,
-  });
+      currentPxPerYear = zoomAnimation.targetPxPerYear;
+      zoomAnimation = null;
+      revealLocked = false;
+      renderTimeline({
+        anchorYear,
+        anchorSide,
+        forceReveal: true,
+      });
 
-  const scrollContainer = document.getElementById("timeline");
-  if (scrollContainer && scrollContainer.style.visibility === "hidden") {
-    scrollContainer.style.visibility = "visible";
-  }
+      // After the first auto-zoom on init we may have hidden the timeline.
+      // Make sure it is visible once the animation is fully finished.
+      const scrollContainer = document.getElementById("timeline");
+      if (scrollContainer && scrollContainer.style.visibility === "hidden") {
+        scrollContainer.style.visibility = "visible";
+      }
 
-  if (scrollContainer) {
-    // Держим тот же тип якоря, что и в анимации (в твоём случае — left)
-    scheduleAutoZoom(scrollContainer, {
-      anchorSide: finishedAnchorSide,
-    });
-  }
-}
+      // Проверяем, не нужно ли ещё слегка подстроить зум после завершения анимации.
+      if (scrollContainer) {
+        scheduleAutoZoom(scrollContainer);
+      }
+    }
   }
 
   requestAnimationFrame(step);
@@ -324,7 +319,7 @@ function renderTimeline(arg = null) {
 
   // Разбираем аргументы: либо число (центр), либо объект настроек привязки
   let anchorYear = null;
-  let anchorSide = "left"; // "center" или "left"
+  let anchorSide = "center"; // "center" или "left"
   let forceReveal = false;
 
   if (arg && typeof arg === "object") {
@@ -530,7 +525,7 @@ function renderTimeline(arg = null) {
     // star is added via CSS ::before ("★ ")
     years.textContent = String(c.birth);
     years.style.left = x + "px";
-    years.style.bottom = lifeY - 6 + "px"; // ставим на место бывшего birth-dot
+    years.style.bottom = lifeY - 2 + "px"; // ставим на место бывшего birth-dot
     years.dataset.x = x;
     years.dataset.laneIndex = String(laneIndex);
 
@@ -806,7 +801,6 @@ function computeDesiredPxPerYear(scrollContainer, centerYear) {
 
 function scheduleAutoZoom(scrollContainer, options = {}) {
   if (autoZoomRafPending) return;
-  if (isPointerDown) return; // не дёргаем зум, пока палец удерживается
   autoZoomRafPending = true;
   const opts = { ...options };
   requestAnimationFrame(() => {
@@ -839,27 +833,6 @@ function applyAutoZoom(
     maxStacks
   );
 
-  if (isPointerDown) {
-    // Во время удержания палца не анимируем зум, но если уже больше 4 рядов,
-    // делаем мгновенную коррекцию, чтобы никого не скрывать.
-    if (lanesNow > maxStacks) {
-      const forcedPxPerYear = computeOptimalPxPerYearForCenter(
-        targetContainer,
-        centerYear
-      );
-      currentPxPerYear = Math.min(
-        maxPxPerYear,
-        Math.max(minPxPerYear, forcedPxPerYear)
-      );
-      const forcedAnchorYear =
-        anchorSide === "left" ? minYear : centerYear;
-      renderTimeline({ anchorYear: forcedAnchorYear, anchorSide });
-      revealLocked = false;
-      updateVisibilityForElements(targetContainer, { allowReveal: true });
-    }
-    return;
-  }
-
   const desiredPxPerYear = computeDesiredPxPerYear(
     targetContainer,
     centerYear
@@ -877,9 +850,7 @@ function applyAutoZoom(
       maxPxPerYear,
       Math.max(minPxPerYear, forcedPxPerYear)
     );
-    // Если якорь по левому краю — фиксируем именно minYear
-    const forcedAnchorYear = anchorSide === "left" ? minYear : centerYear;
-    renderTimeline({ anchorYear: forcedAnchorYear, anchorSide });
+    renderTimeline({ anchorYear: centerYear, anchorSide });
     revealLocked = false;
     updateVisibilityForElements(targetContainer, { allowReveal: true });
     return;
@@ -913,25 +884,21 @@ function applyAutoZoom(
 
 function initPanning() {
   const scrollContainer = document.getElementById("timeline");
+  let isPanning = false;
   let startX = 0;
   let startScrollLeft = 0;
   let activePointerId = null;
 
   scrollContainer.addEventListener("pointerdown", (e) => {
-    // На тач-устройствах оставляем нативный скролл, кастомный drag только для мыши.
-    if (e.pointerType !== "mouse") return;
     isPanning = true;
-    isPointerDown = true;
     activePointerId = e.pointerId;
     scrollContainer.setPointerCapture(e.pointerId);
     startX = e.clientX;
     startScrollLeft = scrollContainer.scrollLeft;
     scrollContainer.style.cursor = "grabbing";
-    e.preventDefault();
   });
 
   scrollContainer.addEventListener("pointermove", (e) => {
-    if (e.pointerType !== "mouse") return;
     if (!isPanning || e.pointerId !== activePointerId) return;
     const dx = e.clientX - startX;
     scrollContainer.scrollLeft = startScrollLeft - dx;
@@ -944,56 +911,31 @@ function initPanning() {
   function endPan(e) {
     if (!isPanning || (e && e.pointerId !== activePointerId)) return;
 
-    // просто завершаем перетаскивание
+    // просто завершаем перетаскивание без какого-либо авто-зумирования
     isPanning = false;
-    isPointerDown = false;
     activePointerId = null;
     scrollContainer.style.cursor = "grab";
-
-    // после того, как пользователь отпустил мышь, один раз плавно подстраиваем зум
-    scheduleAutoZoom(scrollContainer);
   }
 
   scrollContainer.addEventListener("pointerup", endPan);
   scrollContainer.addEventListener("pointercancel", endPan);
   scrollContainer.addEventListener("pointerleave", endPan);
-
-  // iOS inertial scroll: фиксируем удержание пальца отдельно
-  scrollContainer.addEventListener(
-    "touchstart",
-    () => {
-      isPointerDown = true;
-    },
-    { passive: true }
-  );
-  scrollContainer.addEventListener(
-    "touchend",
-    () => {
-      isPointerDown = false;
-      scheduleAutoZoom(scrollContainer);
-    },
-    { passive: true }
-  );
-  scrollContainer.addEventListener(
-    "touchcancel",
-    () => {
-      isPointerDown = false;
-      scheduleAutoZoom(scrollContainer);
-    },
-    { passive: true }
-  );
 }
 
 window.addEventListener("load", () => {
   const scrollContainer = document.getElementById("timeline");
 
+  // Hide timeline during the very first layout + auto-zoom,
+  // so the user sees only the final, correctly zoomed state.
+  if (scrollContainer) {
+    // scrollContainer.style.visibility = "hidden";
+  }
+
   currentPxPerYear = computeInitialPxPerYear(scrollContainer);
   precomputeYearZoomMap(scrollContainer);
+  renderTimeline();
 
-  // Сразу рисуем так, как будто проскроллили максимально влево
-  renderTimeline({ anchorYear: minYear, anchorSide: "left" });
-
-  // Автозум тоже привязываем к левому краю
+  // Запускаем авто-зум, чтобы сразу подстроиться под плотность данных
   scheduleAutoZoom(scrollContainer, { anchorSide: "left" });
 
   scrollContainer.addEventListener("scroll", () => {
@@ -1003,6 +945,8 @@ window.addEventListener("load", () => {
       // при обычной прокрутке — да
       zoomAnimation === null && !revealLocked
     );
+    // во время перетаскивания/скролла применяем мгновенно без анимации
+    scheduleAutoZoom(scrollContainer, { animate: false });
   });
   initPanning();
 });
