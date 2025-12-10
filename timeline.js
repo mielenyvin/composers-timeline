@@ -38,8 +38,6 @@ let zoomAnimation = null; // состояние текущей анимации 
 let revealLocked = false; // блокируем показ новых элементов до завершения зума
 let autoZoomRafPending = false; // не даём запускать пересчёт зума слишком часто
 
-let isPanning = false; // находимся ли сейчас в режиме перетаскивания таймлайна мышкой
-
 // Динамические размеры, которые зависят от высоты viewport
 let currentPlaceholderSizePx = 100;
 let currentCardHeightPx = 120;
@@ -886,6 +884,7 @@ function applyAutoZoom(
 
 function initPanning() {
   const scrollContainer = document.getElementById("timeline");
+  let isPanning = false;
   let startX = 0;
   let startScrollLeft = 0;
   let activePointerId = null;
@@ -912,13 +911,10 @@ function initPanning() {
   function endPan(e) {
     if (!isPanning || (e && e.pointerId !== activePointerId)) return;
 
-    // просто завершаем перетаскивание
+    // просто завершаем перетаскивание без какого-либо авто-зумирования
     isPanning = false;
     activePointerId = null;
     scrollContainer.style.cursor = "grab";
-
-    // после того, как пользователь отпустил мышь, один раз подстраиваем зум
-    scheduleAutoZoom(scrollContainer);
   }
 
   scrollContainer.addEventListener("pointerup", endPan);
@@ -949,12 +945,8 @@ window.addEventListener("load", () => {
       // при обычной прокрутке — да
       zoomAnimation === null && !revealLocked
     );
-
-    // Автозум во время обычного скролла (колёсико, ползунок) оставляем,
-    // но отключаем его при перетаскивании таймлайна мышью, чтобы не было рывков.
-    if (!isPanning) {
-      scheduleAutoZoom(scrollContainer, { animate: false });
-    }
+    // во время перетаскивания/скролла применяем мгновенно без анимации
+    scheduleAutoZoom(scrollContainer, { animate: false });
   });
   initPanning();
 });
