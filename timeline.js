@@ -40,6 +40,7 @@ let autoZoomRafPending = false; // не даём запускать пересч
 let isPointerDown = false; // во время удержания пальца/мыши не авто-зумим, чтобы не дёргалось
 
 let isPanning = false; // находимся ли сейчас в режиме перетаскивания таймлайна мышкой
+let scrollZoomTimeout = null; // debounce для авто-зумов после прокрутки
 
 // Динамические размеры, которые зависят от высоты viewport
 let currentPlaceholderSizePx = 100;
@@ -530,7 +531,7 @@ function renderTimeline(arg = null) {
     // star is added via CSS ::before ("★ ")
     years.textContent = String(c.birth);
     years.style.left = x + "px";
-    years.style.bottom = lifeY - 2 + "px"; // ставим на место бывшего birth-dot
+    years.style.bottom = lifeY - 4 + "px"; // ставим на место бывшего birth-dot
     years.dataset.x = x;
     years.dataset.laneIndex = String(laneIndex);
 
@@ -806,7 +807,7 @@ function computeDesiredPxPerYear(scrollContainer, centerYear) {
 
 function scheduleAutoZoom(scrollContainer, options = {}) {
   if (autoZoomRafPending) return;
-  if (isPointerDown && options.animate === false) return; // не дёргаем зум, пока палец удерживается
+  if (isPointerDown) return; // не дёргаем зум, пока палец удерживается
   autoZoomRafPending = true;
   const opts = { ...options };
   requestAnimationFrame(() => {
@@ -868,23 +869,22 @@ function applyAutoZoom(
 
   // Если уже больше 4 рядов — сразу ставим необходимый зум без анимации и бленда,
   // чтобы никто не скрывался.
-if (lanesNow > maxStacks) {
-  const forcedPxPerYear = computeOptimalPxPerYearForCenter(
-    targetContainer,
-    centerYear
-  );
-  currentPxPerYear = Math.min(
-    maxPxPerYear,
-    Math.max(minPxPerYear, forcedPxPerYear)
-  );
-  // Если якорь по левому краю — фиксируем именно minYear
-  const forcedAnchorYear =
-    anchorSide === "left" ? minYear : centerYear;
-  renderTimeline({ anchorYear: forcedAnchorYear, anchorSide });
-  revealLocked = false;
-  updateVisibilityForElements(targetContainer, { allowReveal: true });
-  return;
-}
+  if (lanesNow > maxStacks) {
+    const forcedPxPerYear = computeOptimalPxPerYearForCenter(
+      targetContainer,
+      centerYear
+    );
+    currentPxPerYear = Math.min(
+      maxPxPerYear,
+      Math.max(minPxPerYear, forcedPxPerYear)
+    );
+    // Если якорь по левому краю — фиксируем именно minYear
+    const forcedAnchorYear = anchorSide === "left" ? minYear : centerYear;
+    renderTimeline({ anchorYear: forcedAnchorYear, anchorSide });
+    revealLocked = false;
+    updateVisibilityForElements(targetContainer, { allowReveal: true });
+    return;
+  }
 
   if (Math.abs(desiredPxPerYear - currentPxPerYear) < 0.05) {
     return;
@@ -921,7 +921,10 @@ function initPanning() {
   scrollContainer.addEventListener("pointerdown", (e) => {
     isPanning = true;
     isPointerDown = true;
-    isPointerDown = true;
+    if (scrollZoomTimeout) {
+      clearTimeout(scrollZoomTimeout);
+      scrollZoomTimeout = null;
+    }
     activePointerId = e.pointerId;
     scrollContainer.setPointerCapture(e.pointerId);
     startX = e.clientX;
@@ -945,9 +948,13 @@ function initPanning() {
     // просто завершаем перетаскивание
     isPanning = false;
     isPointerDown = false;
-    isPointerDown = false;
     activePointerId = null;
     scrollContainer.style.cursor = "grab";
+
+    if (scrollZoomTimeout) {
+      clearTimeout(scrollZoomTimeout);
+      scrollZoomTimeout = null;
+    }
 
     // после того, как пользователь отпустил мышь, один раз плавно подстраиваем зум
     scheduleAutoZoom(scrollContainer);
@@ -956,6 +963,43 @@ function initPanning() {
   scrollContainer.addEventListener("pointerup", endPan);
   scrollContainer.addEventListener("pointercancel", endPan);
   scrollContainer.addEventListener("pointerleave", endPan);
+
+  // iOS inertial scroll: фиксируем удержание пальца отдельно
+  scrollContainer.addEventListener(
+    "touchstart",
+    () => {
+      isPointerDown = true;
+      if (scrollZoomTimeout) {
+        clearTimeout(scrollZoomTimeout);
+        scrollZoomTimeout = null;
+      }
+    },
+    { passive: true }
+  );
+  scrollContainer.addEventListener(
+    "touchend",
+    () => {
+      isPointerDown = false;
+      if (scrollZoomTimeout) {
+        clearTimeout(scrollZoomTimeout);
+        scrollZoomTimeout = null;
+      }
+      scheduleAutoZoom(scrollContainer);
+    },
+    { passive: true }
+  );
+  scrollContainer.addEventListener(
+    "touchcancel",
+    () => {
+      isPointerDown = false;
+      if (scrollZoomTimeout) {
+        clearTimeout(scrollZoomTimeout);
+        scrollZoomTimeout = null;
+      }
+      scheduleAutoZoom(scrollContainer);
+    },
+    { passive: true }
+  );
 }
 
 window.addEventListener("load", () => {
@@ -978,11 +1022,14 @@ window.addEventListener("load", () => {
       zoomAnimation === null && !revealLocked
     );
 
-    // Во время обычного скролла (колёсико, ползунок) — подстраиваем зум сразу,
-    // а во время перетаскивания мышкой не трогаем зум, чтобы не было дёрганий.
-    if (!isPanning) {
-      scheduleAutoZoom(scrollContainer, { animate: false });
-    }
+    // Дебаунс: зум подстраиваем только после окончания прокрутки
+    if (scrollZoomTimeout) clearTimeout(scrollZoomTimeout);
+    scrollZoomTimeout = setTimeout(() => {
+      scrollZoomTimeout = null;
+      if (!isPointerDown) {
+        scheduleAutoZoom(scrollContainer, { animate: false });
+      }
+    }, 140);
   });
   initPanning();
 });
