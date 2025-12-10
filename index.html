@@ -1,0 +1,234 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <title>Composers Timeline</title>
+    <style>
+      * {
+        box-sizing: border-box;
+      }
+      :root {
+        --placeholder-size: 100px;
+        --placeholder-top: 10px;
+        --placeholder-gap: 4px;
+        --card-bottom-padding: 6px;
+        --lane-gap: 20px;
+        --card-height: calc(
+          var(--placeholder-top) + var(--placeholder-size) +
+          var(--placeholder-gap) + var(--card-bottom-padding)
+        );
+        --lane-height: calc(var(--card-height) + var(--lane-gap));
+      }
+      html,
+      body {
+        margin: 0;
+        padding: 0;
+        height: 100%;
+      }
+      body {
+        font-family: system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI",
+          sans-serif;
+        background: #f7f7f7;
+      }
+      #timeline {
+        position: relative;
+        width: 100vw;
+        height: 100vh;
+        overflow-x: auto; /* горизонтальный скролл */
+        overflow-y: hidden;
+        background: #f7f7f7;
+        cursor: grab;
+      }
+
+      #timeline-inner {
+        position: relative;
+        height: 100%;
+      }
+
+      /* Axis */
+      .axis {
+        position: absolute;
+        bottom: 80px;
+        height: 2px;
+        background: #666666;
+      }
+      .axis-tick {
+        position: absolute;
+        width: 2px;
+        background: #666666;
+      }
+      .axis-tick-minor {
+        height: 8px;
+      }
+      .axis-tick-major {
+        height: 16px;
+      }
+      .axis-label {
+        position: absolute;
+        font-size: 12px;
+        color: #666666;
+        bottom: 40px;
+        transform: translateX(-50%);
+        white-space: nowrap;
+      }
+
+      /* Vertical line from axis to card */
+      .stem {
+        position: absolute;
+        width: 2px;
+        background: #7a2222;
+        transform: translateX(-50%);
+        z-index: 1;
+      }
+      .birth-dot {
+        position: absolute;
+        width: 10px;
+        height: 10px;
+        border-radius: 50%;
+        background: #7a2222;
+        transform: translateX(-50%);
+      }
+      .death-dot {
+        position: absolute;
+        width: 10px;
+        height: 10px;
+        border-radius: 50%;
+        background: #2f2f2f;
+        border: 2px solid #f7f7f7;
+        transform: translateX(-50%);
+      }
+      .death-label {
+        position: absolute;
+        transform: translateX(-50%);
+        font-size: 9px;
+        color: #555555;
+        white-space: nowrap;
+        pointer-events: none;
+        z-index: 2;
+      }
+      .death-label-name {
+        font-weight: 500;
+      }
+      .death-label-death::before {
+        content: "";
+      }
+      .death-label-birth {
+        display: none;
+      }
+      .death-label-birth::before {
+        content: "";
+      }
+      .life-arc {
+        position: absolute;
+        overflow: visible;
+        pointer-events: none;
+        transform: translateY(-5px);
+      }
+      .life-arc path {
+        fill: none;
+        stroke: #000;
+        opacity: 0.05;
+        stroke-width: 2px;
+      }
+
+      /* Card with placeholder + text */
+      .composer {
+        position: absolute;
+        transform: translate(-50%, -5px);
+        width: max(360px, calc(var(--placeholder-size) * 2 + 60px));
+        height: var(--card-height);
+        z-index: 3;
+      }
+      .placeholder {
+        position: absolute;
+        left: 50%;
+        top: var(--placeholder-top);
+        transform: translateX(-50%);
+        width: var(--placeholder-size);
+        height: var(--placeholder-size);
+        background: #dddddd;
+        border-radius: 4px;
+        border: 2px solid #999999;
+        z-index: 2;
+      }
+      .name {
+        position: absolute;
+        left: calc(50% + var(--placeholder-size) / 2 + 10px);
+        top: calc(var(--placeholder-top) + var(--placeholder-size) / 2 - 12px);
+        font-weight: 600;
+        font-size: 14px;
+        line-height: 1.2;
+        text-align: left;
+        white-space: nowrap;
+        background: #f7f7f7;
+      }
+      .years {
+        position: absolute;
+        top: calc(
+          var(--placeholder-top) + var(--placeholder-size) + var(--placeholder-gap)
+        ); /* under the square placeholder */
+        left: 48%;
+        transform: translateX(-105%); /* place text to the left of the red birth dot (center) */
+        font-size: 11px;
+        color: #777777;
+        text-align: right;
+        white-space: nowrap;
+      }
+      .years::before {
+        content: "★ ";
+        color: #a02222;
+      }
+      .years::after {
+        content: "";
+      }
+    </style>
+  </head>
+  <body>
+    <div id="timeline">
+      <div id="timeline-inner"></div>
+    </div>
+
+    <script>
+      const composers = [
+        { name: "Antonio Vivaldi", birth: 1678, death: 1741 },
+        { name: "Johann Sebastian Bach", birth: 1685, death: 1750 },
+        { name: "Domenico Scarlatti", birth: 1685, death: 1757 },
+        { name: "George Frideric Handel", birth: 1685, death: 1759 },
+        { name: "Joseph Haydn", birth: 1732, death: 1809 },
+        { name: "Wolfgang Amadeus Mozart", birth: 1756, death: 1791 },
+        { name: "Ludwig van Beethoven", birth: 1770, death: 1827 },
+        { name: "Niccolò Paganini", birth: 1782, death: 1840 },
+        { name: "Franz Schubert", birth: 1797, death: 1828 },
+        { name: "Hector Berlioz", birth: 1803, death: 1869 },
+        { name: "Mikhail Glinka", birth: 1804, death: 1857 },
+        { name: "Felix Mendelssohn", birth: 1809, death: 1847 },
+        { name: "Frédéric Chopin", birth: 1810, death: 1849 },
+        { name: "Robert Schumann", birth: 1810, death: 1856 },
+        { name: "Franz Liszt", birth: 1811, death: 1886 },
+        { name: "Richard Wagner", birth: 1813, death: 1883 },
+        { name: "Giuseppe Verdi", birth: 1813, death: 1901 },
+        { name: "Johann Strauss II", birth: 1825, death: 1899 },
+        { name: "Johannes Brahms", birth: 1833, death: 1897 },
+        { name: "Alexander Borodin", birth: 1833, death: 1887 },
+        { name: "Camille Saint-Saëns", birth: 1835, death: 1921 },
+        { name: "Georges Bizet", birth: 1838, death: 1875 },
+        { name: "Modest Mussorgsky", birth: 1839, death: 1881 },
+        { name: "Pyotr Ilyich Tchaikovsky", birth: 1840, death: 1893 },
+        { name: "Antonín Dvořák", birth: 1841, death: 1904 },
+        { name: "Edvard Grieg", birth: 1843, death: 1907 },
+        { name: "Nikolai Rimsky-Korsakov", birth: 1844, death: 1908 },
+        { name: "Gustav Mahler", birth: 1860, death: 1911 },
+        { name: "Claude Debussy", birth: 1862, death: 1918 },
+        { name: "Erik Satie", birth: 1866, death: 1925 },
+        { name: "Alexander Scriabin", birth: 1872, death: 1915 },
+        { name: "Sergei Rachmaninoff", birth: 1873, death: 1943 },
+        { name: "Maurice Ravel", birth: 1875, death: 1937 },
+        { name: "Béla Bartók", birth: 1881, death: 1945 },
+        { name: "Igor Stravinsky", birth: 1882, death: 1971 },
+        { name: "Sergei Prokofiev", birth: 1891, death: 1953 },
+        { name: "Dmitri Shostakovich", birth: 1906, death: 1975 }
+      ];
+    </script>
+    <script src="timeline.js"></script>
+  </body>
+</html>
