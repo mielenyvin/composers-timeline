@@ -7,8 +7,8 @@ const span = maxYear - minYear;
 
 const sortedComposers = [...composers].sort((a, b) => a.birth - b.birth);
 
-const paddingLeft = 220; // даём запас, чтобы самая левая карточка не уезжала за край
-const paddingRight = 220;
+const paddingLeft = 0; // даём запас, чтобы самая левая карточка не уезжала за край
+const paddingRight = 0;
 const axisBottom = 80;
 const maxVerticalLanes = 4; // по высоте помещаем не больше 4 рядов
 const extraViewportWidthPx = 600; // считаем зум как будто по 300px слева и справа
