@@ -23,7 +23,7 @@ const cardOffsetPx = 50; // отступ от оси до первого ряд�
 // делаем палочки и ряды в 1.5 раза ниже
 const verticalScale = 2 / 4;
 
-const topMarginPx = 40; // запас сверху, чтобы верхний ряд не упирался в край окна
+const topMarginPx = 10; // запас сверху, чтобы верхний ряд не упирался в край окна
 
 const minLaneDistancePx = 290; // минимальное расстояние по X между элементами в одном ряду
 
@@ -452,15 +452,6 @@ function renderTimeline(arg = null) {
     stem.dataset.laneIndex = String(laneIndex);
     container.appendChild(stem);
 
-    // Dot
-    const dot = document.createElement("div");
-    dot.className = "birth-dot";
-    dot.style.left = x + "px";
-    dot.style.bottom = lifeY + "px";
-    dot.dataset.x = x;
-    dot.dataset.laneIndex = String(laneIndex);
-    container.appendChild(dot);
-
     // Lifespan arc between birth and death
     const arcLeft = Math.min(x, deathX);
     const arcWidth = Math.abs(deathX - x);
@@ -532,13 +523,17 @@ function renderTimeline(arg = null) {
 
     const years = document.createElement("div");
     years.className = "years";
-    // only birth year; star is added via CSS ::before
+    // star is added via CSS ::before ("★ ")
     years.textContent = String(c.birth);
+    years.style.left = x + "px";
+    years.style.bottom = lifeY - 2 + "px"; // ставим на место бывшего birth-dot
+    years.dataset.x = x;
+    years.dataset.laneIndex = String(laneIndex);
 
     card.appendChild(placeholder);
     card.appendChild(name);
-    card.appendChild(years);
     container.appendChild(card);
+    container.appendChild(years);
   }
 
   // после изменения зума привязываемся к заданному якорю

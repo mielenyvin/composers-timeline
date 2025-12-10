@@ -19,7 +19,7 @@
         --lane-gap: 20px;
         --card-height: calc(
           var(--placeholder-top) + var(--placeholder-size) +
-          var(--placeholder-gap) + var(--card-bottom-padding)
+            var(--placeholder-gap) + var(--card-bottom-padding)
         );
         --lane-height: calc(var(--card-height) + var(--lane-gap));
       }
@@ -86,14 +86,6 @@
         transform: translateX(-50%);
         z-index: 1;
       }
-      .birth-dot {
-        position: absolute;
-        width: 7px;
-        height: 7px;
-        border-radius: 50%;
-        background: #7a2222;
-        transform: translateX(-50%);
-      }
       .death-dot {
         position: absolute;
         width: 10px;
@@ -111,6 +103,9 @@
         white-space: nowrap;
         pointer-events: none;
         z-index: 2;
+        text-shadow: -1px 0 #f7f7f7, 1px 0 #f7f7f7, 0 -1px #f7f7f7,
+          0 1px #f7f7f7, -1px -1px #f7f7f7, 1px -1px #f7f7f7, -1px 1px #f7f7f7,
+          1px 1px #f7f7f7;
       }
       .death-label-name {
         font-weight: 500;
@@ -170,31 +165,23 @@
         text-align: left;
         white-space: nowrap;
         color: #000000;
-        text-shadow:
-          -1px 0 #f7f7f7,
-          1px 0 #f7f7f7,
-          0 -1px #f7f7f7,
-          0 1px #f7f7f7,
-          -1px -1px #f7f7f7,
-          1px -1px #f7f7f7,
-          -1px 1px #f7f7f7,
+        text-shadow: -1px 0 #f7f7f7, 1px 0 #f7f7f7, 0 -1px #f7f7f7,
+          0 1px #f7f7f7, -1px -1px #f7f7f7, 1px -1px #f7f7f7, -1px 1px #f7f7f7,
           1px 1px #f7f7f7;
       }
       .years {
         position: absolute;
-        top: calc(
-          var(--placeholder-top) + var(--placeholder-size) + var(--placeholder-gap)
-        ); /* under the square placeholder */
-        left: 48%;
-        transform: translateX(-105%); /* place text to the left of the red birth dot (center) */
         font-size: 11px;
         color: #777777;
-        text-align: right;
+        text-align: center;
         white-space: nowrap;
+        transform: translateX(-50%);
+        background: #f7f7f7;
+        z-index: 10;
       }
       .years::before {
         content: "★ ";
-        color: #a02222;
+        color: #6e6e6e;
       }
       .years::after {
         content: "";
@@ -259,7 +246,7 @@
         { name: "Béla Bartók", birth: 1881, death: 1945 },
         { name: "Igor Stravinsky", birth: 1882, death: 1971 },
         { name: "Sergei Prokofiev", birth: 1891, death: 1953 },
-        { name: "Dmitri Shostakovich", birth: 1906, death: 1975 }
+        { name: "Dmitri Shostakovich", birth: 1906, death: 1975 },
       ];
     </script>
     <script src="timeline.js"></script>
