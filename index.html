@@ -42,6 +42,9 @@
         height: 100svh; /* корректнее на мобильных с плавающими панелями */
         overflow-x: auto; /* горизонтальный скролл */
         overflow-y: hidden;
+        touch-action: pan-x; /* разрешаем нативный горизонтальный скролл пальцем */
+        -webkit-overflow-scrolling: touch;
+        overscroll-behavior-x: contain;
         background: #f7f7f7;
         cursor: grab;
       }

@@ -918,6 +918,8 @@ function initPanning() {
   let activePointerId = null;
 
   scrollContainer.addEventListener("pointerdown", (e) => {
+    // На тач-устройствах оставляем нативный скролл, кастомный drag только для мыши.
+    if (e.pointerType !== "mouse") return;
     isPanning = true;
     isPointerDown = true;
     activePointerId = e.pointerId;
@@ -925,9 +927,11 @@ function initPanning() {
     startX = e.clientX;
     startScrollLeft = scrollContainer.scrollLeft;
     scrollContainer.style.cursor = "grabbing";
+    e.preventDefault();
   });
 
   scrollContainer.addEventListener("pointermove", (e) => {
+    if (e.pointerType !== "mouse") return;
     if (!isPanning || e.pointerId !== activePointerId) return;
     const dx = e.clientX - startX;
     scrollContainer.scrollLeft = startScrollLeft - dx;
