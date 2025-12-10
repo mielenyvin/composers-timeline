@@ -37,6 +37,7 @@ let yearZoomMap = null; // предрассчитанные зумы по год
 let zoomAnimation = null; // состояние текущей анимации зума
 let revealLocked = false; // блокируем показ новых элементов до завершения зума
 let autoZoomRafPending = false; // не даём запускать пересчёт зума слишком часто
+let isPointerDown = false; // во время удержания пальца/мыши не авто-зумим, чтобы не дёргалось
 
 let isPanning = false; // находимся ли сейчас в режиме перетаскивания таймлайна мышкой
 
@@ -805,6 +806,7 @@ function computeDesiredPxPerYear(scrollContainer, centerYear) {
 
 function scheduleAutoZoom(scrollContainer, options = {}) {
   if (autoZoomRafPending) return;
+  if (isPointerDown && options.animate === false) return; // не дёргаем зум, пока палец удерживается
   autoZoomRafPending = true;
   const opts = { ...options };
   requestAnimationFrame(() => {
@@ -836,6 +838,27 @@ function applyAutoZoom(
     currentPxPerYear,
     maxStacks
   );
+
+  if (isPointerDown) {
+    // Во время удержания палца не анимируем зум, но если уже больше 4 рядов,
+    // делаем мгновенную коррекцию, чтобы никого не скрывать.
+    if (lanesNow > maxStacks) {
+      const forcedPxPerYear = computeOptimalPxPerYearForCenter(
+        targetContainer,
+        centerYear
+      );
+      currentPxPerYear = Math.min(
+        maxPxPerYear,
+        Math.max(minPxPerYear, forcedPxPerYear)
+      );
+      const forcedAnchorYear =
+        anchorSide === "left" ? minYear : centerYear;
+      renderTimeline({ anchorYear: forcedAnchorYear, anchorSide });
+      revealLocked = false;
+      updateVisibilityForElements(targetContainer, { allowReveal: true });
+    }
+    return;
+  }
 
   const desiredPxPerYear = computeDesiredPxPerYear(
     targetContainer,
@@ -897,6 +920,8 @@ function initPanning() {
 
   scrollContainer.addEventListener("pointerdown", (e) => {
     isPanning = true;
+    isPointerDown = true;
+    isPointerDown = true;
     activePointerId = e.pointerId;
     scrollContainer.setPointerCapture(e.pointerId);
     startX = e.clientX;
@@ -919,6 +944,8 @@ function initPanning() {
 
     // просто завершаем перетаскивание
     isPanning = false;
+    isPointerDown = false;
+    isPointerDown = false;
     activePointerId = null;
     scrollContainer.style.cursor = "grab";
 
