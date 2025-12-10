@@ -2,6 +2,10 @@
 <html lang="en">
   <head>
     <meta charset="UTF-8" />
+    <meta
+      name="viewport"
+      content="width=device-width, initial-scale=1.0, viewport-fit=cover"
+    />
     <title>Composers Timeline</title>
     <style>
       * {
@@ -182,6 +186,21 @@
       }
       .years::after {
         content: "";
+      }
+
+      @media (max-width: 768px) {
+        .axis-label {
+          font-size: 14px;
+        }
+        .name {
+          font-size: 18px;
+        }
+        .years {
+          font-size: 15px;
+        }
+        .death-label {
+          font-size: 12px;
+        }
       }
     </style>
   </head>
