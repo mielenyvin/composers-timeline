@@ -531,7 +531,7 @@ function renderTimeline(arg = null) {
     // star is added via CSS ::before ("★ ")
     years.textContent = String(c.birth);
     years.style.left = x + "px";
-    years.style.bottom = lifeY - 4 + "px"; // ставим на место бывшего birth-dot
+    years.style.bottom = lifeY - 6 + "px"; // ставим на место бывшего birth-dot
     years.dataset.x = x;
     years.dataset.laneIndex = String(laneIndex);
 
