@@ -190,8 +190,6 @@
       // Data
       const composers = [
         { name: "Antonio Vivaldi", birth: 1678, death: 1741 },
-        { name: "Richard Wagner", birth: 1813, death: 1883 },
-        { name: "Igor Stravinsky", birth: 1882, death: 1971 },
         { name: "Johann Sebastian Bach", birth: 1685, death: 1750 },
         { name: "Domenico Scarlatti", birth: 1685, death: 1757 },
         { name: "George Frideric Handel", birth: 1685, death: 1759 },
@@ -229,12 +227,7 @@
         { name: "Sergei Prokofiev", birth: 1891, death: 1953 },
         { name: "Dmitri Shostakovich", birth: 1906, death: 1975 },
 
-        // additional major composers
-        { name: "Carl Maria von Weber", birth: 1786, death: 1826 },
-        { name: "Christoph Willibald Gluck", birth: 1714, death: 1787 },
 
-        // extra famous composers who died before 1804
-        { name: "Jean-Philippe Rameau", birth: 1683, death: 1764 },
       ];
 
       const composerImages = {
@@ -400,85 +393,15 @@
           (timeline && timeline.clientWidth) ||
           window.innerWidth;
 
-        const maxOverlapPx = 240; // maximum allowed horizontal overlap in pixels
-
-        // Sort composers by birth year for stable packing
+        // Sort composers by birth year so rows go top-to-bottom in time
         const sorted = [...composers].sort((a, b) => a.birth - b.birth);
 
-        // --- Pass 1: минимальное число рядов, если допускаем перекрытие до maxOverlapPx ---
-        const lanesOverlap = []; // по каждому ряду храним конец последней плашки в пикселях
-
-        sorted.forEach((c) => {
-          const startX = ((c.birth - axisMinYear) / axisSpan) * ganttWidth;
-          const endX = ((c.death - axisMinYear) / axisSpan) * ganttWidth;
-
-          let laneIndex = 0;
-          while (laneIndex < lanesOverlap.length) {
-            const prevEndX = lanesOverlap[laneIndex];
-            const overlapPx = prevEndX - startX;
-            if (overlapPx <= maxOverlapPx) {
-              break; // этот ряд подходит с учётом разрешённого перекрытия
-            }
-            laneIndex++;
-          }
-
-          if (laneIndex === lanesOverlap.length) {
-            lanesOverlap.push(endX);
-          } else {
-            lanesOverlap[laneIndex] = Math.max(lanesOverlap[laneIndex], endX);
-          }
-        });
-
-        const laneCount = lanesOverlap.length;
-
-        // --- Pass 2: размещаем заново при том же числе рядов, стараясь избегать перекрытий ---
-        const lanes = new Array(laneCount).fill(-Infinity); // конец последней плашки в пикселях
-        const placements = [];
-
-        sorted.forEach((c) => {
-          const startX = ((c.birth - axisMinYear) / axisSpan) * ganttWidth;
-          const endX = ((c.death - axisMinYear) / axisSpan) * ganttWidth;
-
-          let laneIndex = -1;
-
-          // 1) сначала ищем ряд без перекрытия
-          for (let i = 0; i < laneCount; i++) {
-            if (lanes[i] <= startX) {
-              laneIndex = i;
-              break;
-            }
-          }
-
-          if (laneIndex === -1) {
-            // 2) не нашли — ищем ряд с минимальным перекрытием ≤ maxOverlapPx
-            let bestIndex = -1;
-            let bestOverlap = Infinity;
-
-            for (let i = 0; i < laneCount; i++) {
-              const overlapPx = Math.max(0, lanes[i] - startX);
-              if (overlapPx <= maxOverlapPx && overlapPx < bestOverlap) {
-                bestOverlap = overlapPx;
-                bestIndex = i;
-              }
-            }
-
-            // 3) теоретически не должно случиться, но на всякий случай — берем ряд с минимальным перекрытием
-            if (bestIndex === -1) {
-              for (let i = 0; i < laneCount; i++) {
-                const overlapPx = Math.max(0, lanes[i] - startX);
-                if (overlapPx < bestOverlap) {
-                  bestOverlap = overlapPx;
-                  bestIndex = i;
-                }
-              }
-            }
-
-            laneIndex = bestIndex;
-          }
-
-          lanes[laneIndex] = Math.max(lanes[laneIndex], endX);
-          placements.push({ composer: c, laneIndex });
-        });
+        // One composer per lane (classic Gantt style)
+        const laneCount = sorted.length;
+        const placements = sorted.map((composer, index) => ({
+          composer,
+          laneIndex: index,
+        }));
 
         // Compute lane height so that all lanes occupy full available vertical space
         // Base this on the visible height of the timeline minus the axis height
@@ -494,11 +417,11 @@
         let laneHeight = 24;
         let barHeight = 18;
 
-        if (lanes.length > 0 && containerHeight > 0) {
+        if (laneCount > 0 && containerHeight > 0) {
           // Compute barHeight so that bars + gaps exactly fit into containerHeight:
           // totalHeight = lanes * barHeight + (lanes - 1) * verticalGap
           const maxBarHeight =
-            (containerHeight - (lanes.length - 1) * verticalGap) / lanes.length;
+            (containerHeight - (laneCount - 1) * verticalGap) / laneCount;
           // Clamp to a sensible minimum
           barHeight = Math.max(8, Math.floor(maxBarHeight));
           laneHeight = barHeight + verticalGap;
