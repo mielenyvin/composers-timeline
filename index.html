@@ -153,11 +153,9 @@
         overflow: hidden;
         text-overflow: ellipsis;
         /* чуть более заметная светлая обводка вокруг текста */
-        text-shadow:
-          -0.5px 0 rgba(255, 255, 255, 0.5),
-           0.5px 0 rgba(255, 255, 255, 0.5),
-           0 -0.5px rgba(255, 255, 255, 0.5),
-           0  0.5px rgba(255, 255, 255, 0.5);
+        text-shadow: -0.5px 0 rgba(255, 255, 255, 0.5),
+          0.5px 0 rgba(255, 255, 255, 0.5), 0 -0.5px rgba(255, 255, 255, 0.5),
+          0 0.5px rgba(255, 255, 255, 0.5);
       }
       .bar:hover {
         z-index: 10; /* при ховере выводим плашку поверх остальных */
@@ -165,35 +163,6 @@
         box-shadow: 0 3px 6px rgba(0, 0, 0, 0.35);
       }
 
-      .legend {
-        position: fixed;
-        left: 16px;
-        bottom: 20px;
-        z-index: 100;
-        background: rgba(15, 23, 42, 0.85);
-        padding: 10px 14px;
-        border-radius: 10px;
-        font-size: 14px;
-        box-shadow: 0 8px 24px rgba(0, 0, 0, 0.5);
-        backdrop-filter: blur(10px);
-        border: 1px solid rgba(148, 163, 184, 0.4);
-        pointer-events: none; /* не мешает перетаскиванию таймлайна */
-        display: none;
-      }
-
-      .legend-row {
-        display: flex;
-        align-items: center;
-        gap: 6px;
-        margin: 3px 0;
-      }
-
-      .legend-swatch {
-        width: 12px;
-        height: 12px;
-        border-radius: 999px;
-        border: 1px solid rgba(15, 23, 42, 0.7);
-      }
       @media (max-width: 900px) {
         .axis-label-major {
           font-size: 16px; /* ещё крупнее 50-летия на мобильных */
@@ -206,26 +175,23 @@
         .era-band {
           font-size: 14px; /* подписи эр тоже крупнее на мобильных */
         }
-
-        .legend {
-          font-size: 18px; /* более крупный текст легенды на мобильных */
-        }
       }
     </style>
   </head>
   <body>
     <div id="timeline">
       <div class="timeline-inner">
-        <div id="legend" class="legend"></div>
         <div id="axis" class="axis"></div>
         <div id="gantt"></div>
       </div>
     </div>
 
     <script>
-      // Data         { name: "Richard Wagner", birth: 1813, death: 1883 },          { name: "Igor Stravinsky", birth: 1882, death: 1971 },
+      // Data
       const composers = [
         { name: "Antonio Vivaldi", birth: 1678, death: 1741 },
+        { name: "Richard Wagner", birth: 1813, death: 1883 },
+        { name: "Igor Stravinsky", birth: 1882, death: 1971 },
         { name: "Johann Sebastian Bach", birth: 1685, death: 1750 },
         { name: "Domenico Scarlatti", birth: 1685, death: 1757 },
         { name: "George Frideric Handel", birth: 1685, death: 1759 },
@@ -245,12 +211,14 @@
         { name: "Johannes Brahms", birth: 1833, death: 1897 },
         { name: "Alexander Borodin", birth: 1833, death: 1887 },
         { name: "Camille Saint-Saëns", birth: 1835, death: 1921 },
+        { name: "Jacques Offenbach", birth: 1819, death: 1880 },
         { name: "Georges Bizet", birth: 1838, death: 1875 },
         { name: "Modest Mussorgsky", birth: 1839, death: 1881 },
         { name: "Pyotr Ilyich Tchaikovsky", birth: 1840, death: 1893 },
         { name: "Antonín Dvořák", birth: 1841, death: 1904 },
         { name: "Edvard Grieg", birth: 1843, death: 1907 },
         { name: "Nikolai Rimsky-Korsakov", birth: 1844, death: 1908 },
+        { name: "Giacomo Puccini", birth: 1858, death: 1924 },
         { name: "Gustav Mahler", birth: 1860, death: 1911 },
         { name: "Claude Debussy", birth: 1862, death: 1918 },
         { name: "Erik Satie", birth: 1866, death: 1925 },
@@ -260,9 +228,20 @@
         { name: "Béla Bartók", birth: 1881, death: 1945 },
         { name: "Sergei Prokofiev", birth: 1891, death: 1953 },
         { name: "Dmitri Shostakovich", birth: 1906, death: 1975 },
+
+        // additional major composers
+        { name: "Carl Maria von Weber", birth: 1786, death: 1826 },
+        { name: "Christoph Willibald Gluck", birth: 1714, death: 1787 },
+
+        // extra famous composers who died before 1804
+        { name: "Jean-Philippe Rameau", birth: 1683, death: 1764 },
       ];
 
       const composerImages = {
+
+        "Richard Wagner": "comp/wagner.jpg",
+        "Igor Stravinsky": "comp/stravinsky.jpg",
+
         "Antonio Vivaldi": "comp/vivaldi.jpg",
         "Johann Sebastian Bach": "comp/bach.png",
         "Domenico Scarlatti": "comp/scarlatti.jpg",
@@ -283,6 +262,7 @@
         "Johannes Brahms": "comp/brahms.jpg",
         "Alexander Borodin": "comp/borodin.jpg",
         "Camille Saint-Saëns": "comp/saint-saens.jpg",
+        "Jacques Offenbach": "comp/offenbach.jpg",
         "Georges Bizet": "comp/bizet.jpg",
         "Modest Mussorgsky": "comp/musorgskiy.jpg",
         "Pyotr Ilyich Tchaikovsky": "comp/tchaikovsky.jpg",
@@ -298,6 +278,16 @@
         "Béla Bartók": "comp/bartok.jpg",
         "Sergei Prokofiev": "comp/prokofiev.jpg",
         "Dmitri Shostakovich": "comp/shostakovich.jpg",
+
+        // additional major composers
+        "Carl Maria von Weber": "comp/weber.jpg",
+        "Giacomo Puccini": "comp/puccini.jpg",
+        "Jean Sibelius": "comp/sibelius.jpg",
+        "Christoph Willibald Gluck": "comp/gluck.jpg",
+        "Gioachino Rossini": "comp/rossini.jpg",
+
+        // extra famous composers who died before 1804
+        "Jean-Philippe Rameau": "comp/rameau.jpg",
       };
 
       function getComposerImage(name) {
@@ -335,8 +325,7 @@
         },
       ];
 
-      // Compute data min and max years (based only on composers)
-      const dataMinYear = Math.min(...composers.map((c) => c.birth));
+      // Compute data max year (based only on composers)
       const dataMaxYear = Math.max(...composers.map((c) => c.death));
 
       // Axis range: fix the visible start at 1675 so Baroque era goes off-screen to the left
@@ -344,13 +333,6 @@
       const axisMaxYear = Math.max(dataMaxYear, ERAS[ERAS.length - 1].to);
       const axisSpan = axisMaxYear - axisMinYear;
 
-      function getEra(year) {
-        for (const era of ERAS) {
-          if (year >= era.from && year < era.to) return era;
-        }
-        // Fallback: last era
-        return ERAS[ERAS.length - 1];
-      }
 
       function yearToPercent(year) {
         return ((year - axisMinYear) / axisSpan) * 100;
@@ -418,7 +400,7 @@
           (timeline && timeline.clientWidth) ||
           window.innerWidth;
 
-        const maxOverlapPx = 150; // maximum allowed horizontal overlap in pixels
+        const maxOverlapPx = 240; // maximum allowed horizontal overlap in pixels
 
         // Sort composers by birth year for stable packing
         const sorted = [...composers].sort((a, b) => a.birth - b.birth);
@@ -623,33 +605,10 @@
         });
       }
 
-      function buildLegend() {
-        const legend = document.getElementById("legend");
-        if (!legend) return;
-        legend.innerHTML = "";
-
-        ERAS.forEach((era) => {
-          const row = document.createElement("div");
-          row.className = "legend-row";
-
-          const swatch = document.createElement("div");
-          swatch.className = "legend-swatch";
-          swatch.style.backgroundImage = "none";
-          swatch.style.backgroundColor = era.color;
-
-          const label = document.createElement("span");
-          label.textContent = era.label;
-
-          row.appendChild(swatch);
-          row.appendChild(label);
-          legend.appendChild(row);
-        });
-      }
 
       window.addEventListener("load", () => {
         buildAxis();
         buildGantt();
-        buildLegend();
         enablePanning();
 
         // Показываем таймлайн только после полной отрисовки
