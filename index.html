@@ -6,219 +6,218 @@
       name="viewport"
       content="width=device-width, initial-scale=1.0, viewport-fit=cover"
     />
-    <title>Composers Timeline</title>
+    <title>Composers Gantt Timeline</title>
     <style>
       * {
         box-sizing: border-box;
       }
-      :root {
-        --placeholder-size: 100px;
-        --placeholder-top: 10px;
-        --placeholder-gap: 4px;
-        --card-bottom-padding: 6px;
-        --lane-gap: 20px;
-        --card-height: calc(
-          var(--placeholder-top) + var(--placeholder-size) +
-            var(--placeholder-gap) + var(--card-bottom-padding)
-        );
-        --lane-height: calc(var(--card-height) + var(--lane-gap));
-      }
+
       html,
       body {
         margin: 0;
         padding: 0;
         height: 100%;
+        overflow: hidden;
       }
+
       body {
         font-family: system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI",
           sans-serif;
-        background: #f7f7f7;
-      }
-      #timeline {
-        position: relative;
-        width: 100vw;
-        height: 100vh;
-        height: 100dvh;
-        height: 100svh; /* корректнее на мобильных с плавающими панелями */
-        overflow-x: auto; /* горизонтальный скролл */
-        overflow-y: hidden;
-        touch-action: pan-x; /* разрешаем нативный горизонтальный скролл пальцем */
-        -webkit-overflow-scrolling: touch;
-        overscroll-behavior-x: contain;
-        background: #f7f7f7;
-        cursor: grab;
+        color: #e5e7eb;
+        background: #ffffff;
       }
 
-      #timeline-inner {
-        position: relative;
+      #timeline {
+        width: 100%;
         height: 100%;
+        overflow-x: auto;
+        overflow-y: hidden;
+        cursor: grab;
+        display: flex;
+        background: #ffffff;
+        visibility: hidden; /* скрываем до полной отрисовки */
+      }
+
+      #timeline.panning {
+        cursor: grabbing;
+      }
+      #timeline.panning .bar {
+        pointer-events: none;
+      }
+
+      .timeline-inner {
+        position: relative;
+        min-width: 1200px;
+        height: 100%;
+        padding: 0px;
+        display: flex;
+        flex-direction: column;
       }
 
       /* Axis */
+
       .axis {
-        position: absolute;
-        bottom: 80px;
-        height: 2px;
-        background: #666666;
-        z-index: 10;
+        position: relative;
+        height: 35px;
+        border-bottom: 1px solid rgba(148, 163, 184, 0.5);
+        width: 250%;
+        flex: 0 0 35px;
       }
+
+      .era-band {
+        position: absolute;
+        top: 0;
+        bottom: 0;
+        display: flex;
+        align-items: flex-start; /* подпись у верхнего края */
+        justify-content: flex-start; /* в левом «уголке» эры */
+        padding: 2px 6px 0 26px; /* больше отступ слева, чтобы не наезжать на год */
+        font-size: 12px; /* как у крупных (50-летних) меток по умолчанию */
+        font-weight: 500;
+        color: #131313;
+        background-color: #707070;
+        border-left: 1px solid rgba(255, 255, 255, 0.15);
+        border-right: 1px solid rgba(0, 0, 0, 0.3);
+      }
+
       .axis-tick {
         position: absolute;
-        width: 2px;
-        background: #666666;
+        bottom: 0;
+        width: 1px;
+        background: rgba(148, 163, 184, 0.6);
       }
-      .axis-tick-minor {
-        height: 8px;
+
+      .axis-tick.minor {
+        height: 6px; /* меньшие тики для десятилетий */
+        width: 1px; /* одинаковая толщина */
+        opacity: 0.7;
       }
-      .axis-tick-major {
-        height: 16px;
+
+      .axis-tick.major {
+        height: 14px; /* более длинные тики для каждых 50 лет */
+        width: 1px; /* такая же толщина, как у minor */
+        opacity: 1;
       }
+
       .axis-label {
         position: absolute;
-        font-size: 12px;
-        color: #666666;
-        bottom: 40px;
+        bottom: 5px;
         transform: translateX(-50%);
         white-space: nowrap;
       }
 
-      /* Vertical line from axis to card */
-      .stem {
-        position: absolute;
-        width: 1px;
-        background: #7a2222;
-        transform: translateX(-50%);
-        z-index: 1;
-      }
-
-      .stem.stem-active {
-        background: rgb(202, 22, 154); /* или любой другой цвет */
-        width: 5px; /* можно слегка утолщить */
-      }
-
-      .death-dot {
-        position: absolute;
-        width: 10px;
-        height: 10px;
-        border-radius: 50%;
-        background: #2f2f2f;
-        border: 2px solid #f7f7f7;
-        transform: translateX(-50%);
-      }
-      .death-label {
-        position: absolute;
-        transform: translateX(-50%);
-        font-size: 9px;
-        color: #555555;
-        white-space: nowrap;
-        pointer-events: none;
-        z-index: 2;
-        text-shadow: -1px 0 #f7f7f7, 1px 0 #f7f7f7, 0 -1px #f7f7f7,
-          0 1px #f7f7f7, -1px -1px #f7f7f7, 1px -1px #f7f7f7, -1px 1px #f7f7f7,
-          1px 1px #f7f7f7;
-      }
-      .death-label-name {
+      .axis-label-major {
+        font-size: 12px; /* более крупный шрифт для 50-летий */
         font-weight: 500;
+        color: #2d2d2d;
+        bottom: 17px;
       }
-      .death-label-death::before {
-        content: "";
+
+      .axis-label-minor {
+        font-size: 10px; /* поменьше для остальных десятилетий */
+        font-weight: 400;
+        color: #000000;
       }
-      .death-label-birth {
+
+      #gantt {
+        position: relative;
+        width: 250%;
+        flex: 1 1 auto;
+        margin-top: 4px;
+        padding-bottom: 0;
+        height: 100%;
+      }
+
+      .bar {
+        opacity: 0.85;
+        position: absolute;
+        height: 18px;
+        border-radius: 6px; /* меньшее закругление */
+        padding: 0 3px;
+        color: #000000;
+        border: 0.5px solid rgb(65, 65, 65);
+        overflow: hidden;
+        z-index: 1; /* базовый слой для всех плашек */
+        display: flex;
+        align-items: center;
+        gap: 6px;
+      }
+      .bar-avatar {
+        flex-shrink: 0;
+        border-radius: 4px;
+        object-fit: cover;
+      }
+
+      .bar-label {
+        white-space: nowrap;
+        overflow: hidden;
+        text-overflow: ellipsis;
+      }
+      .bar:hover {
+        z-index: 10; /* при ховере выводим плашку поверх остальных */
+        opacity: 1;
+        box-shadow: 0 3px 6px rgba(0, 0, 0, 0.35);
+      }
+
+      .legend {
+        position: fixed;
+        left: 16px;
+        bottom: 20px;
+        z-index: 100;
+        background: rgba(15, 23, 42, 0.85);
+        padding: 10px 14px;
+        border-radius: 10px;
+        font-size: 14px;
+        box-shadow: 0 8px 24px rgba(0, 0, 0, 0.5);
+        backdrop-filter: blur(10px);
+        border: 1px solid rgba(148, 163, 184, 0.4);
+        pointer-events: none; /* не мешает перетаскиванию таймлайна */
         display: none;
       }
-      .death-label-birth::before {
-        content: "";
-      }
-      .life-arc {
-        position: absolute;
-        overflow: visible;
-        pointer-events: none;
-        transform: translateY(-5px);
-      }
-      .life-arc path {
-        fill: none;
-        stroke: #000;
-        opacity: 0.05;
-        stroke-width: 2px;
-      }
-      .offscreen {
-        display: none !important;
-      }
 
-      /* Card with placeholder + text */
-      .composer {
-        position: absolute;
-        transform: translate(-50%, -5px);
-        width: 140px;
-        height: var(--card-height);
-        z-index: 3;
-      }
-      .placeholder {
-        position: absolute;
-        left: 50%;
-        top: var(--placeholder-top);
-        transform: translateX(-50%);
-        width: var(--placeholder-size);
-        height: var(--placeholder-size);
-        background: #dddddd;
-        border-radius: 0px;
-        border: 0px solid #999999;
-        z-index: 2;
-      }
-      .years {
+      .legend-row {
         display: flex;
-        flex-direction: column;
         align-items: center;
-        gap: 2px;
-        position: absolute;
-        font-size: 11px;
-        color: #777777;
-        text-align: center;
-        white-space: normal;
-        transform: translateX(-50%);
-        background: #f7f7f7;
-        padding: 2px 6px;
-        border-radius: 4px;
-        z-index: 10;
-      }
-      .years::before {
-        content: "★ ";
-        color: #6e6e6e;
-      }
-      .years::after {
-        content: "";
-      }
-      .years-name {
-        font-size: 10px;
-        color: #555555;
-        line-height: 1.2;
-        font-weight: 500;
-        text-align: center;
-        max-width: 160px;
+        gap: 6px;
+        margin: 3px 0;
       }
 
-      @media (max-width: 768px) {
-        .axis-label {
-          font-size: 14px;
+      .legend-swatch {
+        width: 12px;
+        height: 12px;
+        border-radius: 999px;
+        border: 1px solid rgba(15, 23, 42, 0.7);
+      }
+      @media (max-width: 900px) {
+        .axis-label-major {
+          font-size: 16px; /* ещё крупнее 50-летия на мобильных */
         }
-        .name {
-          font-size: 18px;
+
+        .axis-label-minor {
+          font-size: 13px; /* тоже увеличены для читаемости */
         }
-        .years {
-          font-size: 15px;
+
+        .era-band {
+          font-size: 16px; /* подписи эр тоже крупнее на мобильных */
         }
-        .death-label {
-          font-size: 12px;
+
+        .legend {
+          font-size: 18px; /* более крупный текст легенды на мобильных */
         }
       }
     </style>
   </head>
   <body>
     <div id="timeline">
-      <div id="timeline-inner"></div>
+      <div class="timeline-inner">
+        <div id="legend" class="legend"></div>
+        <div id="axis" class="axis"></div>
+        <div id="gantt"></div>
+      </div>
     </div>
 
     <script>
+      // Data         { name: "Richard Wagner", birth: 1813, death: 1883 },          { name: "Igor Stravinsky", birth: 1882, death: 1971 },
       const composers = [
         { name: "Antonio Vivaldi", birth: 1678, death: 1741 },
         { name: "Johann Sebastian Bach", birth: 1685, death: 1750 },
@@ -235,7 +234,6 @@
         { name: "Frédéric Chopin", birth: 1810, death: 1849 },
         { name: "Robert Schumann", birth: 1810, death: 1856 },
         { name: "Franz Liszt", birth: 1811, death: 1886 },
-        { name: "Richard Wagner", birth: 1813, death: 1883 },
         { name: "Giuseppe Verdi", birth: 1813, death: 1901 },
         { name: "Johann Strauss II", birth: 1825, death: 1899 },
         { name: "Johannes Brahms", birth: 1833, death: 1897 },
@@ -254,11 +252,407 @@
         { name: "Sergei Rachmaninoff", birth: 1873, death: 1943 },
         { name: "Maurice Ravel", birth: 1875, death: 1937 },
         { name: "Béla Bartók", birth: 1881, death: 1945 },
-        { name: "Igor Stravinsky", birth: 1882, death: 1971 },
         { name: "Sergei Prokofiev", birth: 1891, death: 1953 },
         { name: "Dmitri Shostakovich", birth: 1906, death: 1975 },
       ];
+
+      const composerImages = {
+        "Antonio Vivaldi": "comp/vivaldi.jpg",
+        "Johann Sebastian Bach": "comp/bach.png",
+        "Domenico Scarlatti": "comp/scarlatti.jpg",
+        "George Frideric Handel": "comp/handel.jpg",
+        "Joseph Haydn": "comp/haydn.jpg",
+        "Wolfgang Amadeus Mozart": "comp/mozart.jpg",
+        "Ludwig van Beethoven": "comp/beethoven.jpg",
+        "Niccolò Paganini": "comp/paganini.jpeg",
+        "Franz Schubert": "comp/schubert.jpg",
+        "Hector Berlioz": "comp/berlioz.jpg",
+        "Mikhail Glinka": "comp/glinka.jpg",
+        "Felix Mendelssohn": "comp/mendelssohn.jpg",
+        "Frédéric Chopin": "comp/chopin.jpeg",
+        "Robert Schumann": "comp/schumann.jpg",
+        "Franz Liszt": "comp/liszt.jpg",
+        "Giuseppe Verdi": "comp/verdi.jpg",
+        "Johann Strauss II": "comp/strauss.jpg",
+        "Johannes Brahms": "comp/brahms.jpg",
+        "Alexander Borodin": "comp/borodin.jpg",
+        "Camille Saint-Saëns": "comp/saint-saens.jpg",
+        "Georges Bizet": "comp/bizet.jpg",
+        "Modest Mussorgsky": "comp/musorgskiy.jpg",
+        "Pyotr Ilyich Tchaikovsky": "comp/tchaikovsky.jpg",
+        "Antonín Dvořák": "comp/dvorak.jpg",
+        "Edvard Grieg": "comp/grieg.jpg",
+        "Nikolai Rimsky-Korsakov": "comp/rimsky-korsakov.jpg",
+        "Gustav Mahler": "comp/mahler.jpg",
+        "Claude Debussy": "comp/debussy.jpg",
+        "Erik Satie": "comp/satie.jpg",
+        "Alexander Scriabin": "comp/scriabin.jpg",
+        "Sergei Rachmaninoff": "comp/rachmaninoff.jpg",
+        "Maurice Ravel": "comp/ravel.jpg",
+        "Béla Bartók": "comp/bartok.jpg",
+        "Sergei Prokofiev": "comp/prokofiev.jpg",
+        "Dmitri Shostakovich": "comp/shostakovich.jpg",
+      };
+
+      function getComposerImage(name) {
+        return composerImages[name] || null;
+      }
+
+      const ERAS = [
+        {
+          id: "baroque",
+          label: "Baroque",
+          from: 1600,
+          to: 1750,
+          color: "#dcdcdc", // светло-серый
+        },
+        {
+          id: "classical",
+          label: "Classical",
+          from: 1750,
+          to: 1820,
+          color: "#c8c8c8", // чуть темнее
+        },
+        {
+          id: "romantic",
+          label: "Romantic",
+          from: 1820,
+          to: 1900,
+          color: "#b4b4b4", // средне-серый
+        },
+        {
+          id: "twentieth",
+          label: "20th Century",
+          from: 1900,
+          to: 2000,
+          color: "#a0a0a0", // ближе к средне-серому
+        },
+      ];
+
+      // Compute data min and max years (based only on composers)
+      const dataMinYear = Math.min(...composers.map((c) => c.birth));
+      const dataMaxYear = Math.max(...composers.map((c) => c.death));
+
+      // Axis range: fix the visible start at 1675 so Baroque era goes off-screen to the left
+      const axisMinYear = 1675;
+      const axisMaxYear = Math.max(dataMaxYear, ERAS[ERAS.length - 1].to);
+      const axisSpan = axisMaxYear - axisMinYear;
+
+      function getEra(year) {
+        for (const era of ERAS) {
+          if (year >= era.from && year < era.to) return era;
+        }
+        // Fallback: last era
+        return ERAS[ERAS.length - 1];
+      }
+
+      function yearToPercent(year) {
+        return ((year - axisMinYear) / axisSpan) * 100;
+      }
+
+      function buildAxis() {
+        const axis = document.getElementById("axis");
+        if (!axis) return;
+        axis.innerHTML = "";
+
+        // Начинаем подписи десятилетий с ближайшего десятилетия справа от axisMinYear
+        const decadeStart = Math.ceil(axisMinYear / 10) * 10;
+        const decadeEnd = Math.ceil(axisMaxYear / 10) * 10;
+
+        // Сначала рисуем полосы эр
+        ERAS.forEach((era) => {
+          const start = Math.max(era.from, axisMinYear);
+          const end = Math.min(era.to, axisMaxYear);
+          if (end <= start) return;
+
+          const band = document.createElement("div");
+          band.className = "era-band";
+          band.style.left = yearToPercent(start) + "%";
+          band.style.width = yearToPercent(end) - yearToPercent(start) + "%";
+          band.style.backgroundColor = era.color;
+          band.textContent = era.label;
+
+          // Для первой эры (Baroque) подпись выравниваем по правому краю полосы
+          if (era.id === "baroque") {
+            band.style.justifyContent = "flex-end";
+            band.style.paddingLeft = "6px";
+            band.style.paddingRight = "26px";
+            band.style.textAlign = "right";
+          }
+
+          axis.appendChild(band);
+        });
+
+        // Затем поверх — тики и подписи десятилетий
+        for (let year = decadeStart; year <= decadeEnd; year += 10) {
+          const tick = document.createElement("div");
+          const isMajor = year % 50 === 0; // каждые 50 лет — крупный тик
+          tick.className = "axis-tick " + (isMajor ? "major" : "minor");
+          tick.style.left = yearToPercent(year) + "%";
+          axis.appendChild(tick);
+
+          const label = document.createElement("div");
+          label.className =
+            "axis-label " + (isMajor ? "axis-label-major" : "axis-label-minor");
+          label.style.left = yearToPercent(year) + "%";
+          label.textContent = year;
+          axis.appendChild(label);
+        }
+      }
+
+      function buildGantt() {
+        const gantt = document.getElementById("gantt");
+        const axis = document.getElementById("axis");
+        const timeline = document.getElementById("timeline");
+        gantt.innerHTML = "";
+
+        const ganttWidth =
+          (gantt && gantt.clientWidth) ||
+          (axis && axis.clientWidth) ||
+          (timeline && timeline.clientWidth) ||
+          window.innerWidth;
+
+        const maxOverlapPx = 150; // maximum allowed horizontal overlap in pixels
+
+        // Sort composers by birth year for stable packing
+        const sorted = [...composers].sort((a, b) => a.birth - b.birth);
+
+        // --- Pass 1: минимальное число рядов, если допускаем перекрытие до maxOverlapPx ---
+        const lanesOverlap = []; // по каждому ряду храним конец последней плашки в пикселях
+
+        sorted.forEach((c) => {
+          const startX = ((c.birth - axisMinYear) / axisSpan) * ganttWidth;
+          const endX = ((c.death - axisMinYear) / axisSpan) * ganttWidth;
+
+          let laneIndex = 0;
+          while (laneIndex < lanesOverlap.length) {
+            const prevEndX = lanesOverlap[laneIndex];
+            const overlapPx = prevEndX - startX;
+            if (overlapPx <= maxOverlapPx) {
+              break; // этот ряд подходит с учётом разрешённого перекрытия
+            }
+            laneIndex++;
+          }
+
+          if (laneIndex === lanesOverlap.length) {
+            lanesOverlap.push(endX);
+          } else {
+            lanesOverlap[laneIndex] = Math.max(lanesOverlap[laneIndex], endX);
+          }
+        });
+
+        const laneCount = lanesOverlap.length;
+
+        // --- Pass 2: размещаем заново при том же числе рядов, стараясь избегать перекрытий ---
+        const lanes = new Array(laneCount).fill(-Infinity); // конец последней плашки в пикселях
+        const placements = [];
+
+        sorted.forEach((c) => {
+          const startX = ((c.birth - axisMinYear) / axisSpan) * ganttWidth;
+          const endX = ((c.death - axisMinYear) / axisSpan) * ganttWidth;
+
+          let laneIndex = -1;
+
+          // 1) сначала ищем ряд без перекрытия
+          for (let i = 0; i < laneCount; i++) {
+            if (lanes[i] <= startX) {
+              laneIndex = i;
+              break;
+            }
+          }
+
+          if (laneIndex === -1) {
+            // 2) не нашли — ищем ряд с минимальным перекрытием ≤ maxOverlapPx
+            let bestIndex = -1;
+            let bestOverlap = Infinity;
+
+            for (let i = 0; i < laneCount; i++) {
+              const overlapPx = Math.max(0, lanes[i] - startX);
+              if (overlapPx <= maxOverlapPx && overlapPx < bestOverlap) {
+                bestOverlap = overlapPx;
+                bestIndex = i;
+              }
+            }
+
+            // 3) теоретически не должно случиться, но на всякий случай — берем ряд с минимальным перекрытием
+            if (bestIndex === -1) {
+              for (let i = 0; i < laneCount; i++) {
+                const overlapPx = Math.max(0, lanes[i] - startX);
+                if (overlapPx < bestOverlap) {
+                  bestOverlap = overlapPx;
+                  bestIndex = i;
+                }
+              }
+            }
+
+            laneIndex = bestIndex;
+          }
+
+          lanes[laneIndex] = Math.max(lanes[laneIndex], endX);
+          placements.push({ composer: c, laneIndex });
+        });
+
+        // Compute lane height so that all lanes occupy full available vertical space
+        // Base this on the visible height of the timeline minus the axis height
+        const timelineHeight =
+          timeline && timeline.clientHeight
+            ? timeline.clientHeight
+            : window.innerHeight;
+        const containerHeight = Math.max(0, timelineHeight - axis.offsetHeight);
+
+        // Desired vertical gap between bars (in px)
+        const verticalGap = 2;
+
+        let laneHeight = 24;
+        let barHeight = 18;
+
+        if (lanes.length > 0 && containerHeight > 0) {
+          // Compute barHeight so that bars + gaps exactly fit into containerHeight:
+          // totalHeight = lanes * barHeight + (lanes - 1) * verticalGap
+          const maxBarHeight =
+            (containerHeight - (lanes.length - 1) * verticalGap) / lanes.length;
+          // Clamp to a sensible minimum
+          barHeight = Math.max(8, Math.floor(maxBarHeight));
+          laneHeight = barHeight + verticalGap;
+        }
+
+        // Prepare grayscale gradient from #dcdcdc to #808080 (light to mid gray)
+        const totalBars = placements.length;
+        const startGray = 0xdc; // 220
+        const endGray = 0x80; // 128
+        const grayStep =
+          totalBars > 1 ? (startGray - endGray) / (totalBars - 1) : 0;
+
+        placements.forEach(({ composer: c, laneIndex }, index) => {
+          const bar = document.createElement("div");
+          bar.className = "bar";
+
+          // Compute grayscale color for this bar: first is #c0c0c0, last ~ #2c2c2c
+          const grayValue = Math.round(startGray - grayStep * index);
+          const grayHex = grayValue.toString(16).padStart(2, "0");
+          const barColor = `#${grayHex}${grayHex}${grayHex}`;
+
+          bar.style.backgroundImage = "none";
+          bar.style.backgroundColor = barColor;
+
+          const left = yearToPercent(c.birth);
+          const width = yearToPercent(c.death) - yearToPercent(c.birth);
+          bar.style.left = left + "%";
+          bar.style.width = width + "%";
+          bar.style.top = laneIndex * laneHeight + "px";
+          bar.style.height = barHeight + "px";
+          bar.style.lineHeight = barHeight + "px";
+          bar.style.fontSize = barHeight * 0.4 + "px";
+
+          // Create thumbnail image if available
+          const imgSrc = getComposerImage(c.name);
+          if (imgSrc) {
+            const img = document.createElement("img");
+            img.className = "bar-avatar";
+            const avatarSize = Math.max(10, Math.round(barHeight * 0.9));
+            img.style.width = avatarSize + "px";
+            img.style.height = avatarSize + "px";
+            img.src = imgSrc;
+            img.alt = c.name;
+            bar.appendChild(img);
+          }
+
+          // Create label span for the name
+          const labelSpan = document.createElement("span");
+          labelSpan.className = "bar-label";
+          labelSpan.textContent = c.name;
+          bar.appendChild(labelSpan);
+
+          gantt.appendChild(bar);
+
+          // If full name does not fit, show only the last word (e.g. surname)
+          if (bar.scrollWidth > bar.clientWidth) {
+            const parts = c.name.trim().split(/\s+/);
+            const lastWord = parts[parts.length - 1] || c.name;
+            labelSpan.textContent = lastWord;
+          }
+        });
+      }
+
+      function enablePanning() {
+        const timeline = document.getElementById("timeline");
+        if (!timeline) return;
+
+        let isDown = false;
+        let startX = 0;
+        let startScrollLeft = 0;
+        let lastClientX = 0;
+        let rafId = null;
+
+        function updateScroll() {
+          if (!isDown) {
+            rafId = null;
+            return;
+          }
+          const dx = lastClientX - startX;
+          timeline.scrollLeft = startScrollLeft - dx;
+          rafId = null;
+        }
+
+        timeline.addEventListener("mousedown", (e) => {
+          isDown = true;
+          timeline.classList.add("panning");
+          startX = e.clientX;
+          lastClientX = e.clientX;
+          startScrollLeft = timeline.scrollLeft;
+          e.preventDefault();
+        });
+
+        window.addEventListener("mousemove", (e) => {
+          if (!isDown) return;
+          lastClientX = e.clientX;
+          if (rafId === null) {
+            rafId = window.requestAnimationFrame(updateScroll);
+          }
+        });
+
+        window.addEventListener("mouseup", () => {
+          if (!isDown) return;
+          isDown = false;
+          timeline.classList.remove("panning");
+        });
+      }
+
+      function buildLegend() {
+        const legend = document.getElementById("legend");
+        if (!legend) return;
+        legend.innerHTML = "";
+
+        ERAS.forEach((era) => {
+          const row = document.createElement("div");
+          row.className = "legend-row";
+
+          const swatch = document.createElement("div");
+          swatch.className = "legend-swatch";
+          swatch.style.backgroundImage = "none";
+          swatch.style.backgroundColor = era.color;
+
+          const label = document.createElement("span");
+          label.textContent = era.label;
+
+          row.appendChild(swatch);
+          row.appendChild(label);
+          legend.appendChild(row);
+        });
+      }
+
+      window.addEventListener("load", () => {
+        buildAxis();
+        buildGantt();
+        buildLegend();
+        enablePanning();
+
+        // Показываем таймлайн только после полной отрисовки
+        const timelineRoot = document.getElementById("timeline");
+        if (timelineRoot) {
+          timelineRoot.style.visibility = "visible";
+        }
+      });
     </script>
-    <script src="timeline.js"></script>
   </body>
 </html>
