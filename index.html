@@ -110,7 +110,7 @@
         font-size: 12px; /* более крупный шрифт для 50-летий */
         font-weight: 500;
         color: #2d2d2d;
-        bottom: 17px;
+        bottom: 16px;
       }
 
       .axis-label-minor {
@@ -129,7 +129,7 @@
       }
 
       .bar {
-        opacity: 0.75;
+        opacity: 1; /* плашка и содержимое всегда полностью непрозрачные, прозрачность задаём через цвет фона */
         position: absolute;
         height: 18px;
         border-radius: 6px; /* меньшее закругление */
@@ -152,6 +152,12 @@
         white-space: nowrap;
         overflow: hidden;
         text-overflow: ellipsis;
+        /* чуть более заметная светлая обводка вокруг текста */
+        text-shadow:
+          -0.5px 0 rgba(255, 255, 255, 0.5),
+           0.5px 0 rgba(255, 255, 255, 0.5),
+           0 -0.5px rgba(255, 255, 255, 0.5),
+           0  0.5px rgba(255, 255, 255, 0.5);
       }
       .bar:hover {
         z-index: 10; /* при ховере выводим плашку поверх остальных */
@@ -198,7 +204,7 @@
         }
 
         .era-band {
-          font-size: 16px; /* подписи эр тоже крупнее на мобильных */
+          font-size: 14px; /* подписи эр тоже крупнее на мобильных */
         }
 
         .legend {
@@ -527,10 +533,9 @@
           const bar = document.createElement("div");
           bar.className = "bar";
 
-          // Compute grayscale color for this bar: first is #c0c0c0, last ~ #2c2c2c
+          // Compute grayscale background for this bar; use semi-transparent fill so text/photos remain fully opaque
           const grayValue = Math.round(startGray - grayStep * index);
-          const grayHex = grayValue.toString(16).padStart(2, "0");
-          const barColor = `#${grayHex}${grayHex}${grayHex}`;
+          const barColor = `rgba(${grayValue}, ${grayValue}, ${grayValue}, 0.75)`;
 
           bar.style.backgroundImage = "none";
           bar.style.backgroundColor = barColor;
