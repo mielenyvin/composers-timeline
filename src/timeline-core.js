@@ -646,6 +646,8 @@ function enableHorizontalSnapAssist() {
   let lastScrollLeft = timeline.scrollLeft;
   let sawVerticalDuringGesture = false;
   let sawHorizontalDuringGesture = false;
+  let gestureMaxDx = 0;
+  let gestureMaxDy = 0;
 
   const snapInset = 6; // небольшой зазор слева, чтобы плашка не прилипала впритык
   const animationDuration = 600;
@@ -658,6 +660,8 @@ function enableHorizontalSnapAssist() {
     isAutoScrolling = false;
     sawVerticalDuringGesture = false;
     sawHorizontalDuringGesture = false;
+    gestureMaxDx = 0;
+    gestureMaxDy = 0;
   };
 
   const animateTo = (targetLeft) => {
@@ -697,7 +701,7 @@ function enableHorizontalSnapAssist() {
     if (isAutoScrolling) return;
     if (timeline.dataset.panning === "true") return;
     if (debounceId) window.clearTimeout(debounceId);
-    debounceId = window.setTimeout(alignLeft, 20);
+    debounceId = window.setTimeout(alignLeft, 60);
   };
 
   const onWheel = (e) => {
@@ -722,13 +726,18 @@ function enableHorizontalSnapAssist() {
 
     // Detect dominant direction for this scroll step
     const horizontalDominant = dx > dy * 1.2 && dx > 1.5;
-    const verticalDominant = dy >= dx * 0.8 && dy > 0.8;
+    const verticalDominant = dy >= dx * 0.6 && dy > 0.6;
 
-    // Track meaningful horizontal movement during the gesture.
-    // iOS often introduces a tiny horizontal drift during vertical swipes,
-    // so we only treat it as "horizontal intent" when it is clearly noticeable.
-    const meaningfulHorizontal = horizontalDominant || (dx > 10 && dx > dy * 0.6);
-    if (meaningfulHorizontal) {
+    // Track max per-step deltas inside the current gesture.
+    // (Using max instead of sum avoids false "horizontal intent" on long vertical scrolls
+    // where iOS may add tiny horizontal drift.)
+    gestureMaxDx = Math.max(gestureMaxDx, dx);
+    gestureMaxDy = Math.max(gestureMaxDy, dy);
+
+    // Consider it a horizontal-intent gesture only when the horizontal movement is clearly noticeable.
+    const horizontalIntent =
+      horizontalDominant || (gestureMaxDx > 18 && gestureMaxDx > gestureMaxDy * 0.75);
+    if (horizontalIntent) {
       sawHorizontalDuringGesture = true;
     }
 
@@ -746,6 +755,7 @@ function enableHorizontalSnapAssist() {
   };
 
   const onUserInterrupt = () => {
+    // Start a new gesture window
     stopAnimation();
   };
   const onScrollEnd = () => {
@@ -757,17 +767,23 @@ function enableHorizontalSnapAssist() {
     // do not force a left-align snap.
     if (!sawVerticalDuringGesture) {
       sawHorizontalDuringGesture = false;
+      gestureMaxDx = 0;
+      gestureMaxDy = 0;
       return;
     }
     if (sawHorizontalDuringGesture) {
       sawVerticalDuringGesture = false;
       sawHorizontalDuringGesture = false;
+      gestureMaxDx = 0;
+      gestureMaxDy = 0;
       return;
     }
 
     scheduleAlign();
     sawVerticalDuringGesture = false;
     sawHorizontalDuringGesture = false;
+    gestureMaxDx = 0;
+    gestureMaxDy = 0;
   };
 
   timeline.addEventListener("wheel", onWheel, { passive: true });
