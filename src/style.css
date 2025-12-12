@@ -18,6 +18,8 @@ body {
   background: #ffffff;
   color: #111111;
   overscroll-behavior: none;
+  -webkit-text-size-adjust: 100%;
+  text-size-adjust: 100%;
 }
 
 .content {

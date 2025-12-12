@@ -22,9 +22,9 @@
 .timeline-inner {
   position: relative;
   height: auto;
-  /* Make the inner content itself wider than the viewport so the last bar can scroll fully into view */
-  width: calc(180% + 60px);
-  min-width: calc(1200px * 1.8 + 60px);
+  /* Широкое значение по умолчанию, даже если JS не успел пересчитать */
+  width: 3200px;
+  min-width: 3200px;
   box-sizing: content-box;
   padding-bottom: 0;
 }
