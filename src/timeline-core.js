@@ -645,6 +645,7 @@ function enableHorizontalSnapAssist() {
   let lastScrollTop = timeline.scrollTop;
   let lastScrollLeft = timeline.scrollLeft;
   let sawVerticalDuringGesture = false;
+  let sawHorizontalDuringGesture = false;
 
   const snapInset = 6; // небольшой зазор слева, чтобы плашка не прилипала впритык
   const animationDuration = 600;
@@ -656,6 +657,7 @@ function enableHorizontalSnapAssist() {
     }
     isAutoScrolling = false;
     sawVerticalDuringGesture = false;
+    sawHorizontalDuringGesture = false;
   };
 
   const animateTo = (targetLeft) => {
@@ -722,6 +724,13 @@ function enableHorizontalSnapAssist() {
     const horizontalDominant = dx > dy * 1.2 && dx > 1.5;
     const verticalDominant = dy >= dx * 0.8 && dy > 0.8;
 
+    // Track any meaningful horizontal movement during the gesture.
+    // This prevents iOS bottom-bounce (tiny vertical jitter) from forcing a snap
+    // after the user intentionally tried to scroll horizontally.
+    if (dx > 1.2) {
+      sawHorizontalDuringGesture = true;
+    }
+
     // If the user is horizontally dragging, do not snap.
     if (horizontalDominant) return;
 
@@ -735,13 +744,29 @@ function enableHorizontalSnapAssist() {
     }
   };
 
-  const onUserInterrupt = () => stopAnimation();
+  const onUserInterrupt = () => {
+    stopAnimation();
+  };
   const onScrollEnd = () => {
     if (isAutoScrolling) return;
     if (timeline.dataset.panning === "true") return;
-    if (!sawVerticalDuringGesture) return;
+
+    // Only snap after a gesture that was actually vertical.
+    // If the user moved horizontally at all (common on iOS at scroll boundaries),
+    // do not force a left-align snap.
+    if (!sawVerticalDuringGesture) {
+      sawHorizontalDuringGesture = false;
+      return;
+    }
+    if (sawHorizontalDuringGesture) {
+      sawVerticalDuringGesture = false;
+      sawHorizontalDuringGesture = false;
+      return;
+    }
+
     scheduleAlign();
     sawVerticalDuringGesture = false;
+    sawHorizontalDuringGesture = false;
   };
 
   timeline.addEventListener("wheel", onWheel, { passive: true });
