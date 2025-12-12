@@ -123,6 +123,7 @@ const ERAS = [
 
 const earliestBirth = Math.min(...composers.map((c) => c.birth));
 const latestBirth = Math.max(...composers.map((c) => c.birth));
+let activeComposers = [...composers];
 
 const WHITE = { r: 255, g: 255, b: 255 };
 const ACCENT = { r: 37, g: 99, b: 235 }; // лёгкий синий от подсветки фактов
@@ -253,6 +254,14 @@ function eraGradient(startYear, endYear) {
   )} 100%)`;
 }
 
+function setActiveComposers(next) {
+  if (Array.isArray(next)) {
+    activeComposers = [...next];
+  } else {
+    activeComposers = [...composers];
+  }
+}
+
 function buildAxis() {
   const axis = document.getElementById("axis");
   if (!axis) return;
@@ -317,6 +326,7 @@ function buildGantt() {
   if (!gantt) return;
   gantt.innerHTML = "";
 
+  const data = activeComposers || [];
   const ganttWidth =
     (gantt && gantt.clientWidth) ||
     (axis && axis.clientWidth) ||
@@ -324,7 +334,7 @@ function buildGantt() {
     window.innerWidth;
 
   // Sort composers by birth year so rows go top-to-bottom in time
-  const sorted = [...composers].sort((a, b) => a.birth - b.birth);
+  const sorted = [...data].sort((a, b) => a.birth - b.birth);
 
   // One composer per lane (classic Gantt style)
   const laneCount = sorted.length;
@@ -344,6 +354,7 @@ function buildGantt() {
   const totalHeight =
     laneCount * barHeight + Math.max(0, laneCount - 1) * verticalGap;
   gantt.style.height = totalHeight + "px";
+  if (!laneCount) return;
 
   placements.forEach(({ composer: c, laneIndex }) => {
     const bar = document.createElement("div");
@@ -738,7 +749,11 @@ function enableHorizontalSnapAssist() {
   };
 }
 
-export function initTimeline() {
+export function initTimeline(options = {}) {
+  const initial = Object.prototype.hasOwnProperty.call(options, "composers")
+    ? options.composers
+    : composers;
+  setActiveComposers(initial);
   ensureTimelineWidth();
   buildAxis();
   buildGantt();
@@ -766,6 +781,10 @@ export function initTimeline() {
 
   return {
     goToStart,
+    setComposers(next) {
+      setActiveComposers(next);
+      buildGantt();
+    },
     destroy() {
       window.removeEventListener("resize", onResize);
       cleanupSnapAssist();

@@ -11,8 +11,17 @@
 </template>
 
 <script setup>
-import { onMounted, onBeforeUnmount } from "vue";
+import { onMounted, onBeforeUnmount, watch } from "vue";
 import { initTimeline } from "../timeline-core";
+
+const props = defineProps({
+  composers: {
+    type: Array,
+    default: () => [],
+  },
+});
+
+let timelineInstance = null;
 
 const handleClick = (event) => {
   const bar = event.target?.closest?.(".bar");
@@ -34,7 +43,8 @@ onMounted(() => {
   if (timelineEl) {
     timelineEl.addEventListener("click", handleClick);
   }
-  window.timeline = initTimeline();
+  timelineInstance = initTimeline({ composers: props.composers });
+  window.timeline = timelineInstance;
 });
 
 onBeforeUnmount(() => {
@@ -42,7 +52,18 @@ onBeforeUnmount(() => {
   if (timelineEl) {
     timelineEl.removeEventListener("click", handleClick);
   }
+  timelineInstance?.destroy?.();
+  timelineInstance = null;
 });
+
+watch(
+  () => props.composers,
+  (next) => {
+    if (!timelineInstance) return;
+    timelineInstance.setComposers(next);
+  },
+  { deep: true }
+);
 </script>
 
 <style scoped>

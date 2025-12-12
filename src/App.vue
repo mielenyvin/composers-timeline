@@ -31,7 +31,44 @@
     <!-- Main content -->
     <main class="content">
       <section v-if="currentView === 'composers'">
-        <ComposersTimeline />
+        <div class="filter-dock">
+          <button
+            class="filter-dock__toggle"
+            :aria-expanded="isFilterOpen"
+            aria-controls="filter-panel"
+            @click="toggleFilters"
+          >
+            Filter composers
+          </button>
+
+          <transition name="fade">
+            <div
+              v-if="isFilterOpen"
+              id="filter-panel"
+              class="filter-panel"
+              role="dialog"
+              aria-label="Composer filters"
+            >
+              <div class="filter-panel__options">
+                <label
+                  v-for="group in filterGroups"
+                  :key="group.id"
+                  class="filter-panel__item"
+                >
+                  <input
+                    v-model="filterState[group.id]"
+                    type="checkbox"
+                    class="filter-panel__checkbox"
+                    :aria-label="`Toggle ${group.label}`"
+                  />
+                  <span class="filter-panel__label">{{ group.label }}</span>
+                </label>
+              </div>
+            </div>
+          </transition>
+        </div>
+
+        <ComposersTimeline :composers="sortedComposers" />
       </section>
 
       <section v-else-if="currentView === 'about'" class="about">
@@ -127,8 +164,92 @@ import composerFactsRaw from "../composers.md?raw";
 const isMenuOpen = ref(false);
 const currentView = ref("composers");
 
+const filterGroups = [
+  {
+    id: "essentials",
+    label: "Essential Icons",
+    composers: [
+      "Johann Sebastian Bach",
+      "Wolfgang Amadeus Mozart",
+      "Ludwig van Beethoven",
+      "Pyotr Ilyich Tchaikovsky",
+      "Frédéric Chopin",
+      "Antonio Vivaldi",
+      "Johannes Brahms",
+      "Giuseppe Verdi",
+      "Claude Debussy",
+    ],
+  },
+  {
+    id: "core",
+    label: "Core Classics",
+    composers: [
+      "Joseph Haydn",
+      "George Frideric Handel",
+      "Franz Schubert",
+      "Felix Mendelssohn",
+      "Robert Schumann",
+      "Franz Liszt",
+      "Antonín Dvořák",
+      "Edvard Grieg",
+      "Maurice Ravel",
+      "Giacomo Puccini",
+      "Gustav Mahler",
+      "Sergei Rachmaninoff",
+      "Domenico Scarlatti",
+      "Camille Saint-Saëns",
+      "Georges Bizet",
+    ],
+  },
+  {
+    id: "expanded",
+    label: "Extended Classics",
+    composers: [
+      "Niccolò Paganini",
+      "Hector Berlioz",
+      "Mikhail Glinka",
+      "Johann Strauss II",
+      "Alexander Borodin",
+      "Jacques Offenbach",
+      "Modest Mussorgsky",
+      "Nikolai Rimsky-Korsakov",
+      "Alexander Scriabin",
+      "Erik Satie",
+      "Sergei Prokofiev",
+      "Dmitri Shostakovich",
+    ],
+  },
+];
+
+const filterState = ref(
+  filterGroups.reduce((acc, group) => {
+    acc[group.id] = true;
+    return acc;
+  }, {})
+);
+
+const isFilterOpen = ref(false);
+
+const enabledComposerNames = computed(() => {
+  const enabledIds = filterGroups
+    .map((g) => g.id)
+    .filter((id) => filterState.value[id]);
+  const set = new Set();
+  enabledIds.forEach((id) => {
+    const group = filterGroups.find((g) => g.id === id);
+    group?.composers?.forEach((name) => set.add(name));
+  });
+  return set;
+});
+
+const filteredComposers = computed(() => {
+  const allowed = enabledComposerNames.value;
+  if (!allowed.size) return [];
+  return composers.filter((composer) => allowed.has(composer.name));
+});
+
 const sortedComposers = computed(() =>
-  [...composers].sort((a, b) => a.birth - b.birth)
+  [...filteredComposers.value].sort((a, b) => a.birth - b.birth)
 );
 
 const descriptionsByKey = parseComposerFacts(composerFactsRaw);
@@ -230,6 +351,11 @@ function closeMenu() {
   isMenuOpen.value = false;
 }
 
+function toggleFilters() {
+  isFilterOpen.value = !isFilterOpen.value;
+}
+
+
 function returnToTitle() {
   navigateTo("/");
   if (window.timeline && typeof window.timeline.goToStart === "function") {
@@ -292,6 +418,24 @@ watch(isModalOpen, (open) => {
     document.body.style.touchAction = "";
   }
 });
+
+watch(
+  () => sortedComposers.value.map((c) => c.name),
+  (names) => {
+    if (currentIndex.value === null) return;
+    const current = currentComposer.value;
+    if (!current) {
+      currentIndex.value = null;
+      return;
+    }
+    const nextIndex = names.findIndex((name) => name === current.name);
+    if (nextIndex === -1) {
+      currentIndex.value = null;
+    } else {
+      currentIndex.value = nextIndex;
+    }
+  }
+);
 </script>
 
 <style scoped>
@@ -579,6 +723,94 @@ watch(isModalOpen, (open) => {
   background: #f8fafc;
   text-align: center;
   color: #6b7280;
+}
+
+.filter-dock {
+  position: fixed;
+  left: 12px;
+  bottom: 12px;
+  z-index: 1200;
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 10px;
+}
+
+.filter-dock__toggle {
+  border: 1px solid rgba(15, 23, 42, 0.2);
+  background: linear-gradient(135deg, #111827 0%, #1f2937 100%);
+  color: #f9fafb;
+  padding: 10px 14px;
+  border-radius: 999px;
+  font-weight: 600;
+  letter-spacing: 0.01em;
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  cursor: pointer;
+}
+
+/* Compact filter panel */
+.filter-panel {
+  position: relative;
+  width: 180px;
+  max-width: calc(100vw - 32px);
+  padding: 8px 10px;
+  background: rgba(255, 255, 255, 0.92);
+  border: 1px solid rgba(148, 163, 184, 0.35);
+  border-radius: 10px;
+  box-shadow: none;
+  backdrop-filter: blur(8px);
+}
+
+
+
+.filter-panel__options {
+  display: grid;
+  gap: 0px;
+}
+
+.filter-panel__item {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 4px 2px;
+  border: none;
+  background: transparent;
+  box-shadow: none;
+  cursor: pointer;
+}
+
+
+.filter-panel__checkbox {
+  width: 16px;
+  height: 16px;
+  accent-color: #2563eb;
+}
+
+
+.filter-panel__label {
+  font-weight: 400;
+  font-size: 14px;
+  line-height: 1.2;
+}
+
+@media (max-width: 720px) {
+  .filter-dock {
+    left: 10px;
+    right: 10px;
+    bottom: 20px;
+  }
+
+  .filter-panel {
+    width: 180px;
+    max-width: 100%;
+  }
+
+  .filter-panel__item {
+    grid-template-columns: auto 1fr;
+    align-items: flex-start;
+  }
 }
 
 .fade-enter-active,
