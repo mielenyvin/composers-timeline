@@ -393,36 +393,67 @@ function enablePanning() {
   window.addEventListener("mousemove", onMouseMove);
   window.addEventListener("mouseup", onMouseUp);
 
-  // Prevent iOS "rubber band" overscroll that detaches the axis when pulled past edges
-  let touchStartY = 0;
-  let touchStartX = 0;
-  const onTouchStart = (e) => {
-    if (e.touches.length !== 1) return;
-    touchStartY = e.touches[0].clientY;
-    touchStartX = e.touches[0].clientX;
-  };
-  const onTouchMove = (e) => {
-    if (e.touches.length !== 1) return;
-    const dy = e.touches[0].clientY - touchStartY;
-    const dx = e.touches[0].clientX - touchStartX;
-    const atTop = timeline.scrollTop <= 0;
-    const atBottom =
-      timeline.scrollTop + timeline.clientHeight >= timeline.scrollHeight - 1;
-    const atLeft = timeline.scrollLeft <= 0;
-    const atRight =
-      timeline.scrollLeft + timeline.clientWidth >= timeline.scrollWidth - 1;
+  // Touch panning with bounce blocking (iOS)
+  let touchId = null;
+  let touchDragStarted = false;
+  let touchStartScrollLeft = 0;
+  let touchStartScrollTop = 0;
 
-    if (
-      (atTop && dy > 0) ||
-      (atBottom && dy < 0) ||
-      (atLeft && dx > 0) ||
-      (atRight && dx < 0)
-    ) {
-      e.preventDefault();
-    }
+  const onTouchStart = (e) => {
+    if (touchId !== null) return;
+    if (e.touches.length !== 1) return;
+    const t = e.touches[0];
+    touchId = t.identifier;
+    touchDragStarted = false;
+    startX = t.clientX;
+    startY = t.clientY;
+    lastClientX = t.clientX;
+    lastClientY = t.clientY;
+    touchStartScrollLeft = timeline.scrollLeft;
+    touchStartScrollTop = timeline.scrollTop;
+    stopPanning();
   };
+
+  const onTouchMove = (e) => {
+    if (touchId === null) return;
+    const t = Array.from(e.touches).find((tt) => tt.identifier === touchId);
+    if (!t) return;
+
+    lastClientX = t.clientX;
+    lastClientY = t.clientY;
+
+    const dx = lastClientX - startX;
+    const dy = lastClientY - startY;
+
+    if (!touchDragStarted) {
+      if (Math.abs(dx) > dragThreshold || Math.abs(dy) > dragThreshold) {
+        touchDragStarted = true;
+        startPanning();
+      } else {
+        return;
+      }
+    }
+
+    timeline.scrollLeft = touchStartScrollLeft - dx;
+    timeline.scrollTop = touchStartScrollTop - dy;
+    e.preventDefault();
+  };
+
+  const onTouchEnd = (e) => {
+    if (touchId === null) return;
+    const ended = Array.from(e.changedTouches).some(
+      (tt) => tt.identifier === touchId
+    );
+    if (!ended) return;
+    touchId = null;
+    touchDragStarted = false;
+    stopPanning();
+  };
+
   timeline.addEventListener("touchstart", onTouchStart, { passive: true });
   timeline.addEventListener("touchmove", onTouchMove, { passive: false });
+  timeline.addEventListener("touchend", onTouchEnd, { passive: true });
+  timeline.addEventListener("touchcancel", onTouchEnd, { passive: true });
 }
 
 export function initTimeline() {
