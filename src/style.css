@@ -17,6 +17,7 @@ body {
     sans-serif;
   background: #ffffff;
   color: #111111;
+  overscroll-behavior: none;
 }
 
 /* чтобы всё приложение занимало всю высоту экрана */

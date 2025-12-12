@@ -9,6 +9,7 @@
   display: block; /* без flex, чтобы sticky работал предсказуемо */
   background: #ffffff;
   visibility: hidden; /* скрываем до полной отрисовки */
+  overscroll-behavior: contain;
 }
 
 #timeline.panning {

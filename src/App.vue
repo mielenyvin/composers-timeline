@@ -101,7 +101,6 @@
             <div class="composer-modal__description">
               <ul v-if="currentDescription" class="composer-modal__facts">
                 <li v-for="(line, i) in currentDescription.split('\n')" :key="i">
-                  <span class="composer-modal__fact-dot" aria-hidden="true"></span>
                   <span class="composer-modal__fact-text">{{ line }}</span>
                 </li>
               </ul>
@@ -120,7 +119,7 @@
 </template>
 
 <script setup>
-import { computed, onBeforeUnmount, onMounted, ref } from "vue";
+import { computed, onBeforeUnmount, onMounted, ref, watch } from "vue";
 import ComposersTimeline from "./components/ComposersTimeline.vue";
 import { composers, getComposerImage } from "./timeline-core";
 import composerFactsRaw from "../composers.md?raw";
@@ -278,6 +277,20 @@ onMounted(() => {
 onBeforeUnmount(() => {
   window.removeEventListener("popstate", handlePopState);
   window.removeEventListener("composer-select", handleComposerSelect);
+});
+
+watch(isModalOpen, (open) => {
+  if (open) {
+    document.documentElement.style.overscrollBehavior = "none";
+    document.body.style.overscrollBehavior = "none";
+    document.body.style.overflow = "hidden";
+    document.body.style.touchAction = "none";
+  } else {
+    document.documentElement.style.overscrollBehavior = "";
+    document.body.style.overscrollBehavior = "";
+    document.body.style.overflow = "";
+    document.body.style.touchAction = "";
+  }
 });
 </script>
 
@@ -525,26 +538,29 @@ onBeforeUnmount(() => {
 
 .composer-modal__facts li {
   display: grid;
-  grid-template-columns: auto 1fr;
+  grid-template-columns: 1fr;
   align-items: center;
-  gap: 10px;
-  padding: 12px 14px;
-  border-radius: 14px;
-  background: linear-gradient(135deg, #f7f9fb 0%, #eef2f7 100%);
-  border: 1px solid rgba(15, 23, 42, 0.06);
-  box-shadow: 0 4px 14px rgba(0, 0, 0, 0.06);
+  gap: 6px;
+  padding: 14px 16px;
+  border-radius: 16px;
+  background: linear-gradient(145deg, #f8fafc 0%, #eef2f7 100%);
+  border: 1px solid rgba(15, 23, 42, 0.05);
+  box-shadow: 0 6px 18px rgba(0, 0, 0, 0.06);
+  position: relative;
+  overflow: hidden;
 }
 
-.composer-modal__fact-dot {
-  width: 10px;
-  height: 10px;
-  border-radius: 50%;
-  background: radial-gradient(circle at 30% 30%, #60a5fa, #2563eb);
-  box-shadow: 0 0 0 6px rgba(37, 99, 235, 0.12);
+.composer-modal__facts li::before {
+  content: "";
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(90deg, rgba(37, 99, 235, 0.08), transparent 40%);
+  pointer-events: none;
 }
 
 .composer-modal__fact-text {
   display: block;
+  position: relative;
 }
 
 .composer-modal__playlist {
@@ -581,14 +597,15 @@ onBeforeUnmount(() => {
 
 @media (max-width: 720px) {
   .composer-modal {
-    padding: 0;
-    align-items: flex-end;
+    padding: env(safe-area-inset-top, 12px) 0 0;
+    align-items: center;
   }
 
   .composer-modal__content {
     border-radius: 16px 16px 0 0;
-    width: 100%;
-    max-height: 92vh;
+    width: calc(100% - 20px);
+    max-height: calc(100vh - env(safe-area-inset-top, 12px) - 12px);
+    margin-top: env(safe-area-inset-top, 12px);
   }
 
   .composer-modal__body {
