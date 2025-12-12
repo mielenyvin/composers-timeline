@@ -127,7 +127,7 @@ const ERAS = [
 
 // Compute data max year (based only on composers)
 const dataMaxYear = Math.max(...composers.map((c) => c.death));
-const rightPaddingYears = 55; // запас справа, чтобы последние композиторы не обрезались на мобильных
+const rightPaddingYears = 100; // увеличенный запас справа, чтобы последние композиторы не обрезались на мобильных
 
 // Axis range:
 //  - фиксированный старт в 1675 (Baroque начинается раньше и уходит влево за экран)
@@ -139,6 +139,27 @@ const axisMaxYear = Math.max(
   Math.ceil((dataMaxYear + rightPaddingYears) / 10) * 10
 );
 const axisSpan = axisMaxYear - axisMinYear;
+
+// Делает внутренний контейнер достаточно широким для любых экранов:
+//  - pxPerYear задаёт базовую «плотность» шкалы
+//  - fallbackWidth даёт минимум в 2.4 ширины видимой области, чтобы оставался запас прокрутки
+const pxPerYear = 7;
+const viewportWidthMultiplier = 2.4;
+const extraWidthPx = 160;
+
+function ensureTimelineWidth() {
+  const inner = document.querySelector(".timeline-inner");
+  const timeline = document.getElementById("timeline");
+  if (!inner || !timeline) return;
+
+  const baseWidth = axisSpan * pxPerYear + extraWidthPx;
+  const fallbackWidth =
+    (timeline.clientWidth || window.innerWidth) * viewportWidthMultiplier;
+  const finalWidth = Math.max(baseWidth, fallbackWidth);
+
+  inner.style.width = finalWidth + "px";
+  inner.style.minWidth = finalWidth + "px";
+}
 
 function yearToPercent(year) {
   return ((year - axisMinYear) / axisSpan) * 100;
@@ -461,9 +482,14 @@ function enablePanning() {
 }
 
 export function initTimeline() {
+  ensureTimelineWidth();
   buildAxis();
   buildGantt();
   enablePanning();
+
+  // Пересчитываем ширину при смене ориентации/ресайзе окна
+  const onResize = () => ensureTimelineWidth();
+  window.addEventListener("resize", onResize);
 
   // Показываем таймлайн только после полной отрисовки
   const timelineRoot = document.getElementById("timeline");
@@ -480,7 +506,12 @@ export function initTimeline() {
     }
   }
 
-  return { goToStart };
+  return {
+    goToStart,
+    destroy() {
+      window.removeEventListener("resize", onResize);
+    },
+  };
 }
 
 export { composers, getComposerImage };
