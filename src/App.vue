@@ -7,7 +7,7 @@
       </button>
       <img class="logo" src="/favicon.png" alt="Logo" @click="returnToTitle" />
       <div class="app-title" role="button" @click="returnToTitle">
-        Classical Composers Timeline
+        Classical Composers Timeline5
       </div>
     </header>
 
@@ -297,7 +297,6 @@ watch(isModalOpen, (open) => {
 <style scoped>
 .content {
   position: relative;
-  height: 100%;
   overflow: hidden;
 }
 
@@ -651,12 +650,6 @@ watch(isModalOpen, (open) => {
     width: 100%;
     max-width: 500px;
     margin: 0 auto;
-  }
-
-  .content {
-    margin-top: 0;
-    padding-top: var(--topbar-height);
-    height: 100vh;
   }
 }
 </style>

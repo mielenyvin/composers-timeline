@@ -4,6 +4,19 @@
 
 :root {
   --topbar-height: 48px;
+  --viewport-height: 100vh;
+}
+
+@supports (height: 100svh) {
+  :root {
+    --viewport-height: 100svh;
+  }
+}
+
+@supports (height: 100dvh) {
+  :root {
+    --viewport-height: 100dvh;
+  }
 }
 
 html,
@@ -171,7 +184,7 @@ body {
   margin: 0;
   max-width: none;
   margin-top: var(--topbar-height);
-  height: calc(100vh - var(--topbar-height));
+  height: calc(var(--viewport-height) - var(--topbar-height));
   position: relative;
   overflow: hidden;
 }
@@ -182,6 +195,10 @@ body {
 
 .content p {
   margin: 0;
+}
+
+.content>section {
+  height: 100%;
 }
 
 @media (max-width: 640px) {

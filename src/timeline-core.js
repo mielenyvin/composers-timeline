@@ -249,7 +249,8 @@ function buildGantt() {
   const laneHeight = barHeight + verticalGap;
 
   // Set the total height of the Gantt area so it can scroll vertically if needed
-  const totalHeight = laneCount * laneHeight;
+  const totalHeight =
+    laneCount * barHeight + Math.max(0, laneCount - 1) * verticalGap;
   gantt.style.height = totalHeight + "px";
 
   // Prepare grayscale gradient from #dcdcdc to #808080 (light to mid gray)

@@ -1,6 +1,6 @@
 #timeline {
   width: 100%;
-  height: calc(100vh - var(--topbar-height)); /* ровно видимая область под топбаром */
+  height: calc(var(--viewport-height) - var(--topbar-height)); /* ровно видимая область под топбаром */
   overflow-x: auto; /* горизонтальный скролл по таймлайну */
   overflow-y: auto; /* вертикальный скролл внутри таймлайна */
   -webkit-overflow-scrolling: touch; /* iOS: инерционный скролл внутри контейнера */
@@ -10,7 +10,7 @@
   background: #ffffff;
   visibility: hidden; /* скрываем до полной отрисовки */
   overscroll-behavior: contain;
-  padding-bottom: calc(env(safe-area-inset-bottom, 0) + 90px); /* запас под нижние тулбары мобильных, чтобы последняя строка не обрезалась */
+  padding-bottom: env(safe-area-inset-bottom, 0); /* только безопасная зона без лишних отступов */
 }
 
 #timeline.panning {
@@ -116,7 +116,8 @@
   box-sizing: border-box;
   opacity: 1; /* плашка и содержимое всегда полностью непрозрачные, прозрачность задаём через цвет фона */
   position: absolute;
-  height: 18px;
+  height: 50px;
+  line-height: 50px;
   border-radius: 6px; /* меньшее закругление */
   padding: 0 3px;
   color: #000000;
