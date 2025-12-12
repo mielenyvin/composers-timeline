@@ -392,6 +392,37 @@ function enablePanning() {
   timeline.addEventListener("mousedown", onMouseDown);
   window.addEventListener("mousemove", onMouseMove);
   window.addEventListener("mouseup", onMouseUp);
+
+  // Prevent iOS "rubber band" overscroll that detaches the axis when pulled past edges
+  let touchStartY = 0;
+  let touchStartX = 0;
+  const onTouchStart = (e) => {
+    if (e.touches.length !== 1) return;
+    touchStartY = e.touches[0].clientY;
+    touchStartX = e.touches[0].clientX;
+  };
+  const onTouchMove = (e) => {
+    if (e.touches.length !== 1) return;
+    const dy = e.touches[0].clientY - touchStartY;
+    const dx = e.touches[0].clientX - touchStartX;
+    const atTop = timeline.scrollTop <= 0;
+    const atBottom =
+      timeline.scrollTop + timeline.clientHeight >= timeline.scrollHeight - 1;
+    const atLeft = timeline.scrollLeft <= 0;
+    const atRight =
+      timeline.scrollLeft + timeline.clientWidth >= timeline.scrollWidth - 1;
+
+    if (
+      (atTop && dy > 0) ||
+      (atBottom && dy < 0) ||
+      (atLeft && dx > 0) ||
+      (atRight && dx < 0)
+    ) {
+      e.preventDefault();
+    }
+  };
+  timeline.addEventListener("touchstart", onTouchStart, { passive: true });
+  timeline.addEventListener("touchmove", onTouchMove, { passive: false });
 }
 
 export function initTimeline() {

@@ -597,15 +597,15 @@ watch(isModalOpen, (open) => {
 
 @media (max-width: 720px) {
   .composer-modal {
-    padding: env(safe-area-inset-top, 12px) 0 0;
-    align-items: center;
+    padding: calc(env(safe-area-inset-top, 12px) + 8px) 0 0;
+    align-items: flex-start;
   }
 
   .composer-modal__content {
     border-radius: 16px 16px 0 0;
-    width: calc(100% - 20px);
-    max-height: calc(100vh - env(safe-area-inset-top, 12px) - 12px);
-    margin-top: env(safe-area-inset-top, 12px);
+    width: calc(100% - 12px);
+    max-height: calc(100vh - env(safe-area-inset-top, 12px) - 8px);
+    margin: 0 auto;
   }
 
   .composer-modal__body {

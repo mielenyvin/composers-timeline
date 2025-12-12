@@ -20,6 +20,10 @@ body {
   overscroll-behavior: none;
 }
 
+.content {
+  overscroll-behavior: contain;
+}
+
 /* чтобы всё приложение занимало всю высоту экрана */
 #app,
 .app {
