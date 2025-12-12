@@ -127,7 +127,7 @@ const ERAS = [
 
 // Compute data max year (based only on composers)
 const dataMaxYear = Math.max(...composers.map((c) => c.death));
-const rightPaddingYears = 150; // ещё больше запаса справа для уверенного скролла до конца
+const rightPaddingYears = 320; // большой запас справа, чтобы даже на iOS с зумом хвост не обрезался
 
 // Axis range:
 //  - фиксированный старт в 1675 (Baroque начинается раньше и уходит влево за экран)
@@ -143,9 +143,9 @@ const axisSpan = axisMaxYear - axisMinYear;
 // Делает внутренний контейнер достаточно широким для любых экранов:
 //  - pxPerYear задаёт базовую «плотность» шкалы
 //  - fallbackWidth даёт минимум в 2.4 ширины видимой области, чтобы оставался запас прокрутки
-const pxPerYear = 9;
-const viewportWidthMultiplier = 3;
-const extraWidthPx = 240;
+const pxPerYear = 12;
+const viewportWidthMultiplier = 4;
+const extraWidthPx = 360;
 
 function ensureTimelineWidth() {
   const inner = document.querySelector(".timeline-inner");
