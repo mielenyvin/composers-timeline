@@ -127,25 +127,22 @@ const ERAS = [
 
 // Compute data max year (based only on composers)
 const dataMaxYear = Math.max(...composers.map((c) => c.death));
-const rightPaddingYears = 320; // большой запас справа, чтобы даже на iOS с зумом хвост не обрезался
+const rightPaddingYears = 700; // максимально щедрый запас справа, чтобы Shostakovich всегда помещался
 
 // Axis range:
 //  - фиксированный старт в 1675 (Baroque начинается раньше и уходит влево за экран)
 //  - динамический конец: минимум 1980 и плюс запас за последним композитором,
 //    чтобы хвост таймлайна уверенно попадал в экран даже на маленьких устройствах
 const axisMinYear = 1675;
-const axisMaxYear = Math.max(
-  1980,
-  Math.ceil((dataMaxYear + rightPaddingYears) / 10) * 10
-);
+const axisMaxYear = Math.max(2500, Math.ceil((dataMaxYear + rightPaddingYears) / 10) * 10);
 const axisSpan = axisMaxYear - axisMinYear;
 
 // Делает внутренний контейнер достаточно широким для любых экранов:
 //  - pxPerYear задаёт базовую «плотность» шкалы
 //  - fallbackWidth даёт минимум в 2.4 ширины видимой области, чтобы оставался запас прокрутки
-const pxPerYear = 12;
-const viewportWidthMultiplier = 4;
-const extraWidthPx = 360;
+const pxPerYear = 16;
+const viewportWidthMultiplier = 6;
+const extraWidthPx = 480;
 
 function ensureTimelineWidth() {
   const inner = document.querySelector(".timeline-inner");
