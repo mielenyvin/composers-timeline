@@ -730,6 +730,7 @@ function enableHorizontalSnapAssist() {
   let gestureMaxDx = 0;
   let gestureMaxDy = 0;
   let snapTemporarilyDisabled = false;
+  let stopBottomObserver = null;
 
   // Debug logging
   // Enable at runtime in DevTools:
@@ -837,10 +838,10 @@ function enableHorizontalSnapAssist() {
     );
     const bottomGap = contentBottom - viewportBottom;
     const threshold = Math.max(SNAP_DISABLE_GAP_PX, paddingBottom + 4);
-    return bottomGap <= threshold;
+    return { near: bottomGap <= threshold, bottomGap };
   };
 
-  function setSnapDisabled(disabled) {
+  function setSnapDisabled(disabled, reason = "gap") {
     if (snapTemporarilyDisabled === disabled) return;
     snapTemporarilyDisabled = disabled;
     if (disabled) {
@@ -850,18 +851,57 @@ function enableHorizontalSnapAssist() {
       }
       stopAnimation();
       timeline.dataset.snapDisabled = "true";
+      timeline.style.scrollSnapType = "none";
     } else {
       timeline.dataset.snapDisabled = "false";
+      timeline.style.scrollSnapType = "";
     }
     dbg("snapDisabled:toggle", {
       disabled,
+      reason,
       bottomGap:
         timeline.scrollHeight -
         (timeline.scrollTop + timeline.clientHeight),
     });
   }
 
-  const syncSnapDisabled = () => setSnapDisabled(isNearBottom());
+  const syncSnapDisabled = (reason = "gap", forcedDisabled = null) => {
+    const { near, bottomGap } = isNearBottom();
+    const next = forcedDisabled === null ? near : forcedDisabled;
+    setSnapDisabled(next, reason);
+    return { near, bottomGap };
+  };
+
+  const setupBottomObserver = () => {
+    if (!("IntersectionObserver" in window)) return;
+    const sentinel = document.createElement("div");
+    sentinel.dataset.role = "timeline-bottom-sentinel";
+    sentinel.style.height = "1px";
+    sentinel.style.width = "1px";
+    sentinel.style.marginTop = "1px";
+    timeline.appendChild(sentinel);
+
+    const observer = new IntersectionObserver((entries) => {
+      const entry = entries[0];
+      if (!entry) return;
+      const { near, bottomGap } = isNearBottom();
+      const disabled = entry.isIntersecting || near;
+      setSnapDisabled(disabled, entry.isIntersecting ? "sentinel-hit" : "sentinel-miss");
+      dbg("snapDisabled:sentinel", {
+        disabled,
+        isIntersecting: entry.isIntersecting,
+        bottomGap,
+      });
+    }, {
+      root: timeline,
+      threshold: 0.99,
+    });
+    observer.observe(sentinel);
+    stopBottomObserver = () => {
+      observer.disconnect();
+      sentinel.remove();
+    };
+  };
 
   const animateTo = (targetLeft) => {
     stopAnimation();
@@ -1096,6 +1136,7 @@ function enableHorizontalSnapAssist() {
   };
 
   syncSnapDisabled();
+  setupBottomObserver();
 
   timeline.addEventListener("wheel", onWheel, { passive: true });
   timeline.addEventListener("scroll", onScroll, { passive: true });
@@ -1115,6 +1156,7 @@ function enableHorizontalSnapAssist() {
     timeline.removeEventListener("touchend", onScrollEnd);
     timeline.removeEventListener("mouseup", onScrollEnd);
     timeline.removeEventListener("timeline-pan-end", onScrollEnd);
+    if (stopBottomObserver) stopBottomObserver();
     if (debounceId) window.clearTimeout(debounceId);
     stopAnimation();
   };
