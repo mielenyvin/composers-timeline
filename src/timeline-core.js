@@ -139,7 +139,7 @@ const COLOR_STOPS = [
 // Axis range:
 //  - фиксированный старт в 1675 (Baroque начинается раньше и уходит влево за экран)
 //  - фиксированный конец в 1980, чтобы дальше шкала просто не рисовалась
-const axisMinYear = 1675;
+const axisMinYear = 1677.5;
 const axisMaxYear = 1980;
 const axisSpan = axisMaxYear - axisMinYear;
 
@@ -147,7 +147,7 @@ const axisSpan = axisMaxYear - axisMinYear;
 //  - pxPerYear задаёт базовую «плотность» шкалы
 //  - fallbackWidth даёт запас по видимой области
 const pxPerYear = 6;
-const viewportWidthMultiplier = 2.5;
+const viewportWidthMultiplier = 2.05;
 const extraWidthPx = 0;
 
 function ensureTimelineWidth() {
@@ -356,7 +356,7 @@ function buildGantt() {
     bar.style.top = laneIndex * laneHeight + "px";
     bar.style.height = barHeight + "px";
     bar.style.lineHeight = barHeight + "px";
-    bar.style.fontSize = barHeight * 0.3 + "px";
+    bar.style.fontSize = barHeight * 0.25 + "px";
 
     // Create thumbnail image if available
     const imgSrc = getComposerImage(c.name);
@@ -414,6 +414,10 @@ function enablePanning() {
   let lastClientY = 0;
   let rafId = null;
 
+  const firePanEnd = () => {
+    timeline.dispatchEvent(new CustomEvent("timeline-pan-end"));
+  };
+
   const startPanning = () => {
     if (isDragging) return;
     isDragging = true;
@@ -426,6 +430,7 @@ function enablePanning() {
     isDragging = false;
     timeline.classList.remove("panning");
     timeline.dataset.panning = "false";
+    firePanEnd();
   };
 
   function updateScroll() {
@@ -591,6 +596,11 @@ function easeInOutCubic(t) {
     : 1 - Math.pow(-2 * clamped + 2, 3) / 2;
 }
 
+function isAtVerticalBottom(timeline, threshold = 4) {
+  const maxScrollTop = timeline.scrollHeight - timeline.clientHeight;
+  return maxScrollTop - timeline.scrollTop <= threshold;
+}
+
 function enableHorizontalSnapAssist() {
   const timeline = document.getElementById("timeline");
   if (!timeline) return () => {};
@@ -598,17 +608,17 @@ function enableHorizontalSnapAssist() {
   timeline.dataset.panning = "false";
   let debounceId = null;
   let isAutoScrolling = false;
-  let animationId = null;
+  let autoScrollTimer = null;
   let lastScrollTop = timeline.scrollTop;
   let lastScrollLeft = timeline.scrollLeft;
 
   const snapInset = 6; // небольшой зазор слева, чтобы плашка не прилипала впритык
-  const animationDuration = 1000;
+  const animationDuration = 600;
 
   const stopAnimation = () => {
-    if (animationId !== null) {
-      cancelAnimationFrame(animationId);
-      animationId = null;
+    if (autoScrollTimer) {
+      clearTimeout(autoScrollTimer);
+      autoScrollTimer = null;
     }
     isAutoScrolling = false;
   };
@@ -620,26 +630,22 @@ function enableHorizontalSnapAssist() {
     if (Math.abs(delta) < 1) return;
 
     isAutoScrolling = true;
-    const startedAt = performance.now();
+    timeline.scrollTo({
+      left: targetLeft,
+      behavior: "smooth",
+    });
 
-    const tick = (now) => {
-      const t = (now - startedAt) / animationDuration;
-      const eased = easeInOutCubic(t);
-      timeline.scrollLeft = startLeft + delta * eased;
-      if (t < 1 && timeline.dataset.panning !== "true") {
-        animationId = requestAnimationFrame(tick);
-      } else {
-        timeline.scrollLeft = targetLeft; // гарантируем точное попадание
-        stopAnimation();
-      }
-    };
-
-    animationId = requestAnimationFrame(tick);
+    // Сбрасываем флаг по окончании нативной плавной прокрутки
+    autoScrollTimer = window.setTimeout(() => {
+      timeline.scrollLeft = targetLeft; // зафиксируем точное положение
+      stopAnimation();
+    }, animationDuration + 120);
   };
 
   const alignLeft = () => {
     debounceId = null;
     if (timeline.dataset.panning === "true") return;
+    if (isAtVerticalBottom(timeline)) return;
     const targetBar = findTopmostVisibleBar(timeline);
     if (!targetBar) return;
 
@@ -684,6 +690,9 @@ function enableHorizontalSnapAssist() {
   timeline.addEventListener("touchstart", onUserInterrupt, { passive: true });
   timeline.addEventListener("touchend", onScrollEnd, { passive: true });
   timeline.addEventListener("mouseup", onScrollEnd, { passive: true });
+  timeline.addEventListener("timeline-pan-end", onScrollEnd, {
+    passive: true,
+  });
 
   return () => {
     timeline.removeEventListener("wheel", onWheel);
@@ -692,6 +701,7 @@ function enableHorizontalSnapAssist() {
     timeline.removeEventListener("touchstart", onUserInterrupt);
     timeline.removeEventListener("touchend", onScrollEnd);
     timeline.removeEventListener("mouseup", onScrollEnd);
+    timeline.removeEventListener("timeline-pan-end", onScrollEnd);
     if (debounceId) window.clearTimeout(debounceId);
     stopAnimation();
   };
