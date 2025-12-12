@@ -740,7 +740,7 @@ watch(
   border: 1px solid rgba(15, 23, 42, 0.2);
   background: linear-gradient(135deg, #111827 0%, #1f2937 100%);
   color: #f9fafb;
-  padding: 10px 14px;
+  padding: 5px 10px;
   border-radius: 999px;
   font-weight: 600;
   letter-spacing: 0.01em;

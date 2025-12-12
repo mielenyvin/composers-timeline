@@ -724,10 +724,11 @@ function enableHorizontalSnapAssist() {
     const horizontalDominant = dx > dy * 1.2 && dx > 1.5;
     const verticalDominant = dy >= dx * 0.8 && dy > 0.8;
 
-    // Track any meaningful horizontal movement during the gesture.
-    // This prevents iOS bottom-bounce (tiny vertical jitter) from forcing a snap
-    // after the user intentionally tried to scroll horizontally.
-    if (dx > 1.2) {
+    // Track meaningful horizontal movement during the gesture.
+    // iOS often introduces a tiny horizontal drift during vertical swipes,
+    // so we only treat it as "horizontal intent" when it is clearly noticeable.
+    const meaningfulHorizontal = horizontalDominant || (dx > 10 && dx > dy * 0.6);
+    if (meaningfulHorizontal) {
       sawHorizontalDuringGesture = true;
     }
 
