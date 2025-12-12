@@ -559,32 +559,36 @@ function enablePanning() {
 }
 
 function findTopmostVisibleBar(timeline) {
-  const bars = timeline.querySelectorAll(".bar");
+  const bars = Array.from(timeline.querySelectorAll(".bar")).sort(
+    (a, b) => a.offsetTop - b.offsetTop
+  );
   if (!bars.length) return null;
 
   const viewportTop = timeline.scrollTop;
-  const tolerance = 12;
-  let candidate = null;
-  let candidateTop = Infinity;
 
-  bars.forEach((bar) => {
-    const barTop = bar.offsetTop;
-    const barBottom = barTop + bar.offsetHeight;
-    const isInView = barBottom >= viewportTop - tolerance;
-    if (!isInView) return;
-    if (barTop < candidateTop) {
-      candidateTop = barTop;
-      candidate = bar;
+  // 1) если верх вьюпорта внутри бара — берём его
+  for (const bar of bars) {
+    const top = bar.offsetTop;
+    const bottom = top + bar.offsetHeight;
+    if (top <= viewportTop && viewportTop < bottom) {
+      return bar;
     }
-  });
+  }
 
-  if (candidate) return candidate;
+  // 2) иначе берём первый бар ниже текущего окна
+  for (const bar of bars) {
+    if (bar.offsetTop > viewportTop) return bar;
+  }
+
+  // 3) иначе — последний (скролл выше всех баров)
   return bars[bars.length - 1];
 }
 
-function easeOutCubic(t) {
+function easeInOutCubic(t) {
   const clamped = Math.min(1, Math.max(0, t));
-  return 1 - Math.pow(1 - clamped, 3);
+  return clamped < 0.5
+    ? 4 * clamped * clamped * clamped
+    : 1 - Math.pow(-2 * clamped + 2, 3) / 2;
 }
 
 function enableHorizontalSnapAssist() {
@@ -599,7 +603,7 @@ function enableHorizontalSnapAssist() {
   let lastScrollLeft = timeline.scrollLeft;
 
   const snapInset = 6; // небольшой зазор слева, чтобы плашка не прилипала впритык
-  const animationDuration = 600;
+  const animationDuration = 1000;
 
   const stopAnimation = () => {
     if (animationId !== null) {
@@ -620,11 +624,12 @@ function enableHorizontalSnapAssist() {
 
     const tick = (now) => {
       const t = (now - startedAt) / animationDuration;
-      const eased = easeOutCubic(t);
+      const eased = easeInOutCubic(t);
       timeline.scrollLeft = startLeft + delta * eased;
       if (t < 1 && timeline.dataset.panning !== "true") {
         animationId = requestAnimationFrame(tick);
       } else {
+        timeline.scrollLeft = targetLeft; // гарантируем точное попадание
         stopAnimation();
       }
     };
@@ -649,7 +654,7 @@ function enableHorizontalSnapAssist() {
     if (isAutoScrolling) return;
     if (timeline.dataset.panning === "true") return;
     if (debounceId) window.clearTimeout(debounceId);
-    debounceId = window.setTimeout(alignLeft, 160);
+    debounceId = window.setTimeout(alignLeft, 30);
   };
 
   const onWheel = (e) => {
@@ -660,26 +665,33 @@ function enableHorizontalSnapAssist() {
 
   const onScroll = () => {
     if (isAutoScrolling) return;
-    const dy = Math.abs(timeline.scrollTop - lastScrollTop);
     lastScrollTop = timeline.scrollTop;
     lastScrollLeft = timeline.scrollLeft;
     if (timeline.dataset.panning === "true") return;
-    if (dy < 2) return; // слишком маленькое движение
     scheduleAlign();
   };
 
   const onUserInterrupt = () => stopAnimation();
+  const onScrollEnd = () => {
+    if (isAutoScrolling) return;
+    if (timeline.dataset.panning === "true") return;
+    scheduleAlign();
+  };
 
   timeline.addEventListener("wheel", onWheel, { passive: true });
   timeline.addEventListener("scroll", onScroll, { passive: true });
   timeline.addEventListener("mousedown", onUserInterrupt, { passive: true });
   timeline.addEventListener("touchstart", onUserInterrupt, { passive: true });
+  timeline.addEventListener("touchend", onScrollEnd, { passive: true });
+  timeline.addEventListener("mouseup", onScrollEnd, { passive: true });
 
   return () => {
     timeline.removeEventListener("wheel", onWheel);
     timeline.removeEventListener("scroll", onScroll);
     timeline.removeEventListener("mousedown", onUserInterrupt);
     timeline.removeEventListener("touchstart", onUserInterrupt);
+    timeline.removeEventListener("touchend", onScrollEnd);
+    timeline.removeEventListener("mouseup", onScrollEnd);
     if (debounceId) window.clearTimeout(debounceId);
     stopAnimation();
   };

@@ -11,7 +11,7 @@
   visibility: hidden; /* скрываем до полной отрисовки */
   overscroll-behavior: contain;
   padding-bottom: env(safe-area-inset-bottom, 0); /* только безопасная зона без лишних отступов */
-  scroll-snap-type: both mandatory;
+  scroll-snap-type: y mandatory; /* вертикальный нативный снап, горизонталь отдаем на JS */
   scroll-padding-top: 37px; /* высота оси (35px) + зазор 2px, чтобы бар прилипал прямо под ось */
   scroll-padding-left: 0;
 }
