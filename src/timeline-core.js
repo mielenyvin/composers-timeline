@@ -644,7 +644,7 @@ function enableHorizontalSnapAssist() {
   let autoScrollTimer = null;
   let lastScrollTop = timeline.scrollTop;
   let lastScrollLeft = timeline.scrollLeft;
-  let lastScrollWasVertical = true;
+  let sawVerticalDuringGesture = false;
 
   const snapInset = 6; // небольшой зазор слева, чтобы плашка не прилипала впритык
   const animationDuration = 600;
@@ -655,6 +655,7 @@ function enableHorizontalSnapAssist() {
       autoScrollTimer = null;
     }
     isAutoScrolling = false;
+    sawVerticalDuringGesture = false;
   };
 
   const animateTo = (targetLeft) => {
@@ -712,18 +713,22 @@ function enableHorizontalSnapAssist() {
     lastScrollTop = currentTop;
     lastScrollLeft = currentLeft;
     if (timeline.dataset.panning === "true") return;
-    const verticalDominant = dy > dx * 1.4 && dy > 1.5;
-    lastScrollWasVertical = verticalDominant;
-    if (!verticalDominant) return;
-    scheduleAlign();
+    const horizontalDominant = dx > dy * 1.2 && dx > 1.5;
+    const verticalDominant = dy >= dx * 0.8 && dy > 0.8;
+    if (horizontalDominant) return;
+    if (verticalDominant) {
+      sawVerticalDuringGesture = true;
+      scheduleAlign();
+    }
   };
 
   const onUserInterrupt = () => stopAnimation();
   const onScrollEnd = () => {
     if (isAutoScrolling) return;
     if (timeline.dataset.panning === "true") return;
-    if (!lastScrollWasVertical) return;
+    if (!sawVerticalDuringGesture) return;
     scheduleAlign();
+    sawVerticalDuringGesture = false;
   };
 
   timeline.addEventListener("wheel", onWheel, { passive: true });
