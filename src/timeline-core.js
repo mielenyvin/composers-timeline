@@ -234,9 +234,9 @@ function barGradient(progress) {
   const base = colorForProgress(progress);
   const highlight = mixColors(base, WHITE, 0.14);
   const accent = mixColors(base, ACCENT, 0.035);
-  return `linear-gradient(145deg, ${rgbToHex(
-    highlight
-  )} 0%, ${rgbToHex(base)} 52%, ${rgbToHex(accent)} 100%)`;
+  return `linear-gradient(145deg, ${rgbToHex(highlight)} 0%, ${rgbToHex(
+    base
+  )} 52%, ${rgbToHex(accent)} 100%)`;
 }
 
 function eraGradient(startYear, endYear) {
@@ -418,6 +418,11 @@ function buildGantt() {
 // Mouse drag panning (both axes)
 function enablePanning() {
   const timeline = document.getElementById("timeline");
+  timeline.style.touchAction = "none";
+  timeline.style.overscrollBehavior = "contain";
+  timeline.style.webkitTouchCallout = "none";
+  timeline.style.webkitUserSelect = "none";
+
   if (!timeline) return;
 
   let isDown = false;
@@ -535,7 +540,13 @@ function enablePanning() {
     lastClientY = t.clientY;
     touchStartScrollLeft = timeline.scrollLeft;
     touchStartScrollTop = timeline.scrollTop;
-    stopPanning();
+    // stopPanning();
+
+    timeline.classList.remove("panning");
+    timeline.dataset.panning = "false";
+    touchDragStarted = false;
+    // ВАЖНО: не даём браузеру начать скролл страницы этим жестом
+    e.preventDefault();
   };
 
   const onTouchMove = (e) => {
@@ -574,7 +585,7 @@ function enablePanning() {
     stopPanning();
   };
 
-  timeline.addEventListener("touchstart", onTouchStart, { passive: true });
+  timeline.addEventListener("touchstart", onTouchStart, { passive: false });
   timeline.addEventListener("touchmove", onTouchMove, { passive: false });
   timeline.addEventListener("touchend", onTouchEnd, { passive: true });
   timeline.addEventListener("touchcancel", onTouchEnd, { passive: true });
@@ -660,7 +671,8 @@ function enableHorizontalSnapAssist() {
   // iOS/Safari can be finicky with dynamic globals; we install a setter that confirms toggling.
   let __dbgFlag = false;
   try {
-    __dbgFlag = typeof window !== "undefined" && window.__TIMELINE_DEBUG_SNAP === true;
+    __dbgFlag =
+      typeof window !== "undefined" && window.__TIMELINE_DEBUG_SNAP === true;
   } catch (_) {
     __dbgFlag = false;
   }
@@ -779,7 +791,10 @@ function enableHorizontalSnapAssist() {
       return;
     }
 
-    const maxScrollTop = Math.max(0, timeline.scrollHeight - timeline.clientHeight);
+    const maxScrollTop = Math.max(
+      0,
+      timeline.scrollHeight - timeline.clientHeight
+    );
     const nearBottom = maxScrollTop - timeline.scrollTop <= 8;
     const skipBottom = shouldSkipSnapAtBottom(timeline, targetBar);
     if (skipBottom) {
@@ -869,7 +884,8 @@ function enableHorizontalSnapAssist() {
     // IMPORTANT: do NOT use per-step `horizontalDominant` here.
     // During touch panning iOS often produces many scroll steps with `dy = 0`,
     // which would incorrectly mark a mostly-vertical gesture as horizontal.
-    const horizontalIntent = gestureMaxDx > 18 && gestureMaxDx > gestureMaxDy * 0.75;
+    const horizontalIntent =
+      gestureMaxDx > 18 && gestureMaxDx > gestureMaxDy * 0.75;
     if (horizontalIntent) {
       sawHorizontalDuringGesture = true;
     }
@@ -905,7 +921,11 @@ function enableHorizontalSnapAssist() {
 
   const onUserInterrupt = () => {
     // Start a new gesture window
-    dbg("userInterrupt", { type: "interrupt", scrollLeft: timeline.scrollLeft, scrollTop: timeline.scrollTop });
+    dbg("userInterrupt", {
+      type: "interrupt",
+      scrollLeft: timeline.scrollLeft,
+      scrollTop: timeline.scrollTop,
+    });
     stopAnimation();
   };
   const onScrollEnd = () => {
