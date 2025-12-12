@@ -100,29 +100,39 @@ const ERAS = [
     label: "Baroque",
     from: 1600,
     to: 1750,
-    color: "#dcdcdc", // светло-серый
   },
   {
     id: "classical",
     label: "Classical",
     from: 1750,
     to: 1820,
-    color: "#c8c8c8", // чуть темнее
   },
   {
     id: "romantic",
     label: "Romantic",
     from: 1820,
     to: 1900,
-    color: "#b4b4b4", // средне-серый
   },
   {
     id: "twentieth",
     label: "20th Century",
     from: 1900,
     to: 2000,
-    color: "#a0a0a0", // ближе к средне-серому
   },
+];
+
+const earliestBirth = Math.min(...composers.map((c) => c.birth));
+const latestBirth = Math.max(...composers.map((c) => c.birth));
+
+const WHITE = { r: 255, g: 255, b: 255 };
+const ACCENT = { r: 37, g: 99, b: 235 }; // лёгкий синий от подсветки фактов
+
+// Градиентные точки: тёплое золото барокко -> розовый рассвет классицизма -> перламутр романтизма -> прозрачная бирюза XX века
+const COLOR_STOPS = [
+  { stop: 0, rgb: hexToRgb("#ffe2bf") }, // барокко — тёплый янтарь
+  { stop: progressForYear(1750), rgb: hexToRgb("#ffd4ec") }, // классицизм — розовый отблеск
+  { stop: progressForYear(1820), rgb: hexToRgb("#d8d6ff") }, // романтизм — мягкий перламутр
+  { stop: 1, rgb: hexToRgb("#b6ecff") }, // XX век — холодный аквамарин
 ];
 
 // Compute data max year (based only on composers)
@@ -158,6 +168,85 @@ function yearToPercent(year) {
   return ((year - axisMinYear) / axisSpan) * 100;
 }
 
+function clamp01(value) {
+  if (Number.isNaN(value)) return 0;
+  return Math.min(1, Math.max(0, value));
+}
+
+function hexToRgb(hex) {
+  const normalized = hex.replace("#", "");
+  const value =
+    normalized.length === 3
+      ? normalized
+          .split("")
+          .map((c) => c + c)
+          .join("")
+      : normalized;
+  const int = parseInt(value, 16);
+  return {
+    r: (int >> 16) & 255,
+    g: (int >> 8) & 255,
+    b: int & 255,
+  };
+}
+
+function rgbToHex({ r, g, b }) {
+  const toHex = (v) => Math.round(v).toString(16).padStart(2, "0");
+  return `#${toHex(r)}${toHex(g)}${toHex(b)}`;
+}
+
+function mixColors(a, b, t) {
+  const ratio = clamp01(t);
+  return {
+    r: a.r + (b.r - a.r) * ratio,
+    g: a.g + (b.g - a.g) * ratio,
+    b: a.b + (b.b - a.b) * ratio,
+  };
+}
+
+function progressForYear(year) {
+  const span = latestBirth - earliestBirth;
+  if (span <= 0) return 0;
+  return clamp01((year - earliestBirth) / span);
+}
+
+function colorForProgress(progress) {
+  const p = clamp01(progress);
+  for (let i = 0; i < COLOR_STOPS.length - 1; i++) {
+    const current = COLOR_STOPS[i];
+    const next = COLOR_STOPS[i + 1];
+    if (p <= next.stop) {
+      const localSpan = next.stop - current.stop || 1;
+      const localT = clamp01((p - current.stop) / localSpan);
+      return mixColors(current.rgb, next.rgb, localT);
+    }
+  }
+  return COLOR_STOPS[COLOR_STOPS.length - 1].rgb;
+}
+
+function colorForYear(year) {
+  return colorForProgress(progressForYear(year));
+}
+
+function barGradient(progress) {
+  const base = colorForProgress(progress);
+  const highlight = mixColors(base, WHITE, 0.18);
+  const accent = mixColors(base, ACCENT, 0.12);
+  return `linear-gradient(145deg, ${rgbToHex(
+    highlight
+  )} 0%, ${rgbToHex(base)} 52%, ${rgbToHex(accent)} 100%)`;
+}
+
+function eraGradient(startYear, endYear) {
+  const startColor = colorForYear(startYear);
+  const endColor = colorForYear(endYear);
+  const left = mixColors(startColor, WHITE, 0.12);
+  const right = mixColors(endColor, ACCENT, 0.08);
+  return `linear-gradient(90deg, ${rgbToHex(left)} 0%, ${rgbToHex(
+    right
+  )} 100%)`;
+}
+
 function buildAxis() {
   const axis = document.getElementById("axis");
   if (!axis) return;
@@ -177,7 +266,8 @@ function buildAxis() {
     band.className = "era-band";
     band.style.left = yearToPercent(start) + "%";
     band.style.width = yearToPercent(end) - yearToPercent(start) + "%";
-    band.style.backgroundColor = era.color;
+    band.style.backgroundImage = eraGradient(start, end);
+    band.style.backgroundColor = "transparent";
     band.textContent = era.label;
 
     // Для первой эры (Baroque) подпись выравниваем по правому краю полосы
@@ -249,24 +339,15 @@ function buildGantt() {
     laneCount * barHeight + Math.max(0, laneCount - 1) * verticalGap;
   gantt.style.height = totalHeight + "px";
 
-  // Prepare grayscale gradient from #dcdcdc to #808080 (light to mid gray)
-  const totalBars = placements.length;
-  const startGray = 0xdc; // 220
-  const endGray = 0x80; // 128
-  const grayStep = totalBars > 1 ? (startGray - endGray) / (totalBars - 1) : 0;
-
-  placements.forEach(({ composer: c, laneIndex }, index) => {
+  placements.forEach(({ composer: c, laneIndex }) => {
     const bar = document.createElement("div");
     bar.className = "bar";
     bar.setAttribute("data-lane-index", laneIndex);
     bar.setAttribute("data-name", c.name);
 
-    // Compute grayscale background for this bar; use semi-transparent fill so text/photos remain fully opaque
-    const grayValue = Math.round(startGray - grayStep * index);
-    const barColor = `rgba(${grayValue}, ${grayValue}, ${grayValue}, 0.75)`;
-
-    bar.style.backgroundImage = "none";
-    bar.style.backgroundColor = barColor;
+    const progress = placements.length > 1 ? progressForYear(c.birth) : 0;
+    bar.style.backgroundImage = barGradient(progress);
+    bar.style.backgroundColor = "transparent";
 
     const left = yearToPercent(c.birth);
     const width = yearToPercent(c.death) - yearToPercent(c.birth);
@@ -337,12 +418,14 @@ function enablePanning() {
     if (isDragging) return;
     isDragging = true;
     timeline.classList.add("panning");
+    timeline.dataset.panning = "true";
   };
 
   const stopPanning = () => {
     if (!isDragging) return;
     isDragging = false;
     timeline.classList.remove("panning");
+    timeline.dataset.panning = "false";
   };
 
   function updateScroll() {
@@ -475,11 +558,85 @@ function enablePanning() {
   timeline.addEventListener("touchcancel", onTouchEnd, { passive: true });
 }
 
+function findClosestBarToViewportTop(timeline) {
+  const bars = timeline.querySelectorAll(".bar");
+  if (!bars.length) return null;
+
+  const viewportTop = timeline.scrollTop;
+  let closest = null;
+  let bestDistance = Infinity;
+
+  bars.forEach((bar) => {
+    const barTop = bar.offsetTop;
+    const barBottom = barTop + bar.offsetHeight;
+    if (barBottom < viewportTop) return; // выше вьюпорта
+    const distance = Math.abs(barTop - viewportTop);
+    if (distance < bestDistance) {
+      bestDistance = distance;
+      closest = bar;
+    }
+  });
+
+  if (closest) return closest;
+
+  // если все выше — берём самую нижнюю
+  return bars[bars.length - 1];
+}
+
+function enableHorizontalSnapAssist() {
+  const timeline = document.getElementById("timeline");
+  if (!timeline) return () => {};
+
+  timeline.dataset.panning = "false";
+  let debounceId = null;
+  let isAutoScrolling = false;
+
+  const snapInset = 6; // небольшой зазор слева, чтобы плашка не прилипала впритык
+
+  const alignLeft = () => {
+    debounceId = null;
+    if (timeline.dataset.panning === "true") return;
+    const targetBar = findClosestBarToViewportTop(timeline);
+    if (!targetBar) return;
+
+    const targetLeft = Math.max(0, targetBar.offsetLeft - snapInset);
+    const delta = Math.abs(timeline.scrollLeft - targetLeft);
+    if (delta < 1) return;
+
+    isAutoScrolling = true;
+    timeline.scrollTo({ left: targetLeft, behavior: "smooth" });
+    window.setTimeout(() => {
+      isAutoScrolling = false;
+    }, 350);
+  };
+
+  const scheduleAlign = () => {
+    if (isAutoScrolling) return;
+    if (timeline.dataset.panning === "true") return;
+    if (debounceId) window.clearTimeout(debounceId);
+    debounceId = window.setTimeout(alignLeft, 140);
+  };
+
+  const onWheel = (e) => {
+    // реагируем только на вертикально доминирующий скролл
+    if (Math.abs(e.deltaY) <= Math.abs(e.deltaX)) return;
+    scheduleAlign();
+  };
+
+  timeline.addEventListener("wheel", onWheel, { passive: true });
+
+  return () => {
+    timeline.removeEventListener("wheel", onWheel);
+    if (debounceId) window.clearTimeout(debounceId);
+  };
+}
+
 export function initTimeline() {
   ensureTimelineWidth();
   buildAxis();
   buildGantt();
   enablePanning();
+  const cleanupSnapAssist = enableHorizontalSnapAssist();
 
   // Пересчитываем ширину при смене ориентации/ресайзе окна
   const onResize = () => ensureTimelineWidth();
@@ -504,6 +661,7 @@ export function initTimeline() {
     goToStart,
     destroy() {
       window.removeEventListener("resize", onResize);
+      cleanupSnapAssist();
     },
   };
 }

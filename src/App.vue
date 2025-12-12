@@ -454,12 +454,16 @@ watch(isModalOpen, (open) => {
 .composer-modal__body {
   padding: 12px 24px 24px;
   overflow-y: auto;
-  display: flex;
-  flex-direction: column;
-  gap: 16px;
+  display: grid;
+  grid-template-columns: auto 1fr;
+  grid-auto-rows: auto;
+  column-gap: 16px;
+  row-gap: 16px;
 }
 
 .composer-modal__hero {
+  grid-column: 1;
+  grid-row: 1;
   display: flex;
   gap: 16px;
   align-items: flex-start;
@@ -471,29 +475,20 @@ watch(isModalOpen, (open) => {
   height: auto;
   object-fit: cover;
   border-radius: 12px;
-  box-shadow: 0 10px 30px rgba(0, 0, 0, 0.2);
+  box-shadow: none;
 }
 
 .composer-modal__hero-meta {
-  display: flex;
-  flex-direction: column;
-  gap: 6px;
-}
-
-.composer-modal__name-small {
-  font-weight: 700;
-  font-size: 18px;
-}
-
-.composer-modal__dates-small {
-  color: #4b5563;
-  font-weight: 500;
+  display: none;
 }
 
 .composer-modal__nav {
+  grid-column: 2;
+  grid-row: 1;
   display: flex;
   align-items: center;
   gap: 12px;
+  justify-self: end;
 }
 
 .composer-modal__arrow {
@@ -517,6 +512,7 @@ watch(isModalOpen, (open) => {
 }
 
 .composer-modal__description {
+  grid-column: 1 / -1;
   color: #111827;
   line-height: 1.6;
   font-size: 16px;
@@ -563,6 +559,7 @@ watch(isModalOpen, (open) => {
 }
 
 .composer-modal__playlist {
+  grid-column: 1 / -1;
   padding-top: 8px;
   border-top: 1px solid rgba(0, 0, 0, 0.06);
   display: flex;
@@ -609,6 +606,8 @@ watch(isModalOpen, (open) => {
 
   .composer-modal__body {
     padding: 10px 16px 18px;
+    display: flex;
+    flex-direction: column;
   }
 
   .composer-modal__name {

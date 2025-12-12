@@ -11,6 +11,9 @@
   visibility: hidden; /* скрываем до полной отрисовки */
   overscroll-behavior: contain;
   padding-bottom: env(safe-area-inset-bottom, 0); /* только безопасная зона без лишних отступов */
+  scroll-snap-type: both mandatory;
+  scroll-padding-top: 37px; /* высота оси (35px) + зазор 2px, чтобы бар прилипал прямо под ось */
+  scroll-padding-left: 0;
 }
 
 #timeline.panning {
@@ -55,10 +58,10 @@
   padding: 2px 6px 0 26px; /* больше отступ слева, чтобы не наезжать на год */
   font-size: 12px; /* как у крупных (50-летних) меток по умолчанию */
   font-weight: 500;
-  color: #131313;
-  background-color: #707070;
-  border-left: 1px solid rgba(255, 255, 255, 0.15);
-  border-right: 1px solid rgba(0, 0, 0, 0.3);
+  color: #0f172a;
+  background: none;
+  border-left: 1px solid rgba(15, 23, 42, 0.08);
+  border-right: 1px solid rgba(15, 23, 42, 0.08);
 }
 
 .axis-tick {
@@ -119,15 +122,19 @@
   height: 50px;
   line-height: 50px;
   border-radius: 6px; /* меньшее закругление */
-  padding: 0 3px;
-  color: #000000;
-  /* border: 0.5px solid rgb(65, 65, 65); */
+  padding: 0 6px;
+  color: #0b172a;
+  border: 1px solid rgba(15, 23, 42, 0.1);
+  box-shadow: none;
   overflow: hidden;
   z-index: 1; /* базовый слой для всех плашек */
   display: flex;
   align-items: center;
   gap: 6px;
   cursor: pointer;
+  transition: box-shadow 0.15s ease, transform 0.15s ease;
+  scroll-snap-align: start;
+  scroll-snap-stop: always;
 }
 .bar-avatar {
   flex-shrink: 0;
@@ -147,7 +154,8 @@
 .bar:hover {
   z-index: 10; /* при ховере выводим плашку поверх остальных */
   opacity: 1;
-  box-shadow: 0 3px 6px rgba(0, 0, 0, 0.35);
+  box-shadow: 0 6px 12px rgba(15, 23, 42, 0.08);
+  transform: translateY(-1px);
 }
 
 /* Одинаковый размер подписей оси на всех платформах, чтобы Safari не раздувал цифры */
