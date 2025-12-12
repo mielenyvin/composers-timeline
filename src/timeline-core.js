@@ -127,12 +127,17 @@ const ERAS = [
 
 // Compute data max year (based only on composers)
 const dataMaxYear = Math.max(...composers.map((c) => c.death));
+const rightPaddingYears = 55; // запас справа, чтобы последние композиторы не обрезались на мобильных
 
 // Axis range:
 //  - фиксированный старт в 1675 (Baroque начинается раньше и уходит влево за экран)
-//  - фиксированный конец оси в 1980 (20th Century продолжается до 2000, но обрезается по правому краю)
+//  - динамический конец: минимум 1980 и плюс запас за последним композитором,
+//    чтобы хвост таймлайна уверенно попадал в экран даже на маленьких устройствах
 const axisMinYear = 1675;
-const axisMaxYear = 1980;
+const axisMaxYear = Math.max(
+  1980,
+  Math.ceil((dataMaxYear + rightPaddingYears) / 10) * 10
+);
 const axisSpan = axisMaxYear - axisMinYear;
 
 function yearToPercent(year) {
