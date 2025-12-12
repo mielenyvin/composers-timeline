@@ -558,29 +558,33 @@ function enablePanning() {
   timeline.addEventListener("touchcancel", onTouchEnd, { passive: true });
 }
 
-function findClosestBarToViewportTop(timeline) {
+function findTopmostVisibleBar(timeline) {
   const bars = timeline.querySelectorAll(".bar");
   if (!bars.length) return null;
 
   const viewportTop = timeline.scrollTop;
-  let closest = null;
-  let bestDistance = Infinity;
+  const tolerance = 12;
+  let candidate = null;
+  let candidateTop = Infinity;
 
   bars.forEach((bar) => {
     const barTop = bar.offsetTop;
     const barBottom = barTop + bar.offsetHeight;
-    if (barBottom < viewportTop) return; // выше вьюпорта
-    const distance = Math.abs(barTop - viewportTop);
-    if (distance < bestDistance) {
-      bestDistance = distance;
-      closest = bar;
+    const isInView = barBottom >= viewportTop - tolerance;
+    if (!isInView) return;
+    if (barTop < candidateTop) {
+      candidateTop = barTop;
+      candidate = bar;
     }
   });
 
-  if (closest) return closest;
-
-  // если все выше — берём самую нижнюю
+  if (candidate) return candidate;
   return bars[bars.length - 1];
+}
+
+function easeOutCubic(t) {
+  const clamped = Math.min(1, Math.max(0, t));
+  return 1 - Math.pow(1 - clamped, 3);
 }
 
 function enableHorizontalSnapAssist() {
@@ -590,31 +594,62 @@ function enableHorizontalSnapAssist() {
   timeline.dataset.panning = "false";
   let debounceId = null;
   let isAutoScrolling = false;
+  let animationId = null;
+  let lastScrollTop = timeline.scrollTop;
+  let lastScrollLeft = timeline.scrollLeft;
 
   const snapInset = 6; // небольшой зазор слева, чтобы плашка не прилипала впритык
+  const animationDuration = 600;
+
+  const stopAnimation = () => {
+    if (animationId !== null) {
+      cancelAnimationFrame(animationId);
+      animationId = null;
+    }
+    isAutoScrolling = false;
+  };
+
+  const animateTo = (targetLeft) => {
+    stopAnimation();
+    const startLeft = timeline.scrollLeft;
+    const delta = targetLeft - startLeft;
+    if (Math.abs(delta) < 1) return;
+
+    isAutoScrolling = true;
+    const startedAt = performance.now();
+
+    const tick = (now) => {
+      const t = (now - startedAt) / animationDuration;
+      const eased = easeOutCubic(t);
+      timeline.scrollLeft = startLeft + delta * eased;
+      if (t < 1 && timeline.dataset.panning !== "true") {
+        animationId = requestAnimationFrame(tick);
+      } else {
+        stopAnimation();
+      }
+    };
+
+    animationId = requestAnimationFrame(tick);
+  };
 
   const alignLeft = () => {
     debounceId = null;
     if (timeline.dataset.panning === "true") return;
-    const targetBar = findClosestBarToViewportTop(timeline);
+    const targetBar = findTopmostVisibleBar(timeline);
     if (!targetBar) return;
 
     const targetLeft = Math.max(0, targetBar.offsetLeft - snapInset);
     const delta = Math.abs(timeline.scrollLeft - targetLeft);
     if (delta < 1) return;
 
-    isAutoScrolling = true;
-    timeline.scrollTo({ left: targetLeft, behavior: "smooth" });
-    window.setTimeout(() => {
-      isAutoScrolling = false;
-    }, 350);
+    animateTo(targetLeft);
   };
 
   const scheduleAlign = () => {
     if (isAutoScrolling) return;
     if (timeline.dataset.panning === "true") return;
     if (debounceId) window.clearTimeout(debounceId);
-    debounceId = window.setTimeout(alignLeft, 140);
+    debounceId = window.setTimeout(alignLeft, 160);
   };
 
   const onWheel = (e) => {
@@ -623,11 +658,30 @@ function enableHorizontalSnapAssist() {
     scheduleAlign();
   };
 
+  const onScroll = () => {
+    if (isAutoScrolling) return;
+    const dy = Math.abs(timeline.scrollTop - lastScrollTop);
+    lastScrollTop = timeline.scrollTop;
+    lastScrollLeft = timeline.scrollLeft;
+    if (timeline.dataset.panning === "true") return;
+    if (dy < 2) return; // слишком маленькое движение
+    scheduleAlign();
+  };
+
+  const onUserInterrupt = () => stopAnimation();
+
   timeline.addEventListener("wheel", onWheel, { passive: true });
+  timeline.addEventListener("scroll", onScroll, { passive: true });
+  timeline.addEventListener("mousedown", onUserInterrupt, { passive: true });
+  timeline.addEventListener("touchstart", onUserInterrupt, { passive: true });
 
   return () => {
     timeline.removeEventListener("wheel", onWheel);
+    timeline.removeEventListener("scroll", onScroll);
+    timeline.removeEventListener("mousedown", onUserInterrupt);
+    timeline.removeEventListener("touchstart", onUserInterrupt);
     if (debounceId) window.clearTimeout(debounceId);
+    stopAnimation();
   };
 }
 
