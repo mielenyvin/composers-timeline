@@ -602,9 +602,25 @@ function easeInOutCubic(t) {
     : 1 - Math.pow(-2 * clamped + 2, 3) / 2;
 }
 
-function isAtVerticalBottom(timeline, threshold = 4) {
-  const maxScrollTop = timeline.scrollHeight - timeline.clientHeight;
-  return maxScrollTop - timeline.scrollTop <= threshold;
+function shouldSkipSnapAtBottom(timeline, targetBar) {
+  if (!targetBar) return false;
+  const maxScrollTop = Math.max(
+    0,
+    timeline.scrollHeight - timeline.clientHeight
+  );
+  const nearBottom = maxScrollTop - timeline.scrollTop <= 8;
+  if (!nearBottom) return false;
+
+  const viewportBottom = timeline.scrollTop + timeline.clientHeight;
+  const contentBottom = timeline.scrollHeight;
+  const targetBottom = targetBar.offsetTop + targetBar.offsetHeight;
+
+  const gapToContentEnd = contentBottom - viewportBottom;
+  const roomBelowTarget = contentBottom - targetBottom;
+
+  // Если мы реально упёрлись в конец контента и видим последнюю плашку,
+  // горизонт не трогаем.
+  return gapToContentEnd <= 8 && roomBelowTarget <= 8;
 }
 
 function enableHorizontalSnapAssist() {
@@ -617,6 +633,7 @@ function enableHorizontalSnapAssist() {
   let autoScrollTimer = null;
   let lastScrollTop = timeline.scrollTop;
   let lastScrollLeft = timeline.scrollLeft;
+  let lastScrollWasVertical = true;
 
   const snapInset = 6; // небольшой зазор слева, чтобы плашка не прилипала впритык
   const animationDuration = 600;
@@ -651,9 +668,9 @@ function enableHorizontalSnapAssist() {
   const alignLeft = () => {
     debounceId = null;
     if (timeline.dataset.panning === "true") return;
-    if (isAtVerticalBottom(timeline)) return;
     const targetBar = findTopmostVisibleBar(timeline);
     if (!targetBar) return;
+    if (shouldSkipSnapAtBottom(timeline, targetBar)) return;
 
     const targetLeft = Math.max(0, targetBar.offsetLeft - snapInset);
     const delta = Math.abs(timeline.scrollLeft - targetLeft);
@@ -677,9 +694,16 @@ function enableHorizontalSnapAssist() {
 
   const onScroll = () => {
     if (isAutoScrolling) return;
-    lastScrollTop = timeline.scrollTop;
-    lastScrollLeft = timeline.scrollLeft;
+    const currentTop = timeline.scrollTop;
+    const currentLeft = timeline.scrollLeft;
+    const dy = Math.abs(currentTop - lastScrollTop);
+    const dx = Math.abs(currentLeft - lastScrollLeft);
+    lastScrollTop = currentTop;
+    lastScrollLeft = currentLeft;
     if (timeline.dataset.panning === "true") return;
+    const verticalDominant = dy > dx * 1.4 && dy > 1.5;
+    lastScrollWasVertical = verticalDominant;
+    if (!verticalDominant) return;
     scheduleAlign();
   };
 
@@ -687,6 +711,7 @@ function enableHorizontalSnapAssist() {
   const onScrollEnd = () => {
     if (isAutoScrolling) return;
     if (timeline.dataset.panning === "true") return;
+    if (!lastScrollWasVertical) return;
     scheduleAlign();
   };
 
