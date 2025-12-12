@@ -16,6 +16,15 @@
   scroll-padding-left: 0;
 }
 
+#timeline[data-snap-disabled="true"] {
+  scroll-snap-type: none;
+}
+
+#timeline[data-snap-disabled="true"] .bar {
+  scroll-snap-align: none;
+  scroll-snap-stop: normal;
+}
+
 #timeline.panning {
   cursor: grabbing;
 }

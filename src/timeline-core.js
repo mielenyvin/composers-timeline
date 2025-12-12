@@ -718,6 +718,8 @@ function enableHorizontalSnapAssist() {
   if (!timeline) return () => {};
 
   timeline.dataset.panning = "false";
+  timeline.dataset.snapDisabled = "false";
+  const SNAP_DISABLE_GAP_PX = 12;
   let debounceId = null;
   let isAutoScrolling = false;
   let autoScrollTimer = null;
@@ -727,6 +729,7 @@ function enableHorizontalSnapAssist() {
   let sawHorizontalDuringGesture = false;
   let gestureMaxDx = 0;
   let gestureMaxDy = 0;
+  let snapTemporarilyDisabled = false;
 
   // Debug logging
   // Enable at runtime in DevTools:
@@ -826,6 +829,39 @@ function enableHorizontalSnapAssist() {
     });
   };
 
+  const isNearBottom = () => {
+    const maxScrollTop = Math.max(
+      0,
+      timeline.scrollHeight - timeline.clientHeight
+    );
+    return maxScrollTop - timeline.scrollTop <= SNAP_DISABLE_GAP_PX;
+  };
+
+  function setSnapDisabled(disabled) {
+    if (snapTemporarilyDisabled === disabled) return;
+    snapTemporarilyDisabled = disabled;
+    if (disabled) {
+      if (debounceId) {
+        window.clearTimeout(debounceId);
+        debounceId = null;
+      }
+      stopAnimation();
+      timeline.dataset.snapDisabled = "true";
+    } else {
+      timeline.dataset.snapDisabled = "false";
+    }
+    dbg("snapDisabled:toggle", {
+      disabled,
+      scrollTop: timeline.scrollTop,
+      maxScrollTop: Math.max(
+        0,
+        timeline.scrollHeight - timeline.clientHeight
+      ),
+    });
+  }
+
+  const syncSnapDisabled = () => setSnapDisabled(isNearBottom());
+
   const animateTo = (targetLeft) => {
     stopAnimation();
     const startLeft = timeline.scrollLeft;
@@ -850,6 +886,10 @@ function enableHorizontalSnapAssist() {
     debounceId = null;
     if (timeline.dataset.panning === "true") {
       dbg("alignLeft: skip (panning)");
+      return;
+    }
+    if (snapTemporarilyDisabled) {
+      dbg("alignLeft: skip (snapDisabled)");
       return;
     }
 
@@ -897,6 +937,10 @@ function enableHorizontalSnapAssist() {
   };
 
   const scheduleAlign = () => {
+    if (snapTemporarilyDisabled) {
+      dbg("scheduleAlign: skip (snapDisabled)");
+      return;
+    }
     if (isAutoScrolling) {
       dbg("scheduleAlign: skip (autoScrolling)");
       return;
@@ -929,6 +973,8 @@ function enableHorizontalSnapAssist() {
 
     const currentTop = timeline.scrollTop;
     const currentLeft = timeline.scrollLeft;
+
+    syncSnapDisabled();
 
     const dy = Math.abs(currentTop - lastScrollTop);
     const dx = Math.abs(currentLeft - lastScrollLeft);
@@ -999,6 +1045,7 @@ function enableHorizontalSnapAssist() {
   const onScrollEnd = () => {
     if (isAutoScrolling) return;
     if (timeline.dataset.panning === "true") return;
+    if (snapTemporarilyDisabled) return;
 
     dbg("scrollEnd", {
       sawVerticalDuringGesture,
@@ -1046,6 +1093,8 @@ function enableHorizontalSnapAssist() {
     gestureMaxDx = 0;
     gestureMaxDy = 0;
   };
+
+  syncSnapDisabled();
 
   timeline.addEventListener("wheel", onWheel, { passive: true });
   timeline.addEventListener("scroll", onScroll, { passive: true });
