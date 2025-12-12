@@ -127,12 +127,13 @@ const latestBirth = Math.max(...composers.map((c) => c.birth));
 const WHITE = { r: 255, g: 255, b: 255 };
 const ACCENT = { r: 37, g: 99, b: 235 }; // лёгкий синий от подсветки фактов
 
-// Градиентные точки: тёплое золото барокко -> розовый рассвет классицизма -> перламутр романтизма -> прозрачная бирюза XX века
+// Bar/era color ramp (light, serious, no yellow/green):
+// soft gray -> pale steel blue -> cool periwinkle -> light slate
 const COLOR_STOPS = [
-  { stop: 0, rgb: hexToRgb("#ffe2bf") }, // барокко — тёплый янтарь
-  { stop: progressForYear(1750), rgb: hexToRgb("#ffd4ec") }, // классицизм — розовый отблеск
-  { stop: progressForYear(1820), rgb: hexToRgb("#d8d6ff") }, // романтизм — мягкий перламутр
-  { stop: 1, rgb: hexToRgb("#b6ecff") }, // XX век — холодный аквамарин
+  { stop: 0, rgb: hexToRgb("#f3f4f6") }, // soft gray
+  { stop: progressForYear(1750), rgb: hexToRgb("#e6eef8") }, // pale steel blue
+  { stop: progressForYear(1820), rgb: hexToRgb("#e8f4ff") }, // ice blue (no violet)
+  { stop: 1, rgb: hexToRgb("#eef2f7") }, // light slate
 ];
 
 // Compute data max year (based only on composers)
@@ -230,8 +231,8 @@ function colorForYear(year) {
 
 function barGradient(progress) {
   const base = colorForProgress(progress);
-  const highlight = mixColors(base, WHITE, 0.18);
-  const accent = mixColors(base, ACCENT, 0.12);
+  const highlight = mixColors(base, WHITE, 0.14);
+  const accent = mixColors(base, ACCENT, 0.035);
   return `linear-gradient(145deg, ${rgbToHex(
     highlight
   )} 0%, ${rgbToHex(base)} 52%, ${rgbToHex(accent)} 100%)`;
@@ -240,8 +241,13 @@ function barGradient(progress) {
 function eraGradient(startYear, endYear) {
   const startColor = colorForYear(startYear);
   const endColor = colorForYear(endYear);
-  const left = mixColors(startColor, WHITE, 0.12);
-  const right = mixColors(endColor, ACCENT, 0.08);
+
+  // Keep axis bands in the same "light serious" family as the bars:
+  // mostly white-mixed, with only a tiny blue accent.
+  const left = mixColors(startColor, WHITE, 0.22);
+  const rightAccented = mixColors(endColor, ACCENT, 0.025);
+  const right = mixColors(rightAccented, WHITE, 0.18);
+
   return `linear-gradient(90deg, ${rgbToHex(left)} 0%, ${rgbToHex(
     right
   )} 100%)`;
@@ -660,7 +666,7 @@ function enableHorizontalSnapAssist() {
     if (isAutoScrolling) return;
     if (timeline.dataset.panning === "true") return;
     if (debounceId) window.clearTimeout(debounceId);
-    debounceId = window.setTimeout(alignLeft, 30);
+    debounceId = window.setTimeout(alignLeft, 20);
   };
 
   const onWheel = (e) => {
