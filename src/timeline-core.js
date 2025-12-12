@@ -418,12 +418,15 @@ function buildGantt() {
 // Mouse drag panning (both axes)
 function enablePanning() {
   const timeline = document.getElementById("timeline");
+  if (!timeline) return;
+
+  // Improve touch panning reliability on mobile (esp. iOS):
+  // - prevent the page from stealing the gesture
+  // - avoid native scrolling heuristics interfering with our manual scrollLeft/scrollTop updates
   timeline.style.touchAction = "none";
   timeline.style.overscrollBehavior = "contain";
   timeline.style.webkitTouchCallout = "none";
   timeline.style.webkitUserSelect = "none";
-
-  if (!timeline) return;
 
   let isDown = false;
   let isDragging = false;
