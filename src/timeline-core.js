@@ -719,7 +719,7 @@ function enableHorizontalSnapAssist() {
 
   timeline.dataset.panning = "false";
   timeline.dataset.snapDisabled = "false";
-  const SNAP_DISABLE_GAP_PX = 12;
+  const SNAP_DISABLE_GAP_PX = 48;
   let debounceId = null;
   let isAutoScrolling = false;
   let autoScrollTimer = null;
@@ -830,11 +830,14 @@ function enableHorizontalSnapAssist() {
   };
 
   const isNearBottom = () => {
-    const maxScrollTop = Math.max(
-      0,
-      timeline.scrollHeight - timeline.clientHeight
+    const contentBottom = timeline.scrollHeight;
+    const viewportBottom = timeline.scrollTop + timeline.clientHeight;
+    const paddingBottom = parseFloat(
+      window.getComputedStyle(timeline).paddingBottom || "0"
     );
-    return maxScrollTop - timeline.scrollTop <= SNAP_DISABLE_GAP_PX;
+    const bottomGap = contentBottom - viewportBottom;
+    const threshold = Math.max(SNAP_DISABLE_GAP_PX, paddingBottom + 4);
+    return bottomGap <= threshold;
   };
 
   function setSnapDisabled(disabled) {
@@ -852,11 +855,9 @@ function enableHorizontalSnapAssist() {
     }
     dbg("snapDisabled:toggle", {
       disabled,
-      scrollTop: timeline.scrollTop,
-      maxScrollTop: Math.max(
-        0,
-        timeline.scrollHeight - timeline.clientHeight
-      ),
+      bottomGap:
+        timeline.scrollHeight -
+        (timeline.scrollTop + timeline.clientHeight),
     });
   }
 
