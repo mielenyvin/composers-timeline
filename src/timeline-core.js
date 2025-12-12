@@ -530,6 +530,21 @@ function enablePanning() {
   let touchDragStarted = false;
   let touchStartScrollLeft = 0;
   let touchStartScrollTop = 0;
+  let touchPrevX = 0;
+  let touchPrevY = 0;
+
+  // Optional pan debug (toggle with the same flag as snap): window.__TIMELINE_DEBUG_SNAP = true
+  const dbgPan = (...args) => {
+    try {
+      if (typeof window !== "undefined" && window.__TIMELINE_DEBUG_SNAP === true) {
+        console.log("[pan]", ...args);
+      }
+    } catch (_) {
+      // ignore
+    }
+  };
+
+  const clamp = (v, min, max) => Math.min(max, Math.max(min, v));
 
   const onTouchStart = (e) => {
     if (touchId !== null) return;
@@ -543,7 +558,12 @@ function enablePanning() {
     lastClientY = t.clientY;
     touchStartScrollLeft = timeline.scrollLeft;
     touchStartScrollTop = timeline.scrollTop;
-    // stopPanning();
+    touchPrevX = t.clientX;
+    touchPrevY = t.clientY;
+    dbgPan("touchStart", {
+      scrollLeft: timeline.scrollLeft,
+      scrollTop: timeline.scrollTop,
+    });
 
     timeline.classList.remove("panning");
     timeline.dataset.panning = "false";
@@ -560,20 +580,32 @@ function enablePanning() {
     lastClientX = t.clientX;
     lastClientY = t.clientY;
 
-    const dx = lastClientX - startX;
-    const dy = lastClientY - startY;
+    // Total movement since touch start (used only to decide when to start panning)
+    const totalDx = lastClientX - startX;
+    const totalDy = lastClientY - startY;
 
     if (!touchDragStarted) {
-      if (Math.abs(dx) > dragThreshold || Math.abs(dy) > dragThreshold) {
+      if (Math.abs(totalDx) > dragThreshold || Math.abs(totalDy) > dragThreshold) {
         touchDragStarted = true;
         startPanning();
+        dbgPan("touchDragStarted", { totalDx, totalDy });
       } else {
         return;
       }
     }
 
-    timeline.scrollLeft = touchStartScrollLeft - dx;
-    timeline.scrollTop = touchStartScrollTop - dy;
+    // Incremental movement since last touchmove (more stable on iOS at scroll boundaries)
+    const stepDx = lastClientX - touchPrevX;
+    const stepDy = lastClientY - touchPrevY;
+    touchPrevX = lastClientX;
+    touchPrevY = lastClientY;
+
+    const maxLeft = Math.max(0, timeline.scrollWidth - timeline.clientWidth);
+    const maxTop = Math.max(0, timeline.scrollHeight - timeline.clientHeight);
+
+    timeline.scrollLeft = clamp(timeline.scrollLeft - stepDx, 0, maxLeft);
+    timeline.scrollTop = clamp(timeline.scrollTop - stepDy, 0, maxTop);
+
     e.preventDefault();
   };
 
@@ -585,6 +617,10 @@ function enablePanning() {
     if (!ended) return;
     touchId = null;
     touchDragStarted = false;
+    dbgPan("touchEnd", {
+      scrollLeft: timeline.scrollLeft,
+      scrollTop: timeline.scrollTop,
+    });
     stopPanning();
   };
 
