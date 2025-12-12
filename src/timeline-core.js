@@ -234,9 +234,9 @@ function barGradient(progress) {
   const base = colorForProgress(progress);
   const highlight = mixColors(base, WHITE, 0.14);
   const accent = mixColors(base, ACCENT, 0.035);
-  return `linear-gradient(145deg, ${rgbToHex(highlight)} 0%, ${rgbToHex(
-    base
-  )} 52%, ${rgbToHex(accent)} 100%)`;
+  return `linear-gradient(145deg, ${rgbToHex(
+    highlight
+  )} 0%, ${rgbToHex(base)} 52%, ${rgbToHex(accent)} 100%)`;
 }
 
 function eraGradient(startYear, endYear) {
@@ -420,14 +420,6 @@ function enablePanning() {
   const timeline = document.getElementById("timeline");
   if (!timeline) return;
 
-  // Improve touch panning reliability on mobile (esp. iOS):
-  // - prevent the page from stealing the gesture
-  // - avoid native scrolling heuristics interfering with our manual scrollLeft/scrollTop updates
-  timeline.style.touchAction = "none";
-  timeline.style.overscrollBehavior = "contain";
-  timeline.style.webkitTouchCallout = "none";
-  timeline.style.webkitUserSelect = "none";
-
   let isDown = false;
   let isDragging = false;
   const dragThreshold = 4;
@@ -530,25 +522,6 @@ function enablePanning() {
   let touchDragStarted = false;
   let touchStartScrollLeft = 0;
   let touchStartScrollTop = 0;
-  let touchPrevX = 0;
-  let touchPrevY = 0;
-  let touchMoveLogCounter = 0;
-
-  // Slightly amplify horizontal touch panning on iOS to better match user expectation.
-  const TOUCH_PAN_X_MULT = 1.15;
-
-  // Optional pan debug (toggle with the same flag as snap): window.__TIMELINE_DEBUG_SNAP = true
-  const dbgPan = (...args) => {
-    try {
-      if (typeof window !== "undefined" && window.__TIMELINE_DEBUG_SNAP === true) {
-        console.log("[pan]", ...args);
-      }
-    } catch (_) {
-      // ignore
-    }
-  };
-
-  const clamp = (v, min, max) => Math.min(max, Math.max(min, v));
 
   const onTouchStart = (e) => {
     if (touchId !== null) return;
@@ -562,19 +535,7 @@ function enablePanning() {
     lastClientY = t.clientY;
     touchStartScrollLeft = timeline.scrollLeft;
     touchStartScrollTop = timeline.scrollTop;
-    touchPrevX = t.clientX;
-    touchPrevY = t.clientY;
-    touchMoveLogCounter = 0;
-    dbgPan("touchStart", {
-      scrollLeft: timeline.scrollLeft,
-      scrollTop: timeline.scrollTop,
-    });
-
-    timeline.classList.remove("panning");
-    timeline.dataset.panning = "false";
-    touchDragStarted = false;
-    // ВАЖНО: не даём браузеру начать скролл страницы этим жестом
-    e.preventDefault();
+    stopPanning();
   };
 
   const onTouchMove = (e) => {
@@ -585,56 +546,20 @@ function enablePanning() {
     lastClientX = t.clientX;
     lastClientY = t.clientY;
 
-    // Total movement since touch start (used only to decide when to start panning)
-    const totalDx = lastClientX - startX;
-    const totalDy = lastClientY - startY;
+    const dx = lastClientX - startX;
+    const dy = lastClientY - startY;
 
     if (!touchDragStarted) {
-      if (Math.abs(totalDx) > dragThreshold || Math.abs(totalDy) > dragThreshold) {
+      if (Math.abs(dx) > dragThreshold || Math.abs(dy) > dragThreshold) {
         touchDragStarted = true;
         startPanning();
-        dbgPan("touchDragStarted", { totalDx, totalDy });
       } else {
         return;
       }
     }
 
-    // Absolute movement since touch start (more predictable for large drags and less dependent
-    // on touchmove event frequency at scroll boundaries).
-    const maxLeft = Math.max(0, timeline.scrollWidth - timeline.clientWidth);
-    const maxTop = Math.max(0, timeline.scrollHeight - timeline.clientHeight);
-
-    const nextLeft = clamp(touchStartScrollLeft - totalDx * TOUCH_PAN_X_MULT, 0, maxLeft);
-    const nextTop = clamp(touchStartScrollTop - totalDy, 0, maxTop);
-
-    // Keep prev values only for potential future diagnostics.
-    const stepDx = lastClientX - touchPrevX;
-    const stepDy = lastClientY - touchPrevY;
-    touchPrevX = lastClientX;
-    touchPrevY = lastClientY;
-
-    timeline.scrollLeft = nextLeft;
-    timeline.scrollTop = nextTop;
-
-    // Throttled debug: log every 6th move and also when clamped at edges.
-    touchMoveLogCounter++;
-    const atLeftEdge = nextLeft <= 0.5;
-    const atRightEdge = maxLeft - nextLeft <= 0.5;
-    if (touchMoveLogCounter % 6 === 0 || atLeftEdge || atRightEdge) {
-      dbgPan("touchMove", {
-        totalDx,
-        totalDy,
-        stepDx,
-        stepDy,
-        nextLeft,
-        nextTop,
-        maxLeft,
-        maxTop,
-        atLeftEdge,
-        atRightEdge,
-      });
-    }
-
+    timeline.scrollLeft = touchStartScrollLeft - dx;
+    timeline.scrollTop = touchStartScrollTop - dy;
     e.preventDefault();
   };
 
@@ -646,14 +571,10 @@ function enablePanning() {
     if (!ended) return;
     touchId = null;
     touchDragStarted = false;
-    dbgPan("touchEnd", {
-      scrollLeft: timeline.scrollLeft,
-      scrollTop: timeline.scrollTop,
-    });
     stopPanning();
   };
 
-  timeline.addEventListener("touchstart", onTouchStart, { passive: false });
+  timeline.addEventListener("touchstart", onTouchStart, { passive: true });
   timeline.addEventListener("touchmove", onTouchMove, { passive: false });
   timeline.addEventListener("touchend", onTouchEnd, { passive: true });
   timeline.addEventListener("touchcancel", onTouchEnd, { passive: true });
@@ -718,8 +639,6 @@ function enableHorizontalSnapAssist() {
   if (!timeline) return () => {};
 
   timeline.dataset.panning = "false";
-  timeline.dataset.snapDisabled = "false";
-  const SNAP_DISABLE_GAP_PX = 48;
   let debounceId = null;
   let isAutoScrolling = false;
   let autoScrollTimer = null;
@@ -729,82 +648,6 @@ function enableHorizontalSnapAssist() {
   let sawHorizontalDuringGesture = false;
   let gestureMaxDx = 0;
   let gestureMaxDy = 0;
-  let snapTemporarilyDisabled = false;
-  let stopBottomObserver = null;
-
-  // Debug logging
-  // Enable at runtime in DevTools:
-  //   window.__TIMELINE_DEBUG_SNAP = true
-  // Or persist across reloads:
-  //   localStorage.setItem("TIMELINE_DEBUG_SNAP", "1")
-  // Or add URL param:
-  //   ?debugSnap
-
-  // iOS/Safari can be finicky with dynamic globals; we install a setter that confirms toggling.
-  let __dbgFlag = false;
-  try {
-    __dbgFlag =
-      typeof window !== "undefined" && window.__TIMELINE_DEBUG_SNAP === true;
-  } catch (_) {
-    __dbgFlag = false;
-  }
-
-  try {
-    if (typeof window !== "undefined") {
-      Object.defineProperty(window, "__TIMELINE_DEBUG_SNAP", {
-        configurable: true,
-        get: () => __dbgFlag,
-        set: (v) => {
-          __dbgFlag = v === true;
-          console.log("[snap] __TIMELINE_DEBUG_SNAP =", __dbgFlag);
-        },
-      });
-    }
-  } catch (_) {
-    // ignore
-  }
-
-  const isDbgEnabled = () => {
-    if (typeof window === "undefined") return false;
-    if (__dbgFlag) return true;
-    try {
-      if (window.location && window.location.search) {
-        const params = new URLSearchParams(window.location.search);
-        if (params.has("debugSnap")) return true;
-      }
-    } catch (_) {
-      // ignore
-    }
-    try {
-      return (
-        window.localStorage &&
-        window.localStorage.getItem("TIMELINE_DEBUG_SNAP") === "1"
-      );
-    } catch (_) {
-      return false;
-    }
-  };
-
-  const dbg = (...args) => {
-    if (!isDbgEnabled()) return;
-    console.log("[snap]", ...args);
-  };
-
-  // One-time marker so you can verify that snap-assist code is actually loaded.
-  // (This is printed always, even when debug is OFF.)
-  console.log(
-    "[snap] snap assist loaded. Enable: window.__TIMELINE_DEBUG_SNAP = true"
-  );
-  const barInfo = (bar) => {
-    if (!bar) return null;
-    return {
-      name: bar.getAttribute("data-name") || bar.dataset.name || "(no-name)",
-      offsetLeft: bar.offsetLeft,
-      offsetTop: bar.offsetTop,
-      width: bar.offsetWidth,
-      height: bar.offsetHeight,
-    };
-  };
 
   const snapInset = 6; // небольшой зазор слева, чтобы плашка не прилипала впритык
   const animationDuration = 600;
@@ -819,95 +662,12 @@ function enableHorizontalSnapAssist() {
     sawHorizontalDuringGesture = false;
     gestureMaxDx = 0;
     gestureMaxDy = 0;
-    dbg("stopAnimation", {
-      isAutoScrolling,
-      sawVerticalDuringGesture,
-      sawHorizontalDuringGesture,
-      gestureMaxDx,
-      gestureMaxDy,
-      scrollLeft: timeline.scrollLeft,
-      scrollTop: timeline.scrollTop,
-    });
-  };
-
-  const isNearBottom = () => {
-    const contentBottom = timeline.scrollHeight;
-    const viewportBottom = timeline.scrollTop + timeline.clientHeight;
-    const paddingBottom = parseFloat(
-      window.getComputedStyle(timeline).paddingBottom || "0"
-    );
-    const bottomGap = contentBottom - viewportBottom;
-    const threshold = Math.max(SNAP_DISABLE_GAP_PX, paddingBottom + 4);
-    return { near: bottomGap <= threshold, bottomGap };
-  };
-
-  function setSnapDisabled(disabled, reason = "gap") {
-    if (snapTemporarilyDisabled === disabled) return;
-    snapTemporarilyDisabled = disabled;
-    if (disabled) {
-      if (debounceId) {
-        window.clearTimeout(debounceId);
-        debounceId = null;
-      }
-      stopAnimation();
-      timeline.dataset.snapDisabled = "true";
-      timeline.style.scrollSnapType = "none";
-    } else {
-      timeline.dataset.snapDisabled = "false";
-      timeline.style.scrollSnapType = "";
-    }
-    dbg("snapDisabled:toggle", {
-      disabled,
-      reason,
-      bottomGap:
-        timeline.scrollHeight -
-        (timeline.scrollTop + timeline.clientHeight),
-    });
-  }
-
-  const syncSnapDisabled = (reason = "gap", forcedDisabled = null) => {
-    const { near, bottomGap } = isNearBottom();
-    const next = forcedDisabled === null ? near : forcedDisabled;
-    setSnapDisabled(next, reason);
-    return { near, bottomGap };
-  };
-
-  const setupBottomObserver = () => {
-    if (!("IntersectionObserver" in window)) return;
-    const sentinel = document.createElement("div");
-    sentinel.dataset.role = "timeline-bottom-sentinel";
-    sentinel.style.height = "1px";
-    sentinel.style.width = "1px";
-    sentinel.style.marginTop = "1px";
-    timeline.appendChild(sentinel);
-
-    const observer = new IntersectionObserver((entries) => {
-      const entry = entries[0];
-      if (!entry) return;
-      const { near, bottomGap } = isNearBottom();
-      const disabled = entry.isIntersecting || near;
-      setSnapDisabled(disabled, entry.isIntersecting ? "sentinel-hit" : "sentinel-miss");
-      dbg("snapDisabled:sentinel", {
-        disabled,
-        isIntersecting: entry.isIntersecting,
-        bottomGap,
-      });
-    }, {
-      root: timeline,
-      threshold: 0.99,
-    });
-    observer.observe(sentinel);
-    stopBottomObserver = () => {
-      observer.disconnect();
-      sentinel.remove();
-    };
   };
 
   const animateTo = (targetLeft) => {
     stopAnimation();
     const startLeft = timeline.scrollLeft;
     const delta = targetLeft - startLeft;
-    dbg("animateTo", { startLeft, targetLeft, delta });
     if (Math.abs(delta) < 1) return;
 
     isAutoScrolling = true;
@@ -925,87 +685,28 @@ function enableHorizontalSnapAssist() {
 
   const alignLeft = () => {
     debounceId = null;
-    if (timeline.dataset.panning === "true") {
-      dbg("alignLeft: skip (panning)");
-      return;
-    }
-    if (snapTemporarilyDisabled) {
-      dbg("alignLeft: skip (snapDisabled)");
-      return;
-    }
-
+    if (timeline.dataset.panning === "true") return;
     const targetBar = findTopmostVisibleBar(timeline);
-    if (!targetBar) {
-      dbg("alignLeft: skip (no targetBar)");
-      return;
-    }
-
-    const maxScrollTop = Math.max(
-      0,
-      timeline.scrollHeight - timeline.clientHeight
-    );
-    const nearBottom = maxScrollTop - timeline.scrollTop <= 8;
-    const skipBottom = shouldSkipSnapAtBottom(timeline, targetBar);
-    if (skipBottom) {
-      dbg("alignLeft: skip (bottom)", {
-        nearBottom,
-        maxScrollTop,
-        scrollTop: timeline.scrollTop,
-        scrollLeft: timeline.scrollLeft,
-        target: barInfo(targetBar),
-        viewportBottom: timeline.scrollTop + timeline.clientHeight,
-        contentBottom: timeline.scrollHeight,
-      });
-      return;
-    }
+    if (!targetBar) return;
+    if (shouldSkipSnapAtBottom(timeline, targetBar)) return;
 
     const targetLeft = Math.max(0, targetBar.offsetLeft - snapInset);
     const delta = Math.abs(timeline.scrollLeft - targetLeft);
-
-    dbg("alignLeft: decide", {
-      scrollLeft: timeline.scrollLeft,
-      targetLeft,
-      delta,
-      target: barInfo(targetBar),
-    });
-
-    if (delta < 1) {
-      dbg("alignLeft: skip (already aligned)");
-      return;
-    }
+    if (delta < 1) return;
 
     animateTo(targetLeft);
   };
 
   const scheduleAlign = () => {
-    if (snapTemporarilyDisabled) {
-      dbg("scheduleAlign: skip (snapDisabled)");
-      return;
-    }
-    if (isAutoScrolling) {
-      dbg("scheduleAlign: skip (autoScrolling)");
-      return;
-    }
-    if (timeline.dataset.panning === "true") {
-      dbg("scheduleAlign: skip (panning)");
-      return;
-    }
+    if (isAutoScrolling) return;
+    if (timeline.dataset.panning === "true") return;
     if (debounceId) window.clearTimeout(debounceId);
-    dbg("scheduleAlign: setTimeout", {
-      scrollLeft: timeline.scrollLeft,
-      scrollTop: timeline.scrollTop,
-      sawVerticalDuringGesture,
-      sawHorizontalDuringGesture,
-      gestureMaxDx,
-      gestureMaxDy,
-    });
     debounceId = window.setTimeout(alignLeft, 60);
   };
 
   const onWheel = (e) => {
     // реагируем только на вертикально доминирующий скролл
     if (Math.abs(e.deltaY) <= Math.abs(e.deltaX)) return;
-    dbg("wheel", { deltaX: e.deltaX, deltaY: e.deltaY });
     scheduleAlign();
   };
 
@@ -1014,8 +715,6 @@ function enableHorizontalSnapAssist() {
 
     const currentTop = timeline.scrollTop;
     const currentLeft = timeline.scrollLeft;
-
-    syncSnapDisabled();
 
     const dy = Math.abs(currentTop - lastScrollTop);
     const dx = Math.abs(currentLeft - lastScrollLeft);
@@ -1036,30 +735,11 @@ function enableHorizontalSnapAssist() {
     gestureMaxDy = Math.max(gestureMaxDy, dy);
 
     // Consider it a horizontal-intent gesture only when the horizontal movement is clearly noticeable.
-    // IMPORTANT: do NOT use per-step `horizontalDominant` here.
-    // During touch panning iOS often produces many scroll steps with `dy = 0`,
-    // which would incorrectly mark a mostly-vertical gesture as horizontal.
     const horizontalIntent =
-      gestureMaxDx > 18 && gestureMaxDx > gestureMaxDy * 0.75;
+      horizontalDominant || (gestureMaxDx > 18 && gestureMaxDx > gestureMaxDy * 0.75);
     if (horizontalIntent) {
       sawHorizontalDuringGesture = true;
     }
-
-    // Debug logging
-    dbg("scroll", {
-      dx,
-      dy,
-      gestureMaxDx,
-      gestureMaxDy,
-      horizontalDominant,
-      verticalDominant,
-      horizontalIntent,
-      sawVerticalDuringGesture,
-      sawHorizontalDuringGesture,
-      isPanning,
-      scrollLeft: timeline.scrollLeft,
-      scrollTop: timeline.scrollTop,
-    });
 
     // If the user is horizontally dragging, do not snap.
     if (horizontalDominant) return;
@@ -1076,46 +756,22 @@ function enableHorizontalSnapAssist() {
 
   const onUserInterrupt = () => {
     // Start a new gesture window
-    dbg("userInterrupt", {
-      type: "interrupt",
-      scrollLeft: timeline.scrollLeft,
-      scrollTop: timeline.scrollTop,
-    });
     stopAnimation();
   };
   const onScrollEnd = () => {
     if (isAutoScrolling) return;
     if (timeline.dataset.panning === "true") return;
-    if (snapTemporarilyDisabled) return;
 
-    dbg("scrollEnd", {
-      sawVerticalDuringGesture,
-      sawHorizontalDuringGesture,
-      gestureMaxDx,
-      gestureMaxDy,
-      scrollLeft: timeline.scrollLeft,
-      scrollTop: timeline.scrollTop,
-    });
-
-    // Only snap after a gesture that included a meaningful vertical movement.
-    // On iOS, "horizontal" gestures at scroll boundaries often include a tiny vertical jitter.
-    // We treat small-vertical gestures as horizontal intent (no snap), but if vertical movement
-    // is clearly present we ALWAYS snap (even if there was also horizontal drift).
-    const MIN_VERTICAL_FOR_SNAP = 18;
-
+    // Only snap after a gesture that was actually vertical.
+    // If the user moved horizontally at all (common on iOS at scroll boundaries),
+    // do not force a left-align snap.
     if (!sawVerticalDuringGesture) {
-      dbg("scrollEnd: no vertical -> no snap");
       sawHorizontalDuringGesture = false;
       gestureMaxDx = 0;
       gestureMaxDy = 0;
       return;
     }
-
-    if (gestureMaxDy < MIN_VERTICAL_FOR_SNAP) {
-      dbg("scrollEnd: small vertical (treat as horizontal) -> no snap", {
-        gestureMaxDx,
-        gestureMaxDy,
-      });
+    if (sawHorizontalDuringGesture) {
       sawVerticalDuringGesture = false;
       sawHorizontalDuringGesture = false;
       gestureMaxDx = 0;
@@ -1123,20 +779,12 @@ function enableHorizontalSnapAssist() {
       return;
     }
 
-    dbg("scrollEnd: snapping", {
-      gestureMaxDx,
-      gestureMaxDy,
-      sawHorizontalDuringGesture,
-    });
     scheduleAlign();
     sawVerticalDuringGesture = false;
     sawHorizontalDuringGesture = false;
     gestureMaxDx = 0;
     gestureMaxDy = 0;
   };
-
-  syncSnapDisabled();
-  setupBottomObserver();
 
   timeline.addEventListener("wheel", onWheel, { passive: true });
   timeline.addEventListener("scroll", onScroll, { passive: true });
@@ -1156,7 +804,6 @@ function enableHorizontalSnapAssist() {
     timeline.removeEventListener("touchend", onScrollEnd);
     timeline.removeEventListener("mouseup", onScrollEnd);
     timeline.removeEventListener("timeline-pan-end", onScrollEnd);
-    if (stopBottomObserver) stopBottomObserver();
     if (debounceId) window.clearTimeout(debounceId);
     stopAnimation();
   };
