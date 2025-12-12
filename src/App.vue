@@ -7,7 +7,7 @@
       </button>
       <img class="logo" src="/favicon.png" alt="Logo" @click="returnToTitle" />
       <div class="app-title" role="button" @click="returnToTitle">
-        Classical Composers Timeline5
+        Classical Composers Timeline
       </div>
     </header>
 

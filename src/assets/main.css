@@ -24,11 +24,11 @@
   position: relative;
   height: auto;
   /* Широкое значение по умолчанию, даже если JS не успел пересчитать */
-  width: 6400px;
-  min-width: 6400px;
+  width: auto;
+  min-width: 0;
   box-sizing: content-box;
   padding-bottom: 0;
-  padding-right: 260px; /* дополнительное пространство справа, чтобы последний бар не прилипал к краю */
+  padding-right: 0; /* без лишнего запаса справа */
 }
 
 /* Axis */
