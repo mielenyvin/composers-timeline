@@ -10,6 +10,7 @@
   background: #ffffff;
   visibility: hidden; /* скрываем до полной отрисовки */
   overscroll-behavior: contain;
+  padding-bottom: calc(env(safe-area-inset-bottom, 0) + 90px); /* запас под нижние тулбары мобильных, чтобы последняя строка не обрезалась */
 }
 
 #timeline.panning {
@@ -83,6 +84,9 @@
   bottom: 5px;
   transform: translateX(-50%);
   white-space: nowrap;
+  line-height: 1;
+  -webkit-text-size-adjust: 100%;
+  text-size-adjust: 100%;
 }
 
 .axis-label-major {
@@ -144,17 +148,4 @@
   box-shadow: 0 3px 6px rgba(0, 0, 0, 0.35);
 }
 
-@media (max-width: 900px) {
-  .axis-label-major {
-    font-size: 16px; /* ещё крупнее 50-летия на мобильных */
-  }
-
-  .axis-label-minor {
-    height: 12px;
-    font-size: 12px; /* тоже увеличены для читаемости */
-  }
-
-  .era-band {
-    font-size: 12px; /* подписи эр тоже крупнее на мобильных */
-  }
-}
+/* Одинаковый размер подписей оси на всех платформах, чтобы Safari не раздувал цифры */
