@@ -532,6 +532,10 @@ function enablePanning() {
   let touchStartScrollTop = 0;
   let touchPrevX = 0;
   let touchPrevY = 0;
+  let touchMoveLogCounter = 0;
+
+  // Slightly amplify horizontal touch panning on iOS to better match user expectation.
+  const TOUCH_PAN_X_MULT = 1.15;
 
   // Optional pan debug (toggle with the same flag as snap): window.__TIMELINE_DEBUG_SNAP = true
   const dbgPan = (...args) => {
@@ -560,6 +564,7 @@ function enablePanning() {
     touchStartScrollTop = timeline.scrollTop;
     touchPrevX = t.clientX;
     touchPrevY = t.clientY;
+    touchMoveLogCounter = 0;
     dbgPan("touchStart", {
       scrollLeft: timeline.scrollLeft,
       scrollTop: timeline.scrollTop,
@@ -594,17 +599,41 @@ function enablePanning() {
       }
     }
 
-    // Incremental movement since last touchmove (more stable on iOS at scroll boundaries)
+    // Absolute movement since touch start (more predictable for large drags and less dependent
+    // on touchmove event frequency at scroll boundaries).
+    const maxLeft = Math.max(0, timeline.scrollWidth - timeline.clientWidth);
+    const maxTop = Math.max(0, timeline.scrollHeight - timeline.clientHeight);
+
+    const nextLeft = clamp(touchStartScrollLeft - totalDx * TOUCH_PAN_X_MULT, 0, maxLeft);
+    const nextTop = clamp(touchStartScrollTop - totalDy, 0, maxTop);
+
+    // Keep prev values only for potential future diagnostics.
     const stepDx = lastClientX - touchPrevX;
     const stepDy = lastClientY - touchPrevY;
     touchPrevX = lastClientX;
     touchPrevY = lastClientY;
 
-    const maxLeft = Math.max(0, timeline.scrollWidth - timeline.clientWidth);
-    const maxTop = Math.max(0, timeline.scrollHeight - timeline.clientHeight);
+    timeline.scrollLeft = nextLeft;
+    timeline.scrollTop = nextTop;
 
-    timeline.scrollLeft = clamp(timeline.scrollLeft - stepDx, 0, maxLeft);
-    timeline.scrollTop = clamp(timeline.scrollTop - stepDy, 0, maxTop);
+    // Throttled debug: log every 6th move and also when clamped at edges.
+    touchMoveLogCounter++;
+    const atLeftEdge = nextLeft <= 0.5;
+    const atRightEdge = maxLeft - nextLeft <= 0.5;
+    if (touchMoveLogCounter % 6 === 0 || atLeftEdge || atRightEdge) {
+      dbgPan("touchMove", {
+        totalDx,
+        totalDy,
+        stepDx,
+        stepDy,
+        nextLeft,
+        nextTop,
+        maxLeft,
+        maxTop,
+        atLeftEdge,
+        atRightEdge,
+      });
+    }
 
     e.preventDefault();
   };
