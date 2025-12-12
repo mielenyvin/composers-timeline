@@ -706,19 +706,32 @@ function enableHorizontalSnapAssist() {
 
   const onScroll = () => {
     if (isAutoScrolling) return;
+
     const currentTop = timeline.scrollTop;
     const currentLeft = timeline.scrollLeft;
+
     const dy = Math.abs(currentTop - lastScrollTop);
     const dx = Math.abs(currentLeft - lastScrollLeft);
+
     lastScrollTop = currentTop;
     lastScrollLeft = currentLeft;
-    if (timeline.dataset.panning === "true") return;
+
+    const isPanning = timeline.dataset.panning === "true";
+
+    // Detect dominant direction for this scroll step
     const horizontalDominant = dx > dy * 1.2 && dx > 1.5;
     const verticalDominant = dy >= dx * 0.8 && dy > 0.8;
+
+    // If the user is horizontally dragging, do not snap.
     if (horizontalDominant) return;
+
+    // If vertical scroll happened, remember it.
+    // During touch-drag panning we only remember it and snap on pan-end.
     if (verticalDominant) {
       sawVerticalDuringGesture = true;
-      scheduleAlign();
+      if (!isPanning) {
+        scheduleAlign();
+      }
     }
   };
 
