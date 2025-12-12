@@ -34,7 +34,6 @@ const composers = [
   { name: "Alexander Scriabin", birth: 1872, death: 1915 },
   { name: "Sergei Rachmaninoff", birth: 1873, death: 1943 },
   { name: "Maurice Ravel", birth: 1875, death: 1937 },
-  { name: "Béla Bartók", birth: 1881, death: 1945 },
   { name: "Sergei Prokofiev", birth: 1891, death: 1953 },
   { name: "Dmitri Shostakovich", birth: 1906, death: 1975 },
 ];
