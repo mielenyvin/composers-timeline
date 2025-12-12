@@ -17,25 +17,24 @@
         margin: 0;
         padding: 0;
         height: 100%;
-        overflow: hidden;
+        overflow: hidden; /* скроллим внутри #timeline, а не по странице */
       }
 
       body {
         font-family: system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI",
           sans-serif;
-        color: #e5e7eb;
         background: #ffffff;
       }
 
       #timeline {
         width: 100%;
-        height: 100%;
-        overflow-x: auto;
-        overflow-y: hidden;
+        height: 100vh;          /* занимает всю высоту окна */
+        overflow-x: auto;       /* горизонтальный скролл по таймлайну */
+        overflow-y: auto;       /* вертикальный скролл внутри таймлайна */
         cursor: grab;
-        display: flex;
+        display: block;         /* без flex, чтобы sticky работал предсказуемо */
         background: #ffffff;
-        visibility: hidden; /* скрываем до полной отрисовки */
+        visibility: hidden;     /* скрываем до полной отрисовки */
       }
 
       #timeline.panning {
@@ -48,20 +47,21 @@
       .timeline-inner {
         position: relative;
         min-width: 1200px;
-        height: 100%;
-        padding: 0px;
-        display: flex;
-        flex-direction: column;
+        padding: 0;
       }
 
       /* Axis */
 
       .axis {
-        position: relative;
+        position: sticky; /* остаётся приклеенной к верху при вертикальном скролле */
+        top: 0;
+        z-index: 50; /* гарантированно поверх баров */
         height: 35px;
         border-bottom: 1px solid rgba(148, 163, 184, 0.5);
-        width: 100%;
+        width: 180%;
         flex: 0 0 35px;
+        background: #ffffff; /* фон, чтобы бары не просвечивали под осью */
+        overflow: hidden; /* ничего не вылезает за правый край оси */
       }
 
       .era-band {
@@ -121,11 +121,11 @@
 
       #gantt {
         position: relative;
-        width: 100%;
+        width: 180%;
         flex: 1 1 auto;
-        margin-top: 4px;
+        margin-top: 2px;
         padding-bottom: 0;
-        height: 100%;
+        height: auto;
       }
 
       .bar {
@@ -135,7 +135,7 @@
         border-radius: 6px; /* меньшее закругление */
         padding: 0 3px;
         color: #000000;
-        border: 0.5px solid rgb(65, 65, 65);
+        /* border: 0.5px solid rgb(65, 65, 65); */
         overflow: hidden;
         z-index: 1; /* базовый слой для всех плашек */
         display: flex;
@@ -152,10 +152,10 @@
         white-space: nowrap;
         overflow: hidden;
         text-overflow: ellipsis;
-        /* чуть более заметная светлая обводка вокруг текста */
-        text-shadow: -0.5px 0 rgba(255, 255, 255, 0.5),
-          0.5px 0 rgba(255, 255, 255, 0.5), 0 -0.5px rgba(255, 255, 255, 0.5),
-          0 0.5px rgba(255, 255, 255, 0.5);
+        /* чуть более деликатная светлая обводка вокруг текста */
+        text-shadow: -0.5px 0 rgba(255, 255, 255, 0.35),
+          0.5px 0 rgba(255, 255, 255, 0.35), 0 -0.5px rgba(255, 255, 255, 0.35),
+          0 0.5px rgba(255, 255, 255, 0.35);
       }
       .bar:hover {
         z-index: 10; /* при ховере выводим плашку поверх остальных */
@@ -169,11 +169,12 @@
         }
 
         .axis-label-minor {
-          font-size: 13px; /* тоже увеличены для читаемости */
+          height: 12px;
+          font-size: 12px; /* тоже увеличены для читаемости */
         }
 
         .era-band {
-          font-size: 14px; /* подписи эр тоже крупнее на мобильных */
+          font-size: 12px; /* подписи эр тоже крупнее на мобильных */
         }
       }
     </style>
@@ -321,9 +322,11 @@
       // Compute data max year (based only on composers)
       const dataMaxYear = Math.max(...composers.map((c) => c.death));
 
-      // Axis range: fix the visible start at 1675 so Baroque era goes off-screen to the left
+      // Axis range:
+      //  - фиксированный старт в 1675 (Baroque начинается раньше и уходит влево за экран)
+      //  - фиксированный конец оси в 1980 (20th Century продолжается до 2000, но обрезается по правому краю)
       const axisMinYear = 1675;
-      const axisMaxYear = Math.max(dataMaxYear, ERAS[ERAS.length - 1].to);
+      const axisMaxYear = 1980;
       const axisSpan = axisMaxYear - axisMinYear;
 
 
@@ -359,6 +362,12 @@
             band.style.paddingLeft = "6px";
             band.style.paddingRight = "26px";
             band.style.textAlign = "right";
+          }
+
+          // If the era is clipped at the right edge (ends exactly at axisMaxYear),
+          // убираем правую рамку, чтобы не торчал лишний пиксель.
+          if (end === axisMaxYear) {
+            band.style.borderRight = "none";
           }
 
           axis.appendChild(band);
@@ -403,29 +412,16 @@
           laneIndex: index,
         }));
 
-        // Compute lane height so that all lanes occupy full available vertical space
-        // Base this on the visible height of the timeline minus the axis height
-        const timelineHeight =
-          timeline && timeline.clientHeight
-            ? timeline.clientHeight
-            : window.innerHeight;
-        const containerHeight = Math.max(0, timelineHeight - axis.offsetHeight);
-
         // Desired vertical gap between bars (in px)
         const verticalGap = 2;
 
-        let laneHeight = 24;
-        let barHeight = 18;
+        // Fixed bar height: 50px, independent of viewport height
+        const barHeight = 50;
+        const laneHeight = barHeight + verticalGap;
 
-        if (laneCount > 0 && containerHeight > 0) {
-          // Compute barHeight so that bars + gaps exactly fit into containerHeight:
-          // totalHeight = lanes * barHeight + (lanes - 1) * verticalGap
-          const maxBarHeight =
-            (containerHeight - (laneCount - 1) * verticalGap) / laneCount;
-          // Clamp to a sensible minimum
-          barHeight = Math.max(8, Math.floor(maxBarHeight));
-          laneHeight = barHeight + verticalGap;
-        }
+        // Set the total height of the Gantt area so it can scroll vertically if needed
+        const totalHeight = laneCount * laneHeight;
+        gantt.style.height = totalHeight + "px";
 
         // Prepare grayscale gradient from #dcdcdc to #808080 (light to mid gray)
         const totalBars = placements.length;
@@ -452,7 +448,7 @@
           bar.style.top = laneIndex * laneHeight + "px";
           bar.style.height = barHeight + "px";
           bar.style.lineHeight = barHeight + "px";
-          bar.style.fontSize = barHeight * 0.4 + "px";
+          bar.style.fontSize = barHeight * 0.3 + "px";
 
           // Create thumbnail image if available
           const imgSrc = getComposerImage(c.name);
