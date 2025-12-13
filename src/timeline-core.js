@@ -333,10 +333,10 @@ function barGradient(progress) {
 // Solid era background colors (light, serious, no yellow/green):
 const ERA_COLORS = {
   baroque: "#f3f4f6", // soft cool gray
-  classical: "#e6eef8", // pale steel blue
-  romantic: "#eef5ff", // very light cool blue
-  twentieth: "#eef2f7", // light slate
-};
+  classical: "#eef5ff", // pale steel blue
+  romantic: "#e3f0ffff", // very light cool blue
+  twentieth: "#dfdfdfff", // light slate
+};  
 
 function eraColor(eraId) {
   return ERA_COLORS[eraId] || "#f3f4f6";
