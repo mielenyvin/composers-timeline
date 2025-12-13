@@ -905,10 +905,11 @@ async function fetchSoundCloudStreamUrl(trackId) {
 function showFallbackPlayer(container, playlistUrl) {
   const embedUrl = `https://w.soundcloud.com/player/?url=${encodeURIComponent(
     playlistUrl
-  )}&auto_play=false&hide_related=true&show_comments=false&show_user=false&show_reposts=false&show_teaser=false&show_playcount=false&sharing=false&show_artwork=false&buying=false&liking=false&download=false&visual=false`;
+  )}&auto_play=false&show_user=false&hide_related=true&show_comments=false&show_reposts=false&show_teaser=false&show_playcount=false&sharing=false&show_artwork=false&buying=false&liking=false&download=false&visual=false`;
 
   container.innerHTML = `
     <iframe
+      show_user="false"
       class="sc-player__embed"
       allow="autoplay"
       scrolling="no"
