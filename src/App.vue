@@ -153,9 +153,13 @@
 
             <div class="composer-modal__playlist">
               <div class="composer-modal__playlist-title">Key works to know</div>
-              <div v-if="currentPlaylistUrls.length" :key="currentPlaylistUrls[0]"
-                class="composer-modal__playlist-box sc-player" :data-soundcloud-playlist="currentPlaylistUrls[0]"
-                :data-soundcloud-playlist-alt="currentPlaylistUrls.slice(1).join('|')">
+              <div
+                v-if="playlistSources.length"
+                :key="playlistSources[0]"
+                class="composer-modal__playlist-box sc-player"
+                :data-soundcloud-playlist="playlistSources[0]"
+                :data-soundcloud-playlist-alt="playlistSources.slice(1).join('|')"
+              >
                 <div class="sc-player__status">Loading tracks...</div>
               </div>
               <div v-else class="composer-modal__playlist-box composer-modal__playlist-box--empty">
@@ -220,6 +224,12 @@ const SOUND_CLOUD_PLAYLIST_PREFIX =
   import.meta.env.SOUND_CLOUD_PLAYLIST_PREFIX ||
   import.meta.env.SOUNDCLOUD_PLAYLIST_PREFIX ||
   `https://soundcloud.com/${DEFAULT_SOUND_CLOUD_ACCOUNT}/sets/`;
+const SOUND_CLOUD_FALLBACK_PLAYLIST =
+  import.meta.env.VITE_SOUND_CLOUD_FALLBACK_PLAYLIST ||
+  import.meta.env.VITE_SOUNDCLOUD_FALLBACK_PLAYLIST ||
+  import.meta.env.SOUND_CLOUD_FALLBACK_PLAYLIST ||
+  import.meta.env.SOUNDCLOUD_FALLBACK_PLAYLIST ||
+  "https://soundcloud.com/soundcloud/sets/charts-top-50";
 
 const activeSoundCloudAudios = new Set();
 
@@ -412,6 +422,11 @@ const currentPlaylistIds = computed(() =>
 const currentPlaylistUrls = computed(() =>
   currentPlaylistIds.value.map((id) => buildPlaylistUrl(id)).filter(Boolean)
 );
+const playlistSources = computed(() => {
+  const urls = currentPlaylistUrls.value.filter(Boolean);
+  if (urls.length) return urls;
+  return SOUND_CLOUD_FALLBACK_PLAYLIST ? [SOUND_CLOUD_FALLBACK_PLAYLIST] : [];
+});
 const hasPrev = computed(() => (currentIndex.value ?? 0) > 0);
 const hasNext = computed(
   () =>
@@ -609,7 +624,7 @@ watch(isModalOpen, async (open) => {
     document.body.style.overscrollBehavior = "none";
     document.body.style.overflow = "hidden";
     document.body.style.touchAction = "none";
-    if (currentPlaylistUrls.value.length) {
+    if (playlistSources.value.length) {
       await nextTick();
       initSoundCloudPlayers();
     }
@@ -632,7 +647,7 @@ watch(currentIndex, (laneIndex) => {
   }
 });
 
-watch(currentPlaylistUrls, async (urls) => {
+watch(playlistSources, async (urls) => {
   if (!isModalOpen.value || !urls.length) return;
   stopAllSoundCloudAudio();
   await nextTick();
@@ -768,9 +783,17 @@ async function hydrateSoundCloudPlayer(container, onReady) {
   }
 
   console.error("Failed to build SoundCloud player", lastError);
-  container.innerHTML =
-    '<div class="sc-player__status sc-player__status--error">Could not load SoundCloud playlist</div>';
-  container.dataset.soundcloudReady = "error";
+  const fallback =
+    candidates[0] ||
+    SOUND_CLOUD_FALLBACK_PLAYLIST ||
+    null;
+  if (fallback) {
+    showFallbackPlayer(container, fallback);
+  } else {
+    container.innerHTML =
+      '<div class="sc-player__status sc-player__status--error">Could not load SoundCloud playlist</div>';
+    container.dataset.soundcloudReady = "error";
+  }
   finalize();
 }
 
