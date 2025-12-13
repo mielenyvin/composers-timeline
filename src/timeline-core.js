@@ -167,6 +167,8 @@ const ERAS = [
 const earliestBirth = Math.min(...composers.map((c) => c.birth));
 const latestBirth = Math.max(...composers.map((c) => c.birth));
 let activeComposers = [...composers];
+let selectedLaneIndex = null;
+let hoveredLaneIndex = null;
 
 const WHITE = { r: 255, g: 255, b: 255 };
 const ACCENT = { r: 37, g: 99, b: 235 }; // лёгкий синий от подсветки фактов
@@ -351,6 +353,48 @@ function setActiveComposers(next) {
   }
 }
 
+function applySelectionHighlight() {
+  const gantt = document.getElementById("gantt");
+  if (!gantt) return;
+
+  const isSelected = (lane) =>
+    Number.isInteger(selectedLaneIndex) && lane === selectedLaneIndex;
+  const isHovered = (lane) =>
+    Number.isInteger(hoveredLaneIndex) && lane === hoveredLaneIndex;
+
+  gantt.querySelectorAll(".bar").forEach((bar) => {
+    const lane = Number(bar.getAttribute("data-lane-index"));
+    bar.classList.toggle("bar--selected", isSelected(lane));
+    bar.classList.toggle("bar--hovered", isHovered(lane));
+  });
+
+  gantt.querySelectorAll(".bar-connector").forEach((line) => {
+    const lane = Number(line.getAttribute("data-lane-index"));
+    const selected = isSelected(lane);
+    const hovered = isHovered(lane);
+    line.classList.toggle("bar-connector--selected", selected);
+    line.classList.toggle("bar-connector--hover", hovered);
+  });
+}
+
+function setSelectedLane(laneIndex) {
+  if (Number.isInteger(laneIndex)) {
+    selectedLaneIndex = laneIndex;
+  } else {
+    selectedLaneIndex = null;
+  }
+  applySelectionHighlight();
+}
+
+function setHoveredLane(laneIndex) {
+  if (Number.isInteger(laneIndex)) {
+    hoveredLaneIndex = laneIndex;
+  } else {
+    hoveredLaneIndex = null;
+  }
+  applySelectionHighlight();
+}
+
 function buildAxis() {
   const axis = document.getElementById("axis");
   if (!axis) return;
@@ -414,6 +458,9 @@ function buildGantt() {
   const timeline = document.getElementById("timeline");
   if (!gantt) return;
   gantt.innerHTML = "";
+  const axisGap =
+    parseFloat(window.getComputedStyle(gantt).marginTop || "0") || 0;
+  const connectors = document.createDocumentFragment();
 
   const data = activeComposers || [];
   const ganttWidth =
@@ -432,6 +479,19 @@ function buildGantt() {
     laneIndex: index,
   }));
 
+  if (
+    Number.isInteger(selectedLaneIndex) &&
+    (selectedLaneIndex < 0 || selectedLaneIndex >= laneCount)
+  ) {
+    selectedLaneIndex = null;
+  }
+  if (
+    Number.isInteger(hoveredLaneIndex) &&
+    (hoveredLaneIndex < 0 || hoveredLaneIndex >= laneCount)
+  ) {
+    hoveredLaneIndex = null;
+  }
+
   // Desired vertical gap between bars (in px)
   const verticalGap = 2;
 
@@ -445,6 +505,8 @@ function buildGantt() {
   if (!laneCount) return;
 
   placements.forEach(({ composer: c, laneIndex }) => {
+    const startPercent = yearToPercent(c.birth);
+    const endPercent = yearToPercent(c.death);
     const bar = document.createElement("div");
     bar.className = "bar";
     bar.setAttribute("data-lane-index", laneIndex);
@@ -455,8 +517,25 @@ function buildGantt() {
     bar.style.backgroundImage = barGradient(fixedProgress);
     bar.style.backgroundColor = "transparent";
 
-    const left = yearToPercent(c.birth);
-    const width = yearToPercent(c.death) - yearToPercent(c.birth);
+    const left = startPercent;
+    const width = endPercent - startPercent;
+    const barCenterY = laneIndex * laneHeight + barHeight * 0.5;
+    const connectorHeight = barCenterY + axisGap;
+
+    const makeConnector = (percent, side) => {
+      const connector = document.createElement("div");
+      connector.className = "bar-connector";
+      connector.setAttribute("data-lane-index", laneIndex);
+      connector.setAttribute("data-side", side);
+      connector.style.left = percent + "%";
+      connector.style.top = -axisGap + "px";
+      connector.style.height = connectorHeight + "px";
+      connectors.appendChild(connector);
+    };
+
+    makeConnector(left, "start"); // birth
+    makeConnector(left + width, "end"); // death
+
     bar.style.left = left + "%";
     bar.style.width = width + "%";
     bar.style.top = laneIndex * laneHeight + "px";
@@ -488,12 +567,15 @@ function buildGantt() {
     // Fire selection event on click (used by Vue app)
     bar.addEventListener("click", (event) => {
       event.stopPropagation();
+      setSelectedLane(laneIndex);
       window.dispatchEvent(
         new CustomEvent("composer-select", {
           detail: { composer: c, laneIndex },
         })
       );
     });
+    bar.addEventListener("mouseenter", () => setHoveredLane(laneIndex));
+    bar.addEventListener("mouseleave", () => setHoveredLane(null));
 
     // If the label is truncated (ellipsis), try initials + last name first (e.g. "W. A. Mozart");
     // if it still does not fit, fall back to last name only.
@@ -504,6 +586,9 @@ function buildGantt() {
       }
     }
   });
+
+  gantt.appendChild(connectors);
+  applySelectionHighlight();
 }
 
 // Mouse drag panning (both axes)
@@ -866,6 +951,22 @@ function enableHorizontalAutoAlign() {
   };
 }
 
+function smoothScrollTo(timeline, { left = 0, top = 0 }) {
+  const prefersReducedMotion = window.matchMedia?.(
+    "(prefers-reduced-motion: reduce)"
+  ).matches;
+
+  // Use native smooth scroll when available and motion is allowed.
+  if (timeline.scrollTo && !prefersReducedMotion) {
+    timeline.scrollTo({ left, top, behavior: "smooth" });
+    return;
+  }
+
+  // Fallback: jump instantly when smooth scrolling is unavailable or disabled.
+  timeline.scrollLeft = left;
+  timeline.scrollTop = top;
+}
+
 export function initTimeline(options = {}) {
   applySettings(options.settings || {});
   const initial = Object.prototype.hasOwnProperty.call(options, "composers")
@@ -892,16 +993,17 @@ export function initTimeline(options = {}) {
   function goToStart() {
     const timeline = document.getElementById("timeline");
     if (timeline) {
-      timeline.scrollLeft = 0;
-      timeline.scrollTop = 0;
+      smoothScrollTo(timeline, { left: 0, top: 0 });
     }
   }
 
   function goToEnd() {
     const timeline = document.getElementById("timeline");
     if (timeline) {
-      timeline.scrollLeft = Math.max(0, timeline.scrollWidth - timeline.clientWidth);
-      timeline.scrollTop = Math.max(0, timeline.scrollHeight - timeline.clientHeight);
+      smoothScrollTo(timeline, {
+        left: Math.max(0, timeline.scrollWidth - timeline.clientWidth),
+        top: Math.max(0, timeline.scrollHeight - timeline.clientHeight),
+      });
     }
   }
 
@@ -917,6 +1019,8 @@ export function initTimeline(options = {}) {
       ensureTimelineWidth();
       buildGantt();
     },
+    setSelectedLane,
+    setHoveredLane,
     destroy() {
       window.removeEventListener("resize", onResize);
       teardownAutoAlign();

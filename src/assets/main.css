@@ -169,4 +169,31 @@
   transform: translateY(-1px);
 }
 
+.bar-connector {
+  position: absolute;
+  width: 1px;
+  background: rgba(15, 23, 42, 0.18);
+  opacity: 0.35; /* едва заметная линия от оси к плашке */
+  pointer-events: none;
+  z-index: 0;
+  transition: width 0.15s ease, opacity 0.15s ease, background-color 0.15s ease;
+  transform-origin: left top;
+}
+
+.bar-connector[data-side="end"] {
+  transform: translateX(-100%);
+  transform-origin: right top;
+}
+
+.bar-connector--selected {
+  width: 2px;
+  opacity: 0.6;
+  background: rgba(15, 23, 42, 0.32);
+}
+
+.bar-connector--hover {
+  width: 2px;
+  opacity: 0.5;
+  background: rgba(15, 23, 42, 0.26);
+}
 /* Одинаковый размер подписей оси на всех платформах, чтобы Safari не раздувал цифры */

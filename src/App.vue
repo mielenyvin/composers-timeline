@@ -572,6 +572,16 @@ watch(isModalOpen, (open) => {
   }
 });
 
+watch(currentIndex, (laneIndex) => {
+  const timeline = window.timeline;
+  if (!timeline || typeof timeline.setSelectedLane !== "function") return;
+  if (Number.isInteger(laneIndex)) {
+    timeline.setSelectedLane(laneIndex);
+  } else {
+    timeline.setSelectedLane(null);
+  }
+});
+
 watch(
   () => sortedComposers.value.map((c) => c.name),
   (names) => {
@@ -845,19 +855,15 @@ watch(
   gap: 6px;
   padding: 14px 16px;
   border-radius: 16px;
-  background: linear-gradient(145deg, #f8fafc 0%, #eef2f7 100%);
-  border: 1px solid rgba(15, 23, 42, 0.05);
-  box-shadow: 0 6px 18px rgba(0, 0, 0, 0.06);
+  background: rgba(255, 255, 255, 0.7);
+  border: 1px dashed rgba(148, 163, 184, 0.6);
+  box-shadow: none;
   position: relative;
   overflow: hidden;
 }
 
 .composer-modal__facts li::before {
-  content: "";
-  position: absolute;
-  inset: 0;
-  background: linear-gradient(90deg, rgba(37, 99, 235, 0.08), transparent 40%);
-  pointer-events: none;
+  content: none;
 }
 
 .composer-modal__fact-text {
