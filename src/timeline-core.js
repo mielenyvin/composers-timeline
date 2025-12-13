@@ -680,16 +680,35 @@ function enableHorizontalAutoAlign() {
   if (!timeline || !gantt) return () => {};
 
   let lastScrollLeft = timeline.scrollLeft;
-  let rafId = null;
   let selfScroll = false;
+  let settleTimer = null;
 
-  const run = () => {
-    rafId = null;
-    const currentLeft = timeline.scrollLeft;
-    const movedRight = currentLeft > lastScrollLeft + 0.5; // react only to rightward pan
-    lastScrollLeft = currentLeft;
-    if (!movedRight) return;
+  const tolerancePx = 0.5;
 
+  const clearSettleTimer = () => {
+    if (settleTimer !== null) {
+      clearTimeout(settleTimer);
+      settleTimer = null;
+    }
+  };
+
+  const alignAfterSettle = (direction) => {
+    clearSettleTimer();
+    settleTimer = setTimeout(() => {
+      settleTimer = null;
+      align(direction);
+    }, 90);
+  };
+
+  const isBarVerticallyVisible = (bar, top, bottom) => {
+    const rect = bar.getBoundingClientRect();
+    return rect.bottom > top && rect.top < bottom;
+  };
+
+  const getLaneIndex = (bar) =>
+    Number(bar.getAttribute("data-lane-index")) || 0;
+
+  const align = (direction) => {
     const bars = Array.from(gantt.querySelectorAll(".bar"));
     if (!bars.length) return;
 
@@ -699,53 +718,116 @@ function enableHorizontalAutoAlign() {
     const barViewportBottom = containerRect.bottom;
 
     const firstVisible = bars.find((bar) => {
-      const rect = bar.getBoundingClientRect();
-      return rect.bottom > barViewportTop && rect.top < barViewportBottom;
+      return isBarVerticallyVisible(bar, barViewportTop, barViewportBottom);
     });
     if (!firstVisible) return;
 
     const viewportLeft = timeline.scrollLeft;
-    const isClippedLeft = firstVisible.offsetLeft < viewportLeft - 0.5;
-    if (!isClippedLeft) return;
+    const viewportRight = viewportLeft + timeline.clientWidth;
+    const currentLane = getLaneIndex(firstVisible);
 
-    let targetBar =
-      bars.find((bar) => bar.offsetLeft >= viewportLeft - 0.5) || null;
-    if (!targetBar) {
-      // If everything starts before the viewport, pick the latest-starting bar.
-      targetBar = bars.reduce((best, bar) => {
-        if (!best) return bar;
-        return bar.offsetLeft > best.offsetLeft ? bar : best;
-      }, null);
+    if (direction === "right") {
+      const isClippedLeft = firstVisible.offsetLeft < viewportLeft - tolerancePx;
+      if (!isClippedLeft) return;
+
+      let targetBar =
+        bars.find((bar) => {
+          const lane = getLaneIndex(bar);
+          return (
+            lane > currentLane &&
+            bar.offsetLeft >= viewportLeft - tolerancePx &&
+            isBarVerticallyVisible(bar, barViewportTop, barViewportBottom)
+          );
+        }) || null;
+
+      if (!targetBar) {
+        // If everything starts before the viewport, pick the latest-starting bar.
+        targetBar = bars.reduce((best, bar) => {
+          const lane = getLaneIndex(bar);
+          if (lane <= currentLane) return best;
+          if (!best) return bar;
+          return bar.offsetLeft > best.offsetLeft ? bar : best;
+        }, null);
+      }
+      if (!targetBar) return;
+
+      const targetRect = targetBar.getBoundingClientRect();
+      const desiredTop = barViewportTop + 1; // keep a tiny gap under the axis
+      const delta = targetRect.top - desiredTop;
+
+      if (Math.abs(delta) > tolerancePx) {
+        selfScroll = true;
+        timeline.scrollTop += delta;
+        window.requestAnimationFrame(() => {
+          selfScroll = false;
+        });
+      }
+      return;
     }
-    if (!targetBar) return;
 
-    const targetRect = targetBar.getBoundingClientRect();
-    const desiredTop = barViewportTop + 1; // keep a tiny gap under the axis
-    const delta = targetRect.top - desiredTop;
+    if (direction === "left") {
+      const isClippedRight =
+        firstVisible.offsetLeft + firstVisible.offsetWidth >
+        viewportRight + tolerancePx;
+      if (!isClippedRight) return;
 
-    if (Math.abs(delta) > 0.5) {
-      selfScroll = true;
-      timeline.scrollTop += delta;
-      window.requestAnimationFrame(() => {
-        selfScroll = false;
-      });
+      let targetBar =
+        bars.find((bar) => {
+          const lane = getLaneIndex(bar);
+          if (lane >= currentLane) return false;
+          const rect = bar.getBoundingClientRect();
+          return (
+            rect.bottom > barViewportTop &&
+            rect.top < barViewportBottom &&
+            bar.offsetLeft + bar.offsetWidth <= viewportRight + tolerancePx
+          );
+        }) || null;
+
+      if (!targetBar) {
+        // fallback to the earliest-starting bar (smallest offsetLeft)
+        targetBar = bars.reduce((best, bar) => {
+          const lane = getLaneIndex(bar);
+          if (lane >= currentLane) return best;
+          if (!best) return bar;
+          return bar.offsetLeft < best.offsetLeft ? bar : best;
+        }, null);
+      }
+      if (!targetBar) return;
+
+      const targetRect = targetBar.getBoundingClientRect();
+      const desiredTop = barViewportTop + 1;
+      const delta = targetRect.top - desiredTop;
+
+      if (Math.abs(delta) > tolerancePx) {
+        selfScroll = true;
+        timeline.scrollTop += delta;
+        window.requestAnimationFrame(() => {
+          selfScroll = false;
+        });
+      }
     }
   };
 
   const onScroll = () => {
     if (selfScroll) return;
-    if (rafId !== null) return;
-    rafId = window.requestAnimationFrame(run);
+    const currentLeft = timeline.scrollLeft;
+    const movedRight = currentLeft > lastScrollLeft + tolerancePx;
+    const movedLeft = currentLeft < lastScrollLeft - tolerancePx;
+
+    if (movedRight) {
+      alignAfterSettle("right");
+    } else if (movedLeft) {
+      alignAfterSettle("left");
+    }
+
+    lastScrollLeft = currentLeft;
   };
 
   timeline.addEventListener("scroll", onScroll, { passive: true });
 
   return () => {
     timeline.removeEventListener("scroll", onScroll);
-    if (rafId !== null) {
-      cancelAnimationFrame(rafId);
-      rafId = null;
-    }
+    clearSettleTimer();
   };
 }
 

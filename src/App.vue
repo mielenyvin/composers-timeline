@@ -6,7 +6,7 @@
         <span class="menu-icon"></span>
       </button>
       <img class="logo" src="/favicon.png" alt="Logo" @click="returnToTitle" />
-      <div class="app-title" role="button" @click="returnToTitle">Classical Composers Timeline
+      <div class="app-title" role="button" @click="returnToTitle">The Story of Classical Music in Time
       </div>
     </header>
 
@@ -891,7 +891,7 @@ watch(
 .filter-dock {
   position: fixed;
   left: 12px;
-  bottom: 12px;
+  bottom: 24px;
   z-index: 1200;
   display: flex;
   flex-direction: column;
@@ -971,8 +971,8 @@ watch(
 
 .control-primary {
   border-color: rgba(15, 23, 42, 0.18);
-  background: #383838;
-  color: #f9fafb;
+  background: #ffffff;
+  color: #101827;
 }
 
 .control-primary:hover {
