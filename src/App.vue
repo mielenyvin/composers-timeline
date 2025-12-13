@@ -33,84 +33,47 @@
         <div class="filter-dock">
           <div class="control-stack control-pill" role="group" aria-label="Timeline controls">
             <div v-if="!isFilterOpen" class="nav-controls" role="group" aria-label="Timeline navigation">
-              <button
-                type="button"
-                class="control-btn"
-                :disabled="isAtTimelineStart"
-                @click="goToStart"
-                aria-label="Jump to start of timeline"
-              >
+              <button type="button" class="control-btn" :disabled="isAtTimelineStart" @click="goToStart"
+                aria-label="Jump to start of timeline">
                 ⇤
               </button>
-              <button
-                type="button"
-                class="control-btn"
-                :disabled="isAtTimelineEnd"
-                @click="goToEnd"
-                aria-label="Jump to end of timeline"
-              >
+              <button type="button" class="control-btn" :disabled="isAtTimelineEnd" @click="goToEnd"
+                aria-label="Jump to end of timeline">
                 ⇥
               </button>
             </div>
 
             <div v-if="!isFilterOpen" class="scale-controls" role="group" aria-label="Adjust timeline size">
-              <button
-                type="button"
-                class="control-btn"
-                :disabled="isAtMinHeight"
-                @click="adjustSizes(-1)"
-                aria-label="Make timeline blocks smaller"
-              >
+              <button type="button" class="control-btn" :disabled="isAtMinHeight" @click="adjustSizes(-1)"
+                aria-label="Make timeline blocks smaller">
                 −
               </button>
-              <button
-                type="button"
-                class="control-btn"
-                :disabled="isAtMaxHeight"
-                @click="adjustSizes(1)"
-                aria-label="Make timeline blocks larger"
-              >
+              <button type="button" class="control-btn" :disabled="isAtMaxHeight" @click="adjustSizes(1)"
+                aria-label="Make timeline blocks larger">
                 +
               </button>
             </div>
 
-            <button
-              class="filter-dock__toggle control-btn control-primary"
-              :aria-expanded="isFilterOpen"
-              aria-controls="filter-panel"
-              @click="toggleFilters"
-              aria-label="Filter composers"
-            >
+            <button class="filter-dock__toggle control-btn control-primary" :aria-expanded="isFilterOpen"
+              aria-controls="filter-panel" @click="toggleFilters" aria-label="Filter composers">
               <svg class="filter-icon" viewBox="0 0 24 24" aria-hidden="true" focusable="false">
                 <path d="M3 5h18l-7 8v5l-4 2v-7L3 5z"></path>
               </svg>
             </button>
 
             <transition name="fade">
-              <div
-                v-if="isFilterOpen"
-                id="filter-panel"
-                class="filter-panel"
-                role="dialog"
-                aria-label="Composer filters"
-              >
+              <div v-if="isFilterOpen" id="filter-panel" class="filter-panel" role="dialog"
+                aria-label="Composer filters">
                 <div class="filter-panel__options">
-                  <label
-                    v-for="group in filterGroups"
-                    :key="group.id"
-                    class="filter-panel__item"
-                  >
-                    <input
-                      v-model="filterState[group.id]"
-                      type="checkbox"
-                      class="filter-panel__checkbox"
-                      :aria-label="`Toggle ${group.label}`"
-                    />
+                  <label v-for="group in filterGroups" :key="group.id" class="filter-panel__item">
+                    <input v-model="filterState[group.id]" type="checkbox" class="filter-panel__checkbox"
+                      :aria-label="`Toggle ${group.label}`" />
                     <span class="filter-panel__label">{{ group.label }}</span>
                   </label>
                 </div>
                 <div class="filter-panel__actions">
-                  <button type="button" class="filter-panel__ok control-btn" @click="closeFilters" aria-label="Close filters">
+                  <button type="button" class="filter-panel__ok control-btn" @click="closeFilters"
+                    aria-label="Close filters">
                     OK
                   </button>
                 </div>
@@ -160,24 +123,25 @@
                 {{ currentComposer.birth }} — {{ currentComposer.death }}
               </p>
             </div>
+
+            <div class="composer-modal__nav composer-modal__nav--header" aria-label="Composer navigation">
+              <button class="composer-modal__arrow" @click="prevComposer" :disabled="!hasPrev" aria-label="Previous">
+                ←
+              </button>
+              <span class="composer-modal__position">
+                {{ (currentIndex ?? 0) + 1 }} / {{ sortedComposers.length }}
+              </span>
+              <button class="composer-modal__arrow" @click="nextComposer" :disabled="!hasNext" aria-label="Next">
+                →
+              </button>
+            </div>
+
             <button class="composer-modal__close" @click="closeModal" aria-label="Close composer details">×</button>
           </header>
 
           <div class="composer-modal__body">
             <div v-if="currentImage" class="composer-modal__hero">
               <img class="composer-modal__photo" :src="currentImage" :alt="currentComposer?.name" />
-
-              <div class="composer-modal__nav composer-modal__nav--overlay">
-                <button class="composer-modal__arrow" @click="prevComposer" :disabled="!hasPrev" aria-label="Previous">
-                  ←
-                </button>
-                <span class="composer-modal__position">
-                  {{ (currentIndex ?? 0) + 1 }} / {{ sortedComposers.length }}
-                </span>
-                <button class="composer-modal__arrow" @click="nextComposer" :disabled="!hasNext" aria-label="Next">
-                  →
-                </button>
-              </div>
 
               <div class="composer-modal__hero-meta">
                 <div class="composer-modal__name-small">{{ currentComposer?.name }}</div>
@@ -187,18 +151,28 @@
               </div>
             </div>
 
+            <div class="composer-modal__playlist">
+              <div class="composer-modal__playlist-title">Key works to know</div>
+              <div v-if="currentPlaylistUrls.length" :key="currentPlaylistUrls[0]"
+                class="composer-modal__playlist-box sc-player" :data-soundcloud-playlist="currentPlaylistUrls[0]"
+                :data-soundcloud-playlist-alt="currentPlaylistUrls.slice(1).join('|')">
+                <div class="sc-player__status">Loading tracks...</div>
+              </div>
+              <div v-else class="composer-modal__playlist-box composer-modal__playlist-box--empty">
+                Playlist will appear here soon.
+              </div>
+            </div>
+
             <div class="composer-modal__description">
+              <div class="composer-modal__facts-title" v-if="currentFactsTitle">
+                {{ currentFactsTitle }}
+              </div>
               <ul v-if="currentDescription" class="composer-modal__facts">
                 <li v-for="(line, i) in currentDescription.split('\n')" :key="i">
                   <span class="composer-modal__fact-text">{{ line }}</span>
                 </li>
               </ul>
               <p v-else class="composer-modal__muted">No description yet.</p>
-            </div>
-
-            <div class="composer-modal__playlist">
-              <div class="composer-modal__playlist-title">Playlist placeholder</div>
-              <div class="composer-modal__playlist-box">Embed your playlist here</div>
             </div>
           </div>
         </div>
@@ -208,7 +182,7 @@
 </template>
 
 <script setup>
-import { computed, onBeforeUnmount, onMounted, reactive, ref, watch } from "vue";
+import { computed, nextTick, onBeforeUnmount, onMounted, reactive, ref, watch } from "vue";
 import ComposersTimeline from "./components/ComposersTimeline.vue";
 import { composers, getComposerImage } from "./timeline-core";
 import composerFactsRaw from "../composers.md?raw";
@@ -226,6 +200,28 @@ const FONT_MIN_LARGE = 0.95;
 const FONT_CURVE = 0.6;
 const SIZE_STEPS = [30, 40, 50, 70, 100]; // две меньше, одна текущая, две больше
 const DEFAULT_SIZE_INDEX = 2;
+
+const SOUND_CLOUD_PROXY_BASE = (
+  import.meta.env.VITE_SOUND_CLOUD_PROXY ||
+  import.meta.env.VITE_SOUNDCLOUD_PROXY ||
+  import.meta.env.SOUND_CLOUD_PROXY ||
+  import.meta.env.SOUNDCLOUD_PROXY ||
+  ""
+).replace(/\/$/, "");
+const DEFAULT_SOUND_CLOUD_ACCOUNT =
+  import.meta.env.VITE_SOUND_CLOUD_ACCOUNT ||
+  import.meta.env.VITE_SOUNDCLOUD_ACCOUNT ||
+  import.meta.env.SOUND_CLOUD_ACCOUNT ||
+  import.meta.env.SOUNDCLOUD_ACCOUNT ||
+  "dmitry-kotikov";
+const SOUND_CLOUD_PLAYLIST_PREFIX =
+  import.meta.env.VITE_SOUND_CLOUD_PLAYLIST_PREFIX ||
+  import.meta.env.VITE_SOUNDCLOUD_PLAYLIST_PREFIX ||
+  import.meta.env.SOUND_CLOUD_PLAYLIST_PREFIX ||
+  import.meta.env.SOUNDCLOUD_PLAYLIST_PREFIX ||
+  `https://soundcloud.com/${DEFAULT_SOUND_CLOUD_ACCOUNT}/sets/`;
+
+const activeSoundCloudAudios = new Set();
 
 function clamp(value, min, max) {
   if (Number.isNaN(value)) return min;
@@ -392,7 +388,7 @@ const sortedComposers = computed(() =>
   [...filteredComposers.value].sort((a, b) => a.birth - b.birth)
 );
 
-const descriptionsByKey = parseComposerFacts(composerFactsRaw);
+const { descriptionsByKey, playlistIdsByKey } = parseComposerFacts(composerFactsRaw);
 const currentIndex = ref(null);
 
 const isModalOpen = computed(() => currentIndex.value !== null);
@@ -406,6 +402,15 @@ const currentDescription = computed(() =>
   currentComposer.value
     ? getComposerDescription(currentComposer.value.name)
     : ""
+);
+const currentFactsTitle = computed(() =>
+  currentComposer.value ? buildFactsTitle(currentComposer.value.name) : ""
+);
+const currentPlaylistIds = computed(() =>
+  currentComposer.value ? getComposerPlaylistIds(currentComposer.value.name) : []
+);
+const currentPlaylistUrls = computed(() =>
+  currentPlaylistIds.value.map((id) => buildPlaylistUrl(id)).filter(Boolean)
 );
 const hasPrev = computed(() => (currentIndex.value ?? 0) > 0);
 const hasNext = computed(
@@ -425,21 +430,30 @@ function normalizeName(name) {
 
 function parseComposerFacts(raw) {
   const lines = raw.split("\n");
-  const map = {};
+  const descriptions = {};
+  const playlistIds = {};
   let currentKey = null;
+  let currentSlug = null;
   let buffer = [];
   const flush = () => {
     if (currentKey) {
-      map[currentKey] = buffer.join("\n").trim();
+      descriptions[currentKey] = buffer.join("\n").trim();
+      if (currentSlug) {
+        playlistIds[currentKey] = currentSlug;
+      }
     }
     buffer = [];
+    currentSlug = null;
   };
 
   for (const line of lines) {
-    const heading = line.match(/^##\s+(.+?)\s+essentials\b/i);
+    const heading = line.match(
+      /^##\s+(.+?)\s+essentials(?:\s*\{#([a-z0-9_-]+)\})?/i
+    );
     if (heading) {
       flush();
       currentKey = normalizeName(heading[1]);
+      currentSlug = heading[2] || null;
       continue;
     }
     if (currentKey && line.startsWith("- ")) {
@@ -447,22 +461,53 @@ function parseComposerFacts(raw) {
     }
   }
   flush();
-  return map;
+  return { descriptionsByKey: descriptions, playlistIdsByKey: playlistIds };
+}
+
+function pickComposerValue(map, name) {
+  const normalized = normalizeName(name);
+  if (map[normalized]) {
+    return map[normalized];
+  }
+  const parts = normalized.split(" ").filter(Boolean);
+  const lastWord = parts[parts.length - 1];
+  if (lastWord && map[lastWord]) {
+    return map[lastWord];
+  }
+  return "";
 }
 
 function getComposerDescription(name) {
-  const normalized = normalizeName(name);
-  if (descriptionsByKey[normalized]) {
-    return descriptionsByKey[normalized];
-  }
+  return pickComposerValue(descriptionsByKey, name);
+}
 
-  const parts = normalized.split(" ").filter(Boolean);
-  const lastWord = parts[parts.length - 1];
-  if (lastWord && descriptionsByKey[lastWord]) {
-    return descriptionsByKey[lastWord];
-  }
+function slugifyForPlaylist(text) {
+  return normalizeName(text)
+    .replace(/\s+/g, "-")
+    .replace(/-+/g, "-");
+}
 
-  return "";
+function buildFactsTitle(name) {
+  const parts = String(name || "")
+    .trim()
+    .split(/\s+/)
+    .filter(Boolean);
+  if (!parts.length) return "";
+  const last = parts[parts.length - 1];
+  const isSuffix = /^(?:[IVX]+|\d+|Jr\.?|Sr\.?)$/i.test(last);
+  const core = isSuffix && parts.length >= 2 ? parts[parts.length - 2] : last;
+  return `${core} essentials`;
+}
+
+function getComposerPlaylistIds(name) {
+  const ids = [];
+  const fromMap = pickComposerValue(playlistIdsByKey, name);
+  if (fromMap) ids.push(fromMap);
+
+  const slugFull = slugifyForPlaylist(name);
+  if (slugFull && !ids.includes(slugFull)) ids.push(slugFull);
+
+  return ids;
 }
 
 function updateViewFromLocation(pathname = window.location.pathname) {
@@ -558,17 +603,22 @@ onBeforeUnmount(() => {
   }
 });
 
-watch(isModalOpen, (open) => {
+watch(isModalOpen, async (open) => {
   if (open) {
     document.documentElement.style.overscrollBehavior = "none";
     document.body.style.overscrollBehavior = "none";
     document.body.style.overflow = "hidden";
     document.body.style.touchAction = "none";
+    if (currentPlaylistUrls.value.length) {
+      await nextTick();
+      initSoundCloudPlayers();
+    }
   } else {
     document.documentElement.style.overscrollBehavior = "";
     document.body.style.overscrollBehavior = "";
     document.body.style.overflow = "";
     document.body.style.touchAction = "";
+    stopAllSoundCloudAudio();
   }
 });
 
@@ -580,6 +630,13 @@ watch(currentIndex, (laneIndex) => {
   } else {
     timeline.setSelectedLane(null);
   }
+});
+
+watch(currentPlaylistUrls, async (urls) => {
+  if (!isModalOpen.value || !urls.length) return;
+  stopAllSoundCloudAudio();
+  await nextTick();
+  initSoundCloudPlayers();
 });
 
 watch(
@@ -599,6 +656,351 @@ watch(
     }
   }
 );
+
+function buildProxyUrl(path) {
+  if (!path) return SOUND_CLOUD_PROXY_BASE;
+  if (!SOUND_CLOUD_PROXY_BASE) return path;
+  if (SOUND_CLOUD_PROXY_BASE.endsWith("/") && path.startsWith("/")) {
+    return SOUND_CLOUD_PROXY_BASE + path.slice(1);
+  }
+  if (!SOUND_CLOUD_PROXY_BASE.endsWith("/") && !path.startsWith("/")) {
+    return `${SOUND_CLOUD_PROXY_BASE}/${path}`;
+  }
+  return SOUND_CLOUD_PROXY_BASE + path;
+}
+
+function buildPlaylistUrl(id) {
+  if (!id) return "";
+  const prefix = SOUND_CLOUD_PLAYLIST_PREFIX;
+  if (!prefix) return "";
+  const hasTrailingSlash = prefix.endsWith("/");
+  return `${prefix}${hasTrailingSlash ? "" : "/"}${id}`;
+}
+
+function stopAllSoundCloudAudio() {
+  activeSoundCloudAudios.forEach((audio) => {
+    try {
+      audio.pause();
+      audio.currentTime = 0;
+    } catch (err) {
+      console.error("Failed to stop SoundCloud audio", err);
+    }
+  });
+  activeSoundCloudAudios.clear();
+}
+
+function initSoundCloudPlayers(onAllReady, root = document) {
+  const scope = root || document;
+  const containers = scope.querySelectorAll("[data-soundcloud-playlist]");
+
+  if (!containers.length) {
+    if (typeof onAllReady === "function") {
+      onAllReady();
+    }
+    return;
+  }
+
+  let remaining = containers.length;
+
+  containers.forEach((container) => {
+    hydrateSoundCloudPlayer(container, () => {
+      remaining -= 1;
+      if (remaining === 0 && typeof onAllReady === "function") {
+        onAllReady();
+      }
+    });
+  });
+}
+
+async function hydrateSoundCloudPlayer(container, onReady) {
+  const finalize = () => {
+    if (typeof onReady === "function") {
+      setTimeout(() => onReady(), 0);
+    }
+  };
+  if (
+    !container ||
+    container.dataset.soundcloudReady === "true" ||
+    container.dataset.soundcloudReady === "loading" ||
+    container.dataset.soundcloudReady === "error"
+  ) {
+    finalize();
+    return;
+  }
+
+  const primary = container.getAttribute("data-soundcloud-playlist");
+  const alt = container.getAttribute("data-soundcloud-playlist-alt") || "";
+  const candidates = [primary, ...alt.split("|")]
+    .map((x) => (x || "").trim())
+    .filter(Boolean);
+
+  if (!candidates.length) {
+    finalize();
+    return;
+  }
+
+  container.dataset.soundcloudReady = "loading";
+  container.innerHTML =
+    '<div class="sc-player__status">Loading tracks from SoundCloud...</div>';
+
+  let lastError = null;
+  for (const playlistUrl of candidates) {
+    try {
+      const playlist = await fetchSoundCloudPlaylist(playlistUrl);
+      const tracks =
+        Array.isArray(playlist.tracks) && playlist.tracks.length
+          ? playlist.tracks
+          : playlist && playlist.kind === "track"
+            ? [playlist]
+            : [];
+      renderSoundCloudPlayer(container, tracks, playlistUrl);
+      finalize();
+      return;
+    } catch (error) {
+      lastError = error;
+      const isRateLimited = error && error.status === 429;
+      if (isRateLimited) {
+        showFallbackPlayer(container, playlistUrl);
+        finalize();
+        return;
+      }
+    }
+  }
+
+  console.error("Failed to build SoundCloud player", lastError);
+  container.innerHTML =
+    '<div class="sc-player__status sc-player__status--error">Could not load SoundCloud playlist</div>';
+  container.dataset.soundcloudReady = "error";
+  finalize();
+}
+
+async function resolveSoundCloudStreamUrl(track) {
+  if (!track) {
+    throw new Error("No track provided");
+  }
+
+  const transcodings =
+    track.media && Array.isArray(track.media.transcodings)
+      ? track.media.transcodings
+      : [];
+
+  if (transcodings.length) {
+    let chosen = transcodings.find(
+      (t) => t && t.format && t.format.protocol === "progressive"
+    );
+
+    if (!chosen) {
+      chosen = transcodings[0];
+    }
+
+    if (chosen && chosen.url) {
+      try {
+        const finalUrl = await fetchSoundCloudTranscodingUrl(chosen.url);
+        console.debug("[SC] Using transcoding URL", {
+          trackId: track.id,
+          transcodingUrl: chosen.url,
+          finalUrl,
+        });
+        return finalUrl;
+      } catch (err) {
+        console.error(
+          "[SC] Transcoding proxy failed, falling back to streams endpoint",
+          err
+        );
+      }
+    }
+  }
+
+  if (!track.id) {
+    throw new Error("No track id provided");
+  }
+
+  return fetchSoundCloudStreamUrl(track.id);
+}
+
+async function fetchSoundCloudPlaylist(playlistUrl) {
+  const url =
+    buildProxyUrl("/api/soundcloud/playlist") +
+    `?url=${encodeURIComponent(playlistUrl)}`;
+  const resp = await fetch(url);
+  if (!resp.ok) {
+    const err = new Error(`SoundCloud playlist error: ${resp.status}`);
+    err.status = resp.status;
+    err.retryAfter = Number(resp.headers?.get("Retry-After")) || undefined;
+    throw err;
+  }
+  return resp.json();
+}
+
+async function fetchSoundCloudTranscodingUrl(transcodingUrl) {
+  const url =
+    buildProxyUrl("/api/soundcloud/transcoding") +
+    `?url=${encodeURIComponent(transcodingUrl)}`;
+  const resp = await fetch(url);
+  if (!resp.ok) {
+    const err = new Error(`SoundCloud transcoding error: ${resp.status}`);
+    err.status = resp.status;
+    err.retryAfter = Number(resp.headers?.get("Retry-After")) || undefined;
+    throw err;
+  }
+  const data = await resp.json();
+  if (!data?.url) {
+    throw new Error("Transcoding response missing url");
+  }
+  return data.url;
+}
+
+async function fetchSoundCloudStreamUrl(trackId) {
+  const url = buildProxyUrl(`/api/soundcloud/streams/${trackId}`);
+  const resp = await fetch(url);
+  if (!resp.ok) {
+    const err = new Error(`SoundCloud stream error: ${resp.status}`);
+    err.status = resp.status;
+    err.retryAfter = Number(resp.headers?.get("Retry-After")) || undefined;
+    throw err;
+  }
+  const data = await resp.json();
+  if (!data?.url) {
+    throw new Error("Stream response missing url");
+  }
+  return data.url;
+}
+
+function showFallbackPlayer(container, playlistUrl) {
+  const embedUrl = `https://w.soundcloud.com/player/?url=${encodeURIComponent(
+    playlistUrl
+  )}&color=%231f2937&auto_play=false&show_comments=false&show_reposts=false&show_teaser=true&visual=false`;
+  container.innerHTML = `
+    <iframe
+      class="sc-player__embed"
+      allow="autoplay"
+      scrolling="no"
+      frameborder="no"
+      src="${embedUrl}"
+    ></iframe>
+    <div class="sc-player__status">Rate limit hit — open on SoundCloud if needed.</div>
+  `;
+  container.dataset.soundcloudReady = "true";
+}
+
+function renderSoundCloudPlayer(container, tracks, playlistUrl) {
+  if (!Array.isArray(tracks) || !tracks.length) {
+    container.innerHTML =
+      '<div class="sc-player__status sc-player__status--error">No tracks found for this playlist.</div>';
+    container.dataset.soundcloudReady = "error";
+    return;
+  }
+
+  container.classList.add("sc-player");
+
+  const list = document.createElement("div");
+  list.className = "sc-track-list";
+  const audio = document.createElement("audio");
+  audio.preload = "none";
+  activeSoundCloudAudios.add(audio);
+
+  let currentTrackId = null;
+  let currentButton = null;
+  let isLoading = false;
+
+  const setButtonState = (btn, state) => {
+    btn.dataset.state = state;
+    btn.textContent = state === "playing" ? "⏸" : state === "loading" ? "..." : "▶";
+  };
+
+  const resetButton = (btn) => setButtonState(btn, "idle");
+
+  const resetCurrent = () => {
+    if (currentButton) {
+      resetButton(currentButton);
+    }
+    currentTrackId = null;
+    currentButton = null;
+  };
+
+  audio.addEventListener("ended", resetCurrent);
+  audio.addEventListener("pause", () => {
+    if (currentButton && audio.currentTime < (audio.duration || Infinity)) {
+      resetButton(currentButton);
+    }
+  });
+
+  tracks.forEach((track, index) => {
+    const trackEl = document.createElement("div");
+    trackEl.className = "sc-track";
+
+    const button = document.createElement("button");
+    button.type = "button";
+    button.className = "sc-track__button";
+    button.setAttribute("aria-label", "Play track");
+    setButtonState(button, "idle");
+
+    const titleEl = document.createElement("div");
+    titleEl.className = "sc-track__title";
+    titleEl.textContent = track?.title || `Track ${index + 1}`;
+
+    trackEl.append(button, titleEl);
+    list.append(trackEl);
+
+    button.addEventListener("click", async () => {
+      if (isLoading) return;
+
+      if (currentTrackId === (track?.id ?? index) && !audio.paused) {
+        audio.pause();
+        resetButton(button);
+        return;
+      }
+
+      isLoading = true;
+      setButtonState(button, "loading");
+      try {
+        const streamUrl = await resolveSoundCloudStreamUrl(track);
+        if (!streamUrl) throw new Error("No stream URL returned");
+        audio.src = streamUrl;
+        await audio.play();
+
+        if (currentButton && currentButton !== button) {
+          resetButton(currentButton);
+        }
+
+        currentButton = button;
+        currentTrackId = track?.id ?? index;
+        setButtonState(button, "playing");
+      } catch (err) {
+        console.error("Failed to play SoundCloud track", err);
+        resetButton(button);
+        container.dataset.soundcloudReady = "error";
+      } finally {
+        isLoading = false;
+      }
+    });
+  });
+
+  container.innerHTML = "";
+  container.append(list, audio);
+  if (playlistUrl) {
+    const attribution = document.createElement("div");
+    attribution.className = "sc-player__attribution";
+
+    const attributionLink = document.createElement("a");
+    attributionLink.href = "https://soundcloud.com";
+    attributionLink.target = "_blank";
+    attributionLink.rel = "noopener noreferrer";
+
+    const attributionImg = document.createElement("img");
+    attributionImg.src =
+      "/images/powered_by_black-4339b4c3c9cf88da9bfb15a16c4f6914.png";
+    attributionImg.alt = "Powered by SoundCloud";
+    attributionImg.style.height = "23px";
+    attributionImg.style.display = "block";
+    attributionImg.style.cursor = "pointer";
+
+    attributionLink.appendChild(attributionImg);
+    attribution.appendChild(attributionLink);
+    container.appendChild(attribution);
+  }
+  container.dataset.soundcloudReady = "true";
+}
 </script>
 
 <style scoped>
@@ -722,17 +1124,23 @@ watch(
 }
 
 .composer-modal__header {
+  position: relative;
   display: flex;
-  justify-content: space-between;
   align-items: flex-start;
+  gap: 14px;
   padding: 20px 24px 12px;
+  padding-right: 260px;
   border-bottom: 1px solid rgba(0, 0, 0, 0.06);
+  flex-wrap: wrap;
 }
 
 .composer-modal__titles {
   display: flex;
   flex-direction: column;
   gap: 4px;
+  flex: 1;
+  min-width: 220px;
+  max-width: calc(100% - 260px);
 }
 
 .composer-modal__name {
@@ -749,6 +1157,9 @@ watch(
 }
 
 .composer-modal__close {
+  position: absolute;
+  top: 16px;
+  right: 16px;
   border: none;
   background: #e5e7eb;
   border-radius: 12px;
@@ -756,6 +1167,7 @@ watch(
   height: 36px;
   font-size: 20px;
   cursor: pointer;
+  z-index: 2;
 }
 
 .composer-modal__body {
@@ -799,12 +1211,14 @@ watch(
   gap: 12px;
   flex-wrap: wrap;
 }
-
-.composer-modal__nav--overlay {
-  grid-column: 2;
-  grid-row: 1;
-  justify-self: end;
-  align-self: center;
+.composer-modal__nav--header {
+  position: absolute;
+  top: 16px;
+  right: 64px;
+  justify-content: flex-end;
+  gap: 10px;
+  flex-wrap: nowrap;
+  z-index: 2;
 }
 
 .composer-modal__arrow {
@@ -833,6 +1247,69 @@ watch(
   color: #111827;
   line-height: 1.6;
   font-size: 16px;
+}
+
+.composer-modal__facts-title {
+  margin: 0 0 6px;
+  font-weight: 700;
+  font-size: 16px;
+  color: #0f172a;
+}
+
+.composer-modal__playlist-title {
+  margin: 0 0 6px;
+  font-weight: 700;
+  font-size: 16px;
+  color: #0f172a;
+}
+
+.composer-modal__playlist {
+  min-width: 0;
+}
+
+.composer-modal__playlist-box {
+  width: 100%;
+  max-width: 100%;
+  overflow: hidden;
+}
+
+:deep(.sc-player) {
+  width: 100%;
+  max-width: 100%;
+  box-sizing: border-box;
+}
+
+:deep(.sc-track-list) {
+  width: 100%;
+  max-width: 100%;
+  box-sizing: border-box;
+  overflow-x: hidden;
+}
+
+:deep(.sc-track) {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  min-width: 0;
+  width: 100%;
+}
+
+:deep(.sc-track__button) {
+  flex: 0 0 auto;
+}
+
+:deep(.sc-track__title) {
+  flex: 1 1 auto;
+  min-width: 0;
+  max-width: 100%;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+:deep(.sc-player__embed) {
+  width: 100%;
+  max-width: 100%;
 }
 
 .composer-modal__muted {
@@ -869,29 +1346,6 @@ watch(
 .composer-modal__fact-text {
   display: block;
   position: relative;
-}
-
-.composer-modal__playlist {
-  grid-column: 1 / -1;
-  padding-top: 8px;
-  border-top: 1px solid rgba(0, 0, 0, 0.06);
-  display: flex;
-  flex-direction: column;
-  gap: 10px;
-}
-
-.composer-modal__playlist-title {
-  font-weight: 600;
-  color: #111827;
-}
-
-.composer-modal__playlist-box {
-  border: 1px dashed rgba(0, 0, 0, 0.2);
-  border-radius: 12px;
-  padding: 18px;
-  background: #f8fafc;
-  text-align: center;
-  color: #6b7280;
 }
 
 .filter-dock {
@@ -1065,6 +1519,11 @@ watch(
     grid-template-columns: auto 1fr;
     align-items: flex-start;
   }
+
+  .composer-modal__facts li {
+  padding: 4px 12px;
+
+}
 }
 
 .fade-enter-active,
@@ -1142,3 +1601,11 @@ watch(
   }
 }
 </style>
+
+  .composer-modal__header {
+    padding-right: 200px;
+  }
+
+  .composer-modal__titles {
+    max-width: calc(100% - 200px);
+  }

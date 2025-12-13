@@ -1,6 +1,6 @@
 # Composer fact sheets
 
-## Vivaldi essentials {#vivaldi}
+## Vivaldi essentials {#antonio-vivaldi}
 
 - Who he was: Venetian Baroque composer and virtuoso violinist, one of the most influential composers of his time.
 - Nickname: Called "Il Prete Rosso" - The Red Priest - because he was an ordained Catholic priest with bright red hair.
