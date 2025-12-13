@@ -229,7 +229,7 @@ const SOUND_CLOUD_FALLBACK_PLAYLIST =
   import.meta.env.VITE_SOUNDCLOUD_FALLBACK_PLAYLIST ||
   import.meta.env.SOUND_CLOUD_FALLBACK_PLAYLIST ||
   import.meta.env.SOUNDCLOUD_FALLBACK_PLAYLIST ||
-  "https://soundcloud.com/soundcloud/sets/charts-top-50";
+  "https://soundcloud.com/dmitry-kotikov/sets/antonio-vivaldi";
 
 const activeSoundCloudAudios = new Set();
 
@@ -758,6 +758,16 @@ async function hydrateSoundCloudPlayer(container, onReady) {
   container.innerHTML =
     '<div class="sc-player__status">Loading tracks from SoundCloud...</div>';
 
+  // If no proxy configured (e.g., static hosting), fall back to embeddable player directly
+  if (!SOUND_CLOUD_PROXY_BASE) {
+    const fallback = candidates[0] || SOUND_CLOUD_FALLBACK_PLAYLIST || null;
+    if (fallback) {
+      showFallbackPlayer(container, fallback);
+      finalize();
+      return;
+    }
+  }
+
   let lastError = null;
   for (const playlistUrl of candidates) {
     try {
@@ -783,7 +793,7 @@ async function hydrateSoundCloudPlayer(container, onReady) {
   }
 
   console.error("Failed to build SoundCloud player", lastError);
-  const fallback = SOUND_CLOUD_FALLBACK_PLAYLIST || candidates[0] || null;
+  const fallback = candidates[0] || SOUND_CLOUD_FALLBACK_PLAYLIST || null;
   if (fallback) {
     showFallbackPlayer(container, fallback);
   } else {
