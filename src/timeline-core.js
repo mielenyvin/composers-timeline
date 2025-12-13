@@ -334,12 +334,58 @@ function barGradient(progress) {
 const ERA_COLORS = {
   baroque: "#f3f4f6", // soft cool gray
   classical: "#eef5ff", // pale steel blue
-  romantic: "#e3f0ffff", // very light cool blue
-  twentieth: "#dfdfdfff", // light slate
-};  
+  romantic: "#e3f0ff", // very light cool blue
+  twentieth: "#dfdfdf", // light slate
+};
 
 function eraColor(eraId) {
   return ERA_COLORS[eraId] || "#f3f4f6";
+}
+
+
+function getEraIdForYear(year) {
+  const era = ERAS.find((e) => year >= e.from && year < e.to);
+  return era ? era.id : null;
+}
+
+// Pick era color by the majority of the composer's lifespan.
+// If more than half of the lifespan overlaps a different era, use that era.
+function getEraIdForLifeSpan(birthYear, deathYear) {
+  const start = Number(birthYear);
+  const end = Number(deathYear);
+
+  const birthEraId = getEraIdForYear(start);
+  if (!Number.isFinite(start) || !Number.isFinite(end) || end <= start) {
+    return birthEraId;
+  }
+
+  const total = end - start;
+  let bestEraId = null;
+  let bestOverlap = 0;
+
+  ERAS.forEach((era) => {
+    const overlap = Math.max(
+      0,
+      Math.min(end, era.to) - Math.max(start, era.from)
+    );
+    if (overlap > bestOverlap) {
+      bestOverlap = overlap;
+      bestEraId = era.id;
+    }
+  });
+
+  if (bestEraId && bestOverlap > total / 2) return bestEraId;
+  return birthEraId;
+}
+
+function barGradientForEra(eraId) {
+  const baseHex = eraColor(eraId);
+  const base = hexToRgb(baseHex);
+  const highlight = mixColors(base, WHITE, 0.12);
+  const shade = mixColors(base, ACCENT, 0.04);
+  return `linear-gradient(145deg, ${rgbToHex(highlight)} 0%, ${rgbToHex(
+    base
+  )} 58%, ${rgbToHex(shade)} 100%)`;
 }
 
 function setActiveComposers(next) {
@@ -510,10 +556,9 @@ function buildGantt() {
     bar.setAttribute("data-lane-index", laneIndex);
     bar.setAttribute("data-name", c.name);
 
-    // Make all bars the same "first bar" gray gradient
-    const fixedProgress = 0;
-    bar.style.backgroundImage = barGradient(fixedProgress);
-    bar.style.backgroundColor = "transparent";
+    const eraId = getEraIdForLifeSpan(c.birth, c.death);
+    bar.style.backgroundImage = barGradientForEra(eraId);
+    bar.style.backgroundColor = eraColor(eraId);
 
     const left = startPercent;
     const width = endPercent - startPercent;
