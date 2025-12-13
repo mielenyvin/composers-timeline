@@ -1448,7 +1448,7 @@ function renderSoundCloudPlayer(container, tracks, playlistUrl) {
   border: 1px solid rgba(15, 23, 42, 0.16);
   background: rgba(255, 255, 255, 0.98);
   color: #111827;
-  font-size: 20px;
+  font-size: 16px;
   font-weight: 500;
   line-height: 1;
   display: inline-grid;
@@ -1542,7 +1542,7 @@ function renderSoundCloudPlayer(container, tracks, playlistUrl) {
   padding: 0 14px;
   height: 32px;
   width: 100%;
-  font-weight: 600;
+  font-weight: 400;
 }
 
 @media (max-width: 720px) {

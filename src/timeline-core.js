@@ -764,6 +764,7 @@ function enableHorizontalAutoAlign() {
 
   let lastScrollLeft = timeline.scrollLeft;
   let selfScroll = false;
+   let selfScrollTimer = null;
   let settleTimer = null;
 
   const tolerancePx = 0.5;
@@ -773,6 +774,32 @@ function enableHorizontalAutoAlign() {
     if (settleTimer !== null) {
       clearTimeout(settleTimer);
       settleTimer = null;
+    }
+  };
+
+  const clearSelfScrollTimer = () => {
+    if (selfScrollTimer !== null) {
+      clearTimeout(selfScrollTimer);
+      selfScrollTimer = null;
+    }
+  };
+
+  const smoothSelfScrollTo = (left, top) => {
+    clearSelfScrollTimer();
+    const prefersReducedMotion = window.matchMedia?.(
+      "(prefers-reduced-motion: reduce)"
+    ).matches;
+    selfScroll = true;
+    if (timeline.scrollTo && !prefersReducedMotion) {
+      timeline.scrollTo({ left, top, behavior: "smooth" });
+      selfScrollTimer = setTimeout(() => {
+        selfScroll = false;
+        selfScrollTimer = null;
+      }, 320);
+    } else {
+      timeline.scrollLeft = left;
+      timeline.scrollTop = top;
+      selfScroll = false;
     }
   };
 
@@ -848,11 +875,7 @@ function enableHorizontalAutoAlign() {
       const delta = targetRect.top - desiredTop;
 
       if (Math.abs(delta) > tolerancePx) {
-        selfScroll = true;
-        timeline.scrollTop += delta;
-        window.requestAnimationFrame(() => {
-          selfScroll = false;
-        });
+        smoothSelfScrollTo(timeline.scrollLeft, timeline.scrollTop + delta);
       }
       return;
     }
@@ -907,16 +930,10 @@ function enableHorizontalAutoAlign() {
       const deltaLeft = desiredLeft - timeline.scrollLeft;
 
       if (Math.abs(delta) > tolerancePx || Math.abs(deltaLeft) > tolerancePx) {
-        selfScroll = true;
-        if (Math.abs(deltaLeft) > tolerancePx) {
-          timeline.scrollLeft = desiredLeft;
-        }
-        if (Math.abs(delta) > tolerancePx) {
-          timeline.scrollTop += delta;
-        }
-        window.requestAnimationFrame(() => {
-          selfScroll = false;
-        });
+        smoothSelfScrollTo(
+          Math.abs(deltaLeft) > tolerancePx ? desiredLeft : timeline.scrollLeft,
+          Math.abs(delta) > tolerancePx ? timeline.scrollTop + delta : timeline.scrollTop
+        );
       }
     }
   };
@@ -946,6 +963,7 @@ function enableHorizontalAutoAlign() {
   return () => {
     timeline.removeEventListener("scroll", onScroll);
     clearSettleTimer();
+    clearSelfScrollTimer();
   };
 }
 
