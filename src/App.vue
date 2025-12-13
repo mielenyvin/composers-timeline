@@ -783,10 +783,7 @@ async function hydrateSoundCloudPlayer(container, onReady) {
   }
 
   console.error("Failed to build SoundCloud player", lastError);
-  const fallback =
-    candidates[0] ||
-    SOUND_CLOUD_FALLBACK_PLAYLIST ||
-    null;
+  const fallback = SOUND_CLOUD_FALLBACK_PLAYLIST || candidates[0] || null;
   if (fallback) {
     showFallbackPlayer(container, fallback);
   } else {
@@ -901,7 +898,6 @@ function showFallbackPlayer(container, playlistUrl) {
       frameborder="no"
       src="${embedUrl}"
     ></iframe>
-    <div class="sc-player__status">Rate limit hit — open on SoundCloud if needed.</div>
   `;
   container.dataset.soundcloudReady = "true";
 }
