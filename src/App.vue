@@ -907,6 +907,8 @@ function showFallbackPlayer(container, playlistUrl) {
       scrolling="no"
       frameborder="no"
       height="450"
+      sharing="false"
+      show_artwork="false"
       src="${embedUrl}"
     ></iframe>
   `;
