@@ -899,13 +899,14 @@ async function fetchSoundCloudStreamUrl(trackId) {
 function showFallbackPlayer(container, playlistUrl) {
   const embedUrl = `https://w.soundcloud.com/player/?url=${encodeURIComponent(
     playlistUrl
-  )}&color=%231f2937&auto_play=false&show_comments=false&show_reposts=false&show_teaser=true&visual=false`;
+  )}&auto_play=false&hide_related=true&buying=false&liking=false&download=false&sharing=false&show_artwork=false&show_comments=false&show_playcount=false&show_user=false&show_reposts=false&show_teaser=false&visual=false&start_track=0`;
   container.innerHTML = `
     <iframe
       class="sc-player__embed"
       allow="autoplay"
       scrolling="no"
       frameborder="no"
+      height="450"
       src="${embedUrl}"
     ></iframe>
   `;
@@ -1339,6 +1340,9 @@ function renderSoundCloudPlayer(container, tracks, playlistUrl) {
 :deep(.sc-player__embed) {
   width: 100%;
   max-width: 100%;
+  height: 450px;
+  border: 0;
+  display: block;
 }
 
 .composer-modal__muted {
@@ -1637,4 +1641,8 @@ function renderSoundCloudPlayer(container, tracks, playlistUrl) {
 
   .composer-modal__titles {
     max-width: calc(100% - 200px);
+  }
+
+  :deep(.sc-player__embed) {
+    height: 320px;
   }
