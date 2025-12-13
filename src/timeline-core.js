@@ -766,32 +766,51 @@ function enableHorizontalAutoAlign() {
     }
 
     if (direction === "left") {
-      const isClippedRight =
-        firstVisible.offsetLeft + firstVisible.offsetWidth >
-        viewportRight + tolerancePx;
+      const firstRect = firstVisible.getBoundingClientRect();
+      const isClippedRight = firstRect.right > containerRect.right + tolerancePx;
       if (!isClippedRight) return;
 
-      let targetBar =
-        bars.find((bar) => {
+      // Find a bar above the current one whose left edge is already inside the viewport
+      const candidates = bars.filter((bar) => {
+        const lane = getLaneIndex(bar);
+        if (lane >= currentLane) return false;
+        return bar.offsetLeft >= viewportLeft - tolerancePx;
+      });
+
+      let targetBar = null;
+      if (candidates.length) {
+        // Prefer the closest lane above; within that lane, choose the closest left alignment.
+        targetBar = candidates.reduce((best, bar) => {
+          if (!best) return bar;
           const lane = getLaneIndex(bar);
-          if (lane >= currentLane) return false;
-          const rect = bar.getBoundingClientRect();
-          return (
-            rect.bottom > barViewportTop &&
-            rect.top < barViewportBottom &&
-            bar.offsetLeft + bar.offsetWidth <= viewportRight + tolerancePx
-          );
-        }) || null;
+          const bestLane = getLaneIndex(best);
+          if (lane > bestLane) return bar;
+          if (lane === bestLane) {
+            const dist = Math.abs(bar.offsetLeft - viewportLeft);
+            const bestDist = Math.abs(best.offsetLeft - viewportLeft);
+            return dist < bestDist ? bar : best;
+          }
+          return best;
+        }, null);
+      }
 
       if (!targetBar) {
-        // fallback to the earliest-starting bar (smallest offsetLeft)
+        // Fallback: any bar above, prefer closest lane and left edge nearest to viewport start.
         targetBar = bars.reduce((best, bar) => {
           const lane = getLaneIndex(bar);
           if (lane >= currentLane) return best;
           if (!best) return bar;
-          return bar.offsetLeft < best.offsetLeft ? bar : best;
+          const bestLane = getLaneIndex(best);
+          if (lane > bestLane) return bar;
+          if (lane === bestLane) {
+            const dist = Math.abs(bar.offsetLeft - viewportLeft);
+            const bestDist = Math.abs(best.offsetLeft - viewportLeft);
+            return dist < bestDist ? bar : best;
+          }
+          return best;
         }, null);
       }
+
       if (!targetBar) return;
 
       const targetRect = targetBar.getBoundingClientRect();
