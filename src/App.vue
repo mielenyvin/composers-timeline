@@ -758,16 +758,6 @@ async function hydrateSoundCloudPlayer(container, onReady) {
   container.innerHTML =
     '<div class="sc-player__status">Loading tracks from SoundCloud...</div>';
 
-  // If no proxy configured (e.g., static hosting), fall back to embeddable player directly
-  if (!SOUND_CLOUD_PROXY_BASE) {
-    const fallback = candidates[0] || SOUND_CLOUD_FALLBACK_PLAYLIST || null;
-    if (fallback) {
-      showFallbackPlayer(container, fallback);
-      finalize();
-      return;
-    }
-  }
-
   let lastError = null;
   for (const playlistUrl of candidates) {
     try {
@@ -904,9 +894,11 @@ function showFallbackPlayer(container, playlistUrl) {
     <iframe
       class="sc-player__embed"
       allow="autoplay"
+      show_user="false"
       scrolling="no"
       frameborder="no"
       height="450"
+      show_playcount="false"
       sharing="false"
       show_artwork="false"
       src="${embedUrl}"
