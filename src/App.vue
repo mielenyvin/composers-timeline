@@ -152,7 +152,23 @@
             </div>
 
             <div class="composer-modal__playlist">
-              <div class="composer-modal__playlist-title">Key works to know</div>
+              <div class="composer-modal__playlist-header">
+                <div class="composer-modal__playlist-title">Key works to know</div>
+                <a
+                  v-if="playlistSources.length"
+                  class="sc-powered"
+                  href="https://soundcloud.com"
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  aria-label="Powered by SoundCloud"
+                >
+                  <img
+                    class="sc-powered__img"
+                    src="/images/powered_by_black-4339b4c3c9cf88da9bfb15a16c4f6914.png"
+                    alt="Powered by SoundCloud"
+                  />
+                </a>
+              </div>
               <div
                 v-if="playlistSources.length"
                 :key="playlistSources[0]"
@@ -889,7 +905,7 @@ async function fetchSoundCloudStreamUrl(trackId) {
 function showFallbackPlayer(container, playlistUrl) {
   const embedUrl = `https://w.soundcloud.com/player/?url=${encodeURIComponent(
     playlistUrl
-  )}&auto_play=false&show_user=false&show_playcount=false&sharing=false&show_artwork=false`;
+  )}&auto_play=false&hide_related=true&show_comments=false&show_user=false&show_reposts=false&show_teaser=false&show_playcount=false&sharing=false&show_artwork=false&buying=false&liking=false&download=false&visual=false`;
 
   container.innerHTML = `
     <iframe
@@ -1000,27 +1016,7 @@ function renderSoundCloudPlayer(container, tracks, playlistUrl) {
 
   container.innerHTML = "";
   container.append(list, audio);
-  if (playlistUrl) {
-    const attribution = document.createElement("div");
-    attribution.className = "sc-player__attribution";
-
-    const attributionLink = document.createElement("a");
-    attributionLink.href = "https://soundcloud.com";
-    attributionLink.target = "_blank";
-    attributionLink.rel = "noopener noreferrer";
-
-    const attributionImg = document.createElement("img");
-    attributionImg.src =
-      "/images/powered_by_black-4339b4c3c9cf88da9bfb15a16c4f6914.png";
-    attributionImg.alt = "Powered by SoundCloud";
-    attributionImg.style.height = "23px";
-    attributionImg.style.display = "block";
-    attributionImg.style.cursor = "pointer";
-
-    attributionLink.appendChild(attributionImg);
-    attribution.appendChild(attributionLink);
-    container.appendChild(attribution);
-  }
+  // Attribution block removed to avoid double attribution; now handled in header row
   container.dataset.soundcloudReady = "true";
 }
 </script>
@@ -1278,11 +1274,31 @@ function renderSoundCloudPlayer(container, tracks, playlistUrl) {
   color: #0f172a;
 }
 
-.composer-modal__playlist-title {
+.composer-modal__playlist-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
   margin: 0 0 6px;
+}
+
+.composer-modal__playlist-title {
+  margin: 0;
   font-weight: 700;
   font-size: 16px;
   color: #0f172a;
+}
+
+.sc-powered {
+  display: inline-flex;
+  align-items: center;
+  justify-content: flex-end;
+  flex: 0 0 auto;
+}
+
+.sc-powered__img {
+  height: 18px;
+  display: block;
 }
 
 .composer-modal__playlist {
@@ -1426,13 +1442,13 @@ function renderSoundCloudPlayer(container, tracks, playlistUrl) {
 .control-btn {
   height: 32px;
   min-width: 38px;
-  padding: 0 10px;
+  padding: 0 8px;
   border-radius: 999px;
   border: 1px solid rgba(15, 23, 42, 0.16);
   background: rgba(255, 255, 255, 0.98);
   color: #111827;
-  font-size: 16px;
-  font-weight: 700;
+  font-size: 20px;
+  font-weight: 500;
   line-height: 1;
   display: inline-grid;
   place-items: center;
