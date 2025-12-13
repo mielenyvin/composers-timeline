@@ -171,7 +171,7 @@ let selectedLaneIndex = null;
 let hoveredLaneIndex = null;
 
 const WHITE = { r: 255, g: 255, b: 255 };
-const ACCENT = { r: 37, g: 99, b: 235 }; // лёгкий синий от подсветки фактов
+const ACCENT = { r: 37, g: 99, b: 235 };
 
 // Bar/era color ramp (light, serious, no yellow/green):
 // soft gray -> pale steel blue -> cool periwinkle -> light slate
@@ -330,19 +330,16 @@ function barGradient(progress) {
   )} 52%, ${rgbToHex(accent)} 100%)`;
 }
 
-function eraGradient(startYear, endYear) {
-  const startColor = colorForYear(startYear);
-  const endColor = colorForYear(endYear);
+// Solid era background colors (light, serious, no yellow/green):
+const ERA_COLORS = {
+  baroque: "#f3f4f6", // soft cool gray
+  classical: "#e6eef8", // pale steel blue
+  romantic: "#eef5ff", // very light cool blue
+  twentieth: "#eef2f7", // light slate
+};
 
-  // Keep axis bands in the same "light serious" family as the bars:
-  // mostly white-mixed, with only a tiny blue accent.
-  const left = mixColors(startColor, WHITE, 0.22);
-  const rightAccented = mixColors(endColor, ACCENT, 0.025);
-  const right = mixColors(rightAccented, WHITE, 0.18);
-
-  return `linear-gradient(90deg, ${rgbToHex(left)} 0%, ${rgbToHex(
-    right
-  )} 100%)`;
+function eraColor(eraId) {
+  return ERA_COLORS[eraId] || "#f3f4f6";
 }
 
 function setActiveComposers(next) {
@@ -410,12 +407,13 @@ function buildAxis() {
     const end = Math.min(era.to, axisMaxYear);
     if (end <= start) return;
 
-  const band = document.createElement("div");
-  band.className = "era-band";
-  band.style.left = yearToPercent(start) + "%";
-  band.style.width = yearToPercent(end) - yearToPercent(start) + "%";
-  band.style.backgroundImage = eraGradient(start, end);
-    band.style.backgroundColor = "transparent";
+    const band = document.createElement("div");
+    band.className = "era-band";
+    band.style.left = yearToPercent(start) + "%";
+    band.style.width = yearToPercent(end) - yearToPercent(start) + "%";
+    // Solid (non-gradient) era backgrounds
+    band.style.backgroundImage = "none";
+    band.style.backgroundColor = eraColor(era.id);
     band.textContent = era.label;
 
     // Для первой эры (Baroque) подпись выравниваем по правому краю полосы
