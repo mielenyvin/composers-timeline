@@ -889,21 +889,19 @@ async function fetchSoundCloudStreamUrl(trackId) {
 function showFallbackPlayer(container, playlistUrl) {
   const embedUrl = `https://w.soundcloud.com/player/?url=${encodeURIComponent(
     playlistUrl
-  )}&auto_play=false&hide_related=true&buying=false&liking=false&download=false&sharing=false&show_artwork=false&show_comments=false&show_playcount=false&show_user=false&show_reposts=false&show_teaser=false&visual=false&start_track=0`;
+  )}&auto_play=false&show_user=false&show_playcount=false&sharing=false&show_artwork=false`;
+
   container.innerHTML = `
     <iframe
       class="sc-player__embed"
       allow="autoplay"
-      show_user="false"
       scrolling="no"
       frameborder="no"
       height="450"
-      show_playcount="false"
-      sharing="false"
-      show_artwork="false"
       src="${embedUrl}"
     ></iframe>
   `;
+
   container.dataset.soundcloudReady = "true";
 }
 
