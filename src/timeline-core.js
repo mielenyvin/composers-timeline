@@ -684,6 +684,7 @@ function enableHorizontalAutoAlign() {
   let settleTimer = null;
 
   const tolerancePx = 0.5;
+  const rightClipThreshold = 5; // px of hidden left part before we auto-scroll down
 
   const clearSettleTimer = () => {
     if (settleTimer !== null) {
@@ -725,9 +726,17 @@ function enableHorizontalAutoAlign() {
     const viewportLeft = timeline.scrollLeft;
     const viewportRight = viewportLeft + timeline.clientWidth;
     const currentLane = getLaneIndex(firstVisible);
+    const topLaneBar =
+      bars.reduce((best, bar) => {
+        const lane = getLaneIndex(bar);
+        if (!best) return bar;
+        const bestLane = getLaneIndex(best);
+        return lane < bestLane ? bar : best;
+      }, null) || firstVisible;
 
     if (direction === "right") {
-      const isClippedLeft = firstVisible.offsetLeft < viewportLeft - tolerancePx;
+      const isClippedLeft =
+        firstVisible.offsetLeft < viewportLeft - rightClipThreshold;
       if (!isClippedLeft) return;
 
       let targetBar =
@@ -768,8 +777,11 @@ function enableHorizontalAutoAlign() {
     if (direction === "left") {
       const firstRect = firstVisible.getBoundingClientRect();
       const isClippedRight = firstRect.right > containerRect.right + tolerancePx;
-      if (!isClippedRight) return;
+      const atHardLeft = viewportLeft <= tolerancePx; // near the very start
+      // If we're moving left and a bar above starts inside the viewport, we should align even if
+      // nothing is clipped. Otherwise, allow the old behavior (clip or hard-left).
 
+      let targetBar = null;
       // Find a bar above the current one whose left edge is already inside the viewport
       const candidates = bars.filter((bar) => {
         const lane = getLaneIndex(bar);
@@ -777,8 +789,13 @@ function enableHorizontalAutoAlign() {
         return bar.offsetLeft >= viewportLeft - tolerancePx;
       });
 
-      let targetBar = null;
-      if (candidates.length) {
+      // If nothing is clipped and no candidates above, keep the current view.
+      if (!atHardLeft && !isClippedRight && !candidates.length) return;
+
+      if (atHardLeft) {
+        // At the very left edge we always align to the topmost composer.
+        targetBar = topLaneBar;
+      } else if (candidates.length) {
         // Prefer the closest lane above; within that lane, choose the closest left alignment.
         targetBar = candidates.reduce((best, bar) => {
           if (!best) return bar;
@@ -794,32 +811,26 @@ function enableHorizontalAutoAlign() {
         }, null);
       }
 
+      // Fallback: topmost bar (lane 0) to guarantee alignment when at the far left.
       if (!targetBar) {
-        // Fallback: any bar above, prefer closest lane and left edge nearest to viewport start.
-        targetBar = bars.reduce((best, bar) => {
-          const lane = getLaneIndex(bar);
-          if (lane >= currentLane) return best;
-          if (!best) return bar;
-          const bestLane = getLaneIndex(best);
-          if (lane > bestLane) return bar;
-          if (lane === bestLane) {
-            const dist = Math.abs(bar.offsetLeft - viewportLeft);
-            const bestDist = Math.abs(best.offsetLeft - viewportLeft);
-            return dist < bestDist ? bar : best;
-          }
-          return best;
-        }, null);
+        targetBar = topLaneBar;
       }
-
       if (!targetBar) return;
 
       const targetRect = targetBar.getBoundingClientRect();
       const desiredTop = barViewportTop + 1;
       const delta = targetRect.top - desiredTop;
+      const desiredLeft = Math.max(0, targetBar.offsetLeft);
+      const deltaLeft = desiredLeft - timeline.scrollLeft;
 
-      if (Math.abs(delta) > tolerancePx) {
+      if (Math.abs(delta) > tolerancePx || Math.abs(deltaLeft) > tolerancePx) {
         selfScroll = true;
-        timeline.scrollTop += delta;
+        if (Math.abs(deltaLeft) > tolerancePx) {
+          timeline.scrollLeft = desiredLeft;
+        }
+        if (Math.abs(delta) > tolerancePx) {
+          timeline.scrollTop += delta;
+        }
         window.requestAnimationFrame(() => {
           selfScroll = false;
         });
@@ -836,6 +847,11 @@ function enableHorizontalAutoAlign() {
     if (movedRight) {
       alignAfterSettle("right");
     } else if (movedLeft) {
+      alignAfterSettle("left");
+    }
+
+    // When we are parked at the left edge, still align to the topmost composer.
+    if (currentLeft <= tolerancePx) {
       alignAfterSettle("left");
     }
 
