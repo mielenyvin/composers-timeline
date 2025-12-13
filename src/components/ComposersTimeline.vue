@@ -19,6 +19,10 @@ const props = defineProps({
     type: Array,
     default: () => [],
   },
+  settings: {
+    type: Object,
+    default: () => ({}),
+  },
 });
 
 let timelineInstance = null;
@@ -43,7 +47,10 @@ onMounted(() => {
   if (timelineEl) {
     timelineEl.addEventListener("click", handleClick);
   }
-  timelineInstance = initTimeline({ composers: props.composers });
+  timelineInstance = initTimeline({
+    composers: props.composers,
+    settings: props.settings,
+  });
   window.timeline = timelineInstance;
 });
 
@@ -61,6 +68,15 @@ watch(
   (next) => {
     if (!timelineInstance) return;
     timelineInstance.setComposers(next);
+  },
+  { deep: true }
+);
+
+watch(
+  () => props.settings,
+  (next) => {
+    if (!timelineInstance || !timelineInstance.updateSettings) return;
+    timelineInstance.updateSettings(next);
   },
   { deep: true }
 );

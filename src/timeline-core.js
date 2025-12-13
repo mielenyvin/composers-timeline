@@ -94,6 +94,49 @@ function getComposerImage(name) {
   return composerImages[name] || null;
 }
 
+function getLastNamePart(fullName) {
+  const parts = String(fullName || "")
+    .trim()
+    .split(/\s+/)
+    .filter(Boolean);
+  if (parts.length <= 1) return fullName;
+
+  const last = parts[parts.length - 1];
+  const isSuffix = /^(?:[IVX]+|\d+|Jr\.?|Sr\.?)$/i.test(last);
+
+  // Keep suffix together: "Strauss II", "Bach Jr." etc.
+  if (isSuffix && parts.length >= 2) {
+    return parts[parts.length - 2] + " " + last;
+  }
+
+  return last;
+}
+
+function getInitialsPlusLastName(fullName) {
+  const parts = String(fullName || "")
+    .trim()
+    .split(/\s+/)
+    .filter(Boolean);
+  if (parts.length <= 1) return fullName;
+
+  const last = parts[parts.length - 1];
+  const isSuffix = /^(?:[IVX]+|\d+|Jr\.?|Sr\.?)$/i.test(last);
+  const lastPartsCount = isSuffix && parts.length >= 2 ? 2 : 1;
+
+  const lastParts = parts.slice(parts.length - lastPartsCount);
+  const firstParts = parts.slice(0, parts.length - lastPartsCount);
+
+  const initials = firstParts
+    .map((p) => p.trim())
+    .filter(Boolean)
+    .map((p) => (p[0] ? p[0].toUpperCase() + "." : ""))
+    .filter(Boolean)
+    .join(" ");
+
+  const tail = lastParts.join(" ");
+  return initials ? `${initials} ${tail}` : tail;
+}
+
 const ERAS = [
   {
     id: "baroque",
@@ -146,20 +189,66 @@ const axisMaxYear = 1980;
 const axisSpan = axisMaxYear - axisMinYear;
 
 // Делает внутренний контейнер достаточно широким для любых экранов:
-//  - pxPerYear задаёт базовую «плотность» шкалы
+//  - basePxPerYear задаёт базовую «плотность» шкалы
 //  - fallbackWidth даёт запас по видимой области
-const pxPerYear = 6;
-const viewportWidthMultiplier = 2.05;
+const basePxPerYear = 6;
+const viewportWidthMultiplier = 2;
 const extraWidthPx = 0;
+
+const DEFAULT_SETTINGS = {
+  barHeight: 50,
+  widthScale: 1,
+  fontScale: 1,
+};
+
+const SETTINGS_LIMITS = {
+  barHeight: { min: 25, max: 150 },
+  widthScale: { min: 0.05, max: 2 },
+  fontScale: { min: 0.9, max: 1.8 },
+};
+
+let settings = { ...DEFAULT_SETTINGS };
+
+function clamp(value, min, max) {
+  if (Number.isNaN(value)) return min;
+  return Math.min(max, Math.max(min, value));
+}
+
+function applySettings(next = {}) {
+  settings = {
+    barHeight: clamp(
+      next.barHeight ?? settings.barHeight ?? DEFAULT_SETTINGS.barHeight,
+      SETTINGS_LIMITS.barHeight.min,
+      SETTINGS_LIMITS.barHeight.max
+    ),
+    widthScale: clamp(
+      next.widthScale ?? settings.widthScale ?? DEFAULT_SETTINGS.widthScale,
+      SETTINGS_LIMITS.widthScale.min,
+      SETTINGS_LIMITS.widthScale.max
+    ),
+    fontScale: clamp(
+      next.fontScale ?? settings.fontScale ?? DEFAULT_SETTINGS.fontScale,
+      SETTINGS_LIMITS.fontScale.min,
+      SETTINGS_LIMITS.fontScale.max
+    ),
+  };
+}
+
+function getPxPerYear() {
+  return basePxPerYear * settings.widthScale;
+}
 
 function ensureTimelineWidth() {
   const inner = document.querySelector(".timeline-inner");
   const timeline = document.getElementById("timeline");
   if (!inner || !timeline) return;
 
-  const baseWidth = axisSpan * pxPerYear + extraWidthPx;
+  const baseWidth = axisSpan * getPxPerYear() + extraWidthPx;
+  // Allow shrink/stretch with widthScale: fallback scales down too, so minimum length follows the control.
   const fallbackWidth =
-    (timeline.clientWidth || window.innerWidth) * viewportWidthMultiplier;
+    (timeline.clientWidth || window.innerWidth) *
+    viewportWidthMultiplier *
+    settings.widthScale;
   const finalWidth = Math.max(baseWidth, fallbackWidth);
 
   inner.style.width = finalWidth + "px";
@@ -234,9 +323,9 @@ function barGradient(progress) {
   const base = colorForProgress(progress);
   const highlight = mixColors(base, WHITE, 0.14);
   const accent = mixColors(base, ACCENT, 0.035);
-  return `linear-gradient(145deg, ${rgbToHex(
-    highlight
-  )} 0%, ${rgbToHex(base)} 52%, ${rgbToHex(accent)} 100%)`;
+  return `linear-gradient(145deg, ${rgbToHex(highlight)} 0%, ${rgbToHex(
+    base
+  )} 52%, ${rgbToHex(accent)} 100%)`;
 }
 
 function eraGradient(startYear, endYear) {
@@ -277,11 +366,11 @@ function buildAxis() {
     const end = Math.min(era.to, axisMaxYear);
     if (end <= start) return;
 
-    const band = document.createElement("div");
-    band.className = "era-band";
-    band.style.left = yearToPercent(start) + "%";
-    band.style.width = yearToPercent(end) - yearToPercent(start) + "%";
-    band.style.backgroundImage = eraGradient(start, end);
+  const band = document.createElement("div");
+  band.className = "era-band";
+  band.style.left = yearToPercent(start) + "%";
+  band.style.width = yearToPercent(end) - yearToPercent(start) + "%";
+  band.style.backgroundImage = eraGradient(start, end);
     band.style.backgroundColor = "transparent";
     band.textContent = era.label;
 
@@ -346,8 +435,7 @@ function buildGantt() {
   // Desired vertical gap between bars (in px)
   const verticalGap = 2;
 
-  // Fixed bar height: 50px, independent of viewport height
-  const barHeight = 50;
+  const barHeight = settings.barHeight;
   const laneHeight = barHeight + verticalGap;
 
   // Set the total height of the Gantt area so it can scroll vertically if needed
@@ -362,8 +450,9 @@ function buildGantt() {
     bar.setAttribute("data-lane-index", laneIndex);
     bar.setAttribute("data-name", c.name);
 
-    const progress = placements.length > 1 ? progressForYear(c.birth) : 0;
-    bar.style.backgroundImage = barGradient(progress);
+    // Make all bars the same "first bar" gray gradient
+    const fixedProgress = 0;
+    bar.style.backgroundImage = barGradient(fixedProgress);
     bar.style.backgroundColor = "transparent";
 
     const left = yearToPercent(c.birth);
@@ -373,7 +462,7 @@ function buildGantt() {
     bar.style.top = laneIndex * laneHeight + "px";
     bar.style.height = barHeight + "px";
     bar.style.lineHeight = barHeight + "px";
-    bar.style.fontSize = barHeight * 0.25 + "px";
+    bar.style.fontSize = barHeight * 0.25 * settings.fontScale + "px";
 
     // Create thumbnail image if available
     const imgSrc = getComposerImage(c.name);
@@ -406,11 +495,13 @@ function buildGantt() {
       );
     });
 
-    // If full name does not fit, show only the last word (e.g. surname)
-    if (bar.scrollWidth > bar.clientWidth) {
-      const parts = c.name.trim().split(/\s+/);
-      const lastWord = parts[parts.length - 1] || c.name;
-      labelSpan.textContent = lastWord;
+    // If the label is truncated (ellipsis), try initials + last name first (e.g. "W. A. Mozart");
+    // if it still does not fit, fall back to last name only.
+    if (labelSpan.scrollWidth > labelSpan.clientWidth) {
+      labelSpan.textContent = getInitialsPlusLastName(c.name);
+      if (labelSpan.scrollWidth > labelSpan.clientWidth) {
+        labelSpan.textContent = getLastNamePart(c.name);
+      }
     }
   });
 }
@@ -580,7 +671,86 @@ function enablePanning() {
   timeline.addEventListener("touchcancel", onTouchEnd, { passive: true });
 }
 
+// When the user pans to the right and the visible bars get clipped on the left,
+// auto-scroll vertically so the first visible bar starts at (or near) the left edge.
+function enableHorizontalAutoAlign() {
+  const timeline = document.getElementById("timeline");
+  const gantt = document.getElementById("gantt");
+  const axis = document.getElementById("axis");
+  if (!timeline || !gantt) return () => {};
+
+  let lastScrollLeft = timeline.scrollLeft;
+  let rafId = null;
+  let selfScroll = false;
+
+  const run = () => {
+    rafId = null;
+    const currentLeft = timeline.scrollLeft;
+    const movedRight = currentLeft > lastScrollLeft + 0.5; // react only to rightward pan
+    lastScrollLeft = currentLeft;
+    if (!movedRight) return;
+
+    const bars = Array.from(gantt.querySelectorAll(".bar"));
+    if (!bars.length) return;
+
+    const containerRect = timeline.getBoundingClientRect();
+    const axisRect = axis?.getBoundingClientRect();
+    const barViewportTop = (axisRect?.bottom ?? containerRect.top) + 1;
+    const barViewportBottom = containerRect.bottom;
+
+    const firstVisible = bars.find((bar) => {
+      const rect = bar.getBoundingClientRect();
+      return rect.bottom > barViewportTop && rect.top < barViewportBottom;
+    });
+    if (!firstVisible) return;
+
+    const viewportLeft = timeline.scrollLeft;
+    const isClippedLeft = firstVisible.offsetLeft < viewportLeft - 0.5;
+    if (!isClippedLeft) return;
+
+    let targetBar =
+      bars.find((bar) => bar.offsetLeft >= viewportLeft - 0.5) || null;
+    if (!targetBar) {
+      // If everything starts before the viewport, pick the latest-starting bar.
+      targetBar = bars.reduce((best, bar) => {
+        if (!best) return bar;
+        return bar.offsetLeft > best.offsetLeft ? bar : best;
+      }, null);
+    }
+    if (!targetBar) return;
+
+    const targetRect = targetBar.getBoundingClientRect();
+    const desiredTop = barViewportTop + 1; // keep a tiny gap under the axis
+    const delta = targetRect.top - desiredTop;
+
+    if (Math.abs(delta) > 0.5) {
+      selfScroll = true;
+      timeline.scrollTop += delta;
+      window.requestAnimationFrame(() => {
+        selfScroll = false;
+      });
+    }
+  };
+
+  const onScroll = () => {
+    if (selfScroll) return;
+    if (rafId !== null) return;
+    rafId = window.requestAnimationFrame(run);
+  };
+
+  timeline.addEventListener("scroll", onScroll, { passive: true });
+
+  return () => {
+    timeline.removeEventListener("scroll", onScroll);
+    if (rafId !== null) {
+      cancelAnimationFrame(rafId);
+      rafId = null;
+    }
+  };
+}
+
 export function initTimeline(options = {}) {
+  applySettings(options.settings || {});
   const initial = Object.prototype.hasOwnProperty.call(options, "composers")
     ? options.composers
     : composers;
@@ -589,6 +759,7 @@ export function initTimeline(options = {}) {
   buildAxis();
   buildGantt();
   enablePanning();
+  const teardownAutoAlign = enableHorizontalAutoAlign();
 
   // Пересчитываем ширину при смене ориентации/ресайзе окна
   const onResize = () => ensureTimelineWidth();
@@ -609,14 +780,29 @@ export function initTimeline(options = {}) {
     }
   }
 
+  function goToEnd() {
+    const timeline = document.getElementById("timeline");
+    if (timeline) {
+      timeline.scrollLeft = Math.max(0, timeline.scrollWidth - timeline.clientWidth);
+      timeline.scrollTop = Math.max(0, timeline.scrollHeight - timeline.clientHeight);
+    }
+  }
+
   return {
     goToStart,
+    goToEnd,
     setComposers(next) {
       setActiveComposers(next);
       buildGantt();
     },
+    updateSettings(nextSettings) {
+      applySettings(nextSettings || {});
+      ensureTimelineWidth();
+      buildGantt();
+    },
     destroy() {
       window.removeEventListener("resize", onResize);
+      teardownAutoAlign();
     },
   };
 }

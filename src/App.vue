@@ -6,8 +6,7 @@
         <span class="menu-icon"></span>
       </button>
       <img class="logo" src="/favicon.png" alt="Logo" @click="returnToTitle" />
-      <div class="app-title" role="button" @click="returnToTitle">
-        Classical Composers Timeline
+      <div class="app-title" role="button" @click="returnToTitle">Classical Composers Timeline
       </div>
     </header>
 
@@ -32,43 +31,95 @@
     <main class="content">
       <section v-if="currentView === 'composers'">
         <div class="filter-dock">
-          <button
-            class="filter-dock__toggle"
-            :aria-expanded="isFilterOpen"
-            aria-controls="filter-panel"
-            @click="toggleFilters"
-          >
-            Filter composers
-          </button>
-
-          <transition name="fade">
-            <div
-              v-if="isFilterOpen"
-              id="filter-panel"
-              class="filter-panel"
-              role="dialog"
-              aria-label="Composer filters"
-            >
-              <div class="filter-panel__options">
-                <label
-                  v-for="group in filterGroups"
-                  :key="group.id"
-                  class="filter-panel__item"
-                >
-                  <input
-                    v-model="filterState[group.id]"
-                    type="checkbox"
-                    class="filter-panel__checkbox"
-                    :aria-label="`Toggle ${group.label}`"
-                  />
-                  <span class="filter-panel__label">{{ group.label }}</span>
-                </label>
-              </div>
+          <div class="control-stack control-pill" role="group" aria-label="Timeline controls">
+            <div v-if="!isFilterOpen" class="nav-controls" role="group" aria-label="Timeline navigation">
+              <button
+                type="button"
+                class="control-btn"
+                :disabled="isAtTimelineStart"
+                @click="goToStart"
+                aria-label="Jump to start of timeline"
+              >
+                ⇤
+              </button>
+              <button
+                type="button"
+                class="control-btn"
+                :disabled="isAtTimelineEnd"
+                @click="goToEnd"
+                aria-label="Jump to end of timeline"
+              >
+                ⇥
+              </button>
             </div>
-          </transition>
+
+            <div v-if="!isFilterOpen" class="scale-controls" role="group" aria-label="Adjust timeline size">
+              <button
+                type="button"
+                class="control-btn"
+                :disabled="isAtMinHeight"
+                @click="adjustSizes(-1)"
+                aria-label="Make timeline blocks smaller"
+              >
+                −
+              </button>
+              <button
+                type="button"
+                class="control-btn"
+                :disabled="isAtMaxHeight"
+                @click="adjustSizes(1)"
+                aria-label="Make timeline blocks larger"
+              >
+                +
+              </button>
+            </div>
+
+            <button
+              class="filter-dock__toggle control-btn control-primary"
+              :aria-expanded="isFilterOpen"
+              aria-controls="filter-panel"
+              @click="toggleFilters"
+              aria-label="Filter composers"
+            >
+              <svg class="filter-icon" viewBox="0 0 24 24" aria-hidden="true" focusable="false">
+                <path d="M3 5h18l-7 8v5l-4 2v-7L3 5z"></path>
+              </svg>
+            </button>
+
+            <transition name="fade">
+              <div
+                v-if="isFilterOpen"
+                id="filter-panel"
+                class="filter-panel"
+                role="dialog"
+                aria-label="Composer filters"
+              >
+                <div class="filter-panel__options">
+                  <label
+                    v-for="group in filterGroups"
+                    :key="group.id"
+                    class="filter-panel__item"
+                  >
+                    <input
+                      v-model="filterState[group.id]"
+                      type="checkbox"
+                      class="filter-panel__checkbox"
+                      :aria-label="`Toggle ${group.label}`"
+                    />
+                    <span class="filter-panel__label">{{ group.label }}</span>
+                  </label>
+                </div>
+                <div class="filter-panel__actions">
+                  <button type="button" class="filter-panel__ok control-btn" @click="closeFilters" aria-label="Close filters">
+                    OK
+                  </button>
+                </div>
+              </div>
+            </transition>
+          </div>
         </div>
 
-        <ComposersTimeline :composers="sortedComposers" />
+        <ComposersTimeline :composers="sortedComposers" :settings="timelineSettings" />
       </section>
 
       <section v-else-if="currentView === 'about'" class="about">
@@ -115,24 +166,25 @@
           <div class="composer-modal__body">
             <div v-if="currentImage" class="composer-modal__hero">
               <img class="composer-modal__photo" :src="currentImage" :alt="currentComposer?.name" />
+
+              <div class="composer-modal__nav composer-modal__nav--overlay">
+                <button class="composer-modal__arrow" @click="prevComposer" :disabled="!hasPrev" aria-label="Previous">
+                  ←
+                </button>
+                <span class="composer-modal__position">
+                  {{ (currentIndex ?? 0) + 1 }} / {{ sortedComposers.length }}
+                </span>
+                <button class="composer-modal__arrow" @click="nextComposer" :disabled="!hasNext" aria-label="Next">
+                  →
+                </button>
+              </div>
+
               <div class="composer-modal__hero-meta">
                 <div class="composer-modal__name-small">{{ currentComposer?.name }}</div>
                 <div class="composer-modal__dates-small" v-if="currentComposer">
                   {{ currentComposer.birth }} — {{ currentComposer.death }}
                 </div>
               </div>
-            </div>
-
-            <div class="composer-modal__nav">
-              <button class="composer-modal__arrow" @click="prevComposer" :disabled="!hasPrev" aria-label="Previous">
-                ←
-              </button>
-              <span class="composer-modal__position">
-                {{ (currentIndex ?? 0) + 1 }} / {{ sortedComposers.length }}
-              </span>
-              <button class="composer-modal__arrow" @click="nextComposer" :disabled="!hasNext" aria-label="Next">
-                →
-              </button>
             </div>
 
             <div class="composer-modal__description">
@@ -156,13 +208,52 @@
 </template>
 
 <script setup>
-import { computed, onBeforeUnmount, onMounted, ref, watch } from "vue";
+import { computed, onBeforeUnmount, onMounted, reactive, ref, watch } from "vue";
 import ComposersTimeline from "./components/ComposersTimeline.vue";
 import { composers, getComposerImage } from "./timeline-core";
 import composerFactsRaw from "../composers.md?raw";
 
 const isMenuOpen = ref(false);
 const currentView = ref("composers");
+
+const MIN_BAR_HEIGHT = 25;
+const MAX_BAR_HEIGHT = 150;
+const MIN_WIDTH_FACTOR = 0.2; // убран экстремально маленький масштаб
+const MAX_WIDTH_FACTOR = 1.5; // длиннее на ~1.5x на максимуме
+const WIDTH_CURVE = 0.35; // степень, чтобы 50px было близко к базовому 1
+const FONT_MAX_SMALL = 1.7;
+const FONT_MIN_LARGE = 0.95;
+const FONT_CURVE = 0.6;
+const SIZE_STEPS = [30, 40, 50, 70, 100]; // две меньше, одна текущая, две больше
+const DEFAULT_SIZE_INDEX = 2;
+
+function clamp(value, min, max) {
+  if (Number.isNaN(value)) return min;
+  return Math.min(max, Math.max(min, value));
+}
+
+function computeWidthScale(height) {
+  const normalized = clamp(
+    (height - MIN_BAR_HEIGHT) / (MAX_BAR_HEIGHT - MIN_BAR_HEIGHT),
+    0,
+    1
+  );
+  const curved = Math.pow(normalized, WIDTH_CURVE);
+  const raw =
+    MIN_WIDTH_FACTOR + (MAX_WIDTH_FACTOR - MIN_WIDTH_FACTOR) * curved;
+  return clamp(raw, MIN_WIDTH_FACTOR, MAX_WIDTH_FACTOR);
+}
+
+function computeFontScale(height) {
+  const normalized = clamp(
+    (height - MIN_BAR_HEIGHT) / (MAX_BAR_HEIGHT - MIN_BAR_HEIGHT),
+    0,
+    1
+  );
+  const curved = Math.pow(normalized, FONT_CURVE);
+  const raw = FONT_MAX_SMALL - (FONT_MAX_SMALL - FONT_MIN_LARGE) * curved;
+  return clamp(raw, FONT_MIN_LARGE, FONT_MAX_SMALL);
+}
 
 const filterGroups = [
   {
@@ -229,6 +320,55 @@ const filterState = ref(
 );
 
 const isFilterOpen = ref(false);
+const timelineSettings = reactive({
+  barHeight: SIZE_STEPS[DEFAULT_SIZE_INDEX],
+  widthScale: computeWidthScale(SIZE_STEPS[DEFAULT_SIZE_INDEX]),
+  fontScale: computeFontScale(SIZE_STEPS[DEFAULT_SIZE_INDEX]),
+});
+const sizeIndex = ref(DEFAULT_SIZE_INDEX);
+
+const isAtMinHeight = computed(() => sizeIndex.value <= 0);
+const isAtMaxHeight = computed(() => sizeIndex.value >= SIZE_STEPS.length - 1);
+const isAtTimelineStart = ref(true);
+const isAtTimelineEnd = ref(false);
+
+function applySize(index) {
+  const clampedIndex = clamp(index, 0, SIZE_STEPS.length - 1);
+  sizeIndex.value = clampedIndex;
+  const height = SIZE_STEPS[clampedIndex];
+  timelineSettings.barHeight = height;
+  timelineSettings.widthScale = computeWidthScale(height);
+  timelineSettings.fontScale = computeFontScale(height);
+}
+
+function adjustSizes(direction) {
+  const delta = direction > 0 ? 1 : -1;
+  applySize(sizeIndex.value + delta);
+}
+
+function updateScrollFlags() {
+  const timeline = document.getElementById("timeline");
+  if (!timeline) return;
+  const maxScrollX = Math.max(0, timeline.scrollWidth - timeline.clientWidth);
+  const maxScrollY = Math.max(0, timeline.scrollHeight - timeline.clientHeight);
+  isAtTimelineStart.value = timeline.scrollLeft <= 1 && timeline.scrollTop <= 1;
+  isAtTimelineEnd.value =
+    timeline.scrollLeft >= maxScrollX - 1 && timeline.scrollTop >= maxScrollY - 1;
+}
+
+function goToStart() {
+  if (window.timeline && typeof window.timeline.goToStart === "function") {
+    window.timeline.goToStart();
+  }
+  updateScrollFlags();
+}
+
+function goToEnd() {
+  if (window.timeline && typeof window.timeline.goToEnd === "function") {
+    window.timeline.goToEnd();
+  }
+  updateScrollFlags();
+}
 
 const enabledComposerNames = computed(() => {
   const enabledIds = filterGroups
@@ -355,6 +495,10 @@ function toggleFilters() {
   isFilterOpen.value = !isFilterOpen.value;
 }
 
+function closeFilters() {
+  isFilterOpen.value = false;
+}
+
 
 function returnToTitle() {
   navigateTo("/");
@@ -398,11 +542,20 @@ onMounted(() => {
   }
   window.addEventListener("popstate", handlePopState);
   window.addEventListener("composer-select", handleComposerSelect);
+  const timeline = document.getElementById("timeline");
+  if (timeline) {
+    timeline.addEventListener("scroll", updateScrollFlags, { passive: true });
+    updateScrollFlags();
+  }
 });
 
 onBeforeUnmount(() => {
   window.removeEventListener("popstate", handlePopState);
   window.removeEventListener("composer-select", handleComposerSelect);
+  const timeline = document.getElementById("timeline");
+  if (timeline) {
+    timeline.removeEventListener("scroll", updateScrollFlags);
+  }
 });
 
 watch(isModalOpen, (open) => {
@@ -449,7 +602,7 @@ watch(
 }
 
 .logo {
-  height: 80%;
+  height: 70%;
   object-fit: contain;
   cursor: pointer;
 }
@@ -608,12 +761,15 @@ watch(
 .composer-modal__hero {
   grid-column: 1;
   grid-row: 1;
-  display: flex;
-  gap: 16px;
-  align-items: flex-start;
+  display: grid;
+  grid-template-columns: auto 1fr;
+  column-gap: 16px;
+  align-items: start;
 }
 
 .composer-modal__photo {
+  grid-column: 1;
+  grid-row: 1;
   width: 200px;
   max-width: 35vw;
   height: auto;
@@ -627,12 +783,18 @@ watch(
 }
 
 .composer-modal__nav {
-  grid-column: 2;
-  grid-row: 1;
   display: flex;
   align-items: center;
+  justify-content: flex-end;
   gap: 12px;
+  flex-wrap: wrap;
+}
+
+.composer-modal__nav--overlay {
+  grid-column: 2;
+  grid-row: 1;
   justify-self: end;
+  align-self: center;
 }
 
 .composer-modal__arrow {
@@ -653,6 +815,7 @@ watch(
 .composer-modal__position {
   color: #4b5563;
   font-weight: 600;
+  white-space: nowrap;
 }
 
 .composer-modal__description {
@@ -736,27 +899,98 @@ watch(
   gap: 10px;
 }
 
-.filter-dock__toggle {
-  border: 1px solid rgba(15, 23, 42, 0.2);
-  background: linear-gradient(135deg, #111827 0%, #1f2937 100%);
-  color: #f9fafb;
-  padding: 5px 10px;
-  border-radius: 999px;
-  font-weight: 600;
-  letter-spacing: 0.01em;
+.nav-controls {
+  width: 100%;
   display: inline-flex;
-  align-items: center;
-  gap: 8px;
-  cursor: pointer;
+  justify-content: space-between;
+  gap: 10px;
 }
 
-/* Compact filter panel */
+.scale-controls {
+  width: 100%;
+  display: inline-flex;
+  justify-content: space-between;
+  gap: 10px;
+}
+
+.control-stack {
+  display: flex;
+  flex-direction: column;
+  align-items: stretch;
+  gap: 10px;
+  padding: 10px;
+}
+
+.filter-icon {
+  width: 18px;
+  height: 18px;
+  display: block;
+  fill: currentColor;
+}
+
+.control-pill {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  border-radius: 9px;
+  background: rgba(255, 255, 255, 0.8);
+  border: 1px solid rgba(15, 23, 42, 0.12);
+  backdrop-filter: blur(8px);
+}
+
+.control-btn {
+  height: 32px;
+  min-width: 38px;
+  padding: 0 10px;
+  border-radius: 999px;
+  border: 1px solid rgba(15, 23, 42, 0.16);
+  background: rgba(255, 255, 255, 0.98);
+  color: #111827;
+  font-size: 16px;
+  font-weight: 700;
+  line-height: 1;
+  display: inline-grid;
+  place-items: center;
+  cursor: pointer;
+  user-select: none;
+}
+
+.control-btn:hover {
+  background: rgba(15, 23, 42, 0.5);
+}
+
+.control-btn:active {
+  transform: translateY(1px);
+}
+
+.control-btn:disabled {
+  opacity: 0.35;
+  cursor: not-allowed;
+  transform: none;
+}
+
+.control-primary {
+  border-color: rgba(15, 23, 42, 0.18);
+  background: #383838;
+  color: #f9fafb;
+}
+
+.control-primary:hover {
+  filter: brightness(1.02);
+}
+
+
+.filter-dock__toggle {
+  width: 100%;
+  justify-content: center;
+}
+
 .filter-panel {
   position: relative;
   width: 180px;
   max-width: calc(100vw - 32px);
   padding: 8px 10px;
-  background: rgba(255, 255, 255, 0.92);
+  background: rgba(255, 255, 255, 0.2);
   border: 1px solid rgba(148, 163, 184, 0.35);
   border-radius: 10px;
   box-shadow: none;
@@ -789,17 +1023,31 @@ watch(
 }
 
 
+
 .filter-panel__label {
   font-weight: 400;
   font-size: 14px;
   line-height: 1.2;
 }
 
+.filter-panel__actions {
+  display: flex;
+  justify-content: flex-end;
+  margin-top: 8px;
+}
+
+.filter-panel__ok {
+  padding: 0 14px;
+  height: 32px;
+  width: 100%;
+  font-weight: 600;
+}
+
 @media (max-width: 720px) {
   .filter-dock {
     left: 10px;
     right: 10px;
-    bottom: 20px;
+    bottom: 12px;
   }
 
   .filter-panel {
@@ -847,13 +1095,17 @@ watch(
   }
 
   .composer-modal__hero {
-    flex-direction: column;
-    align-items: flex-start;
+    display: grid;
+    grid-template-columns: auto 1fr;
+    column-gap: 14px;
+    align-items: start;
   }
 
   .composer-modal__photo {
-    width: 100%;
-    max-width: 160px;
+    grid-column: 1;
+    grid-row: 1;
+    width: 140px;
+    max-width: 40vw;
     height: auto;
   }
 
