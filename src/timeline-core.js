@@ -660,7 +660,16 @@ function enablePanning() {
 
   let isDown = false;
   let isDragging = false;
-  const dragThreshold = 4;
+  const horizontalDragThreshold = 4;
+  const verticalDragThreshold = 1;
+  const logTouchMovement = (dx, dy) => {
+    const dominantAxis = Math.abs(dx) >= Math.abs(dy) ? "horizontal" : "vertical";
+    console.log(
+      `[timeline] touch pan (${dominantAxis}) dx=${dx.toFixed(1)} dy=${dy.toFixed(
+        1
+      )} scrollLeft=${timeline.scrollLeft.toFixed(1)} scrollTop=${timeline.scrollTop.toFixed(1)}`
+    );
+  };
   let startX = 0;
   let startY = 0;
   let startScrollLeft = 0;
@@ -728,7 +737,11 @@ function enablePanning() {
     if (!isDragging) {
       const dx = Math.abs(lastClientX - startX);
       const dy = Math.abs(lastClientY - startY);
-      if (dx > dragThreshold || dy > dragThreshold) {
+      const isVerticalIntent = dy > dx;
+      const axisThreshold = isVerticalIntent
+        ? verticalDragThreshold
+        : horizontalDragThreshold;
+      if (dx > axisThreshold || dy > axisThreshold) {
         startPanning();
       } else {
         return; // keep clicks working when there is no real drag
@@ -758,8 +771,9 @@ function enablePanning() {
   // Touch panning with bounce blocking (iOS)
   let touchId = null;
   let touchDragStarted = false;
-  let touchStartScrollLeft = 0;
-  let touchStartScrollTop = 0;
+  let touchAxisIntent = null;
+  let lastTouchX = 0;
+  let lastTouchY = 0;
 
   const onTouchStart = (e) => {
     if (touchId !== null) return;
@@ -767,12 +781,13 @@ function enablePanning() {
     const t = e.touches[0];
     touchId = t.identifier;
     touchDragStarted = false;
+    touchAxisIntent = null;
     startX = t.clientX;
     startY = t.clientY;
     lastClientX = t.clientX;
     lastClientY = t.clientY;
-    touchStartScrollLeft = timeline.scrollLeft;
-    touchStartScrollTop = timeline.scrollTop;
+    lastTouchX = t.clientX;
+    lastTouchY = t.clientY;
     stopPanning();
   };
 
@@ -781,24 +796,43 @@ function enablePanning() {
     const t = Array.from(e.touches).find((tt) => tt.identifier === touchId);
     if (!t) return;
 
-    lastClientX = t.clientX;
-    lastClientY = t.clientY;
-
-    const dx = lastClientX - startX;
-    const dy = lastClientY - startY;
+    const dxFromStart = t.clientX - startX;
+    const dyFromStart = t.clientY - startY;
 
     if (!touchDragStarted) {
-      if (Math.abs(dx) > dragThreshold || Math.abs(dy) > dragThreshold) {
+      const absDx = Math.abs(dxFromStart);
+      const absDy = Math.abs(dyFromStart);
+      const isHorizontalIntent = absDx >= absDy;
+      const axisThreshold = isHorizontalIntent
+        ? horizontalDragThreshold
+        : verticalDragThreshold;
+      if (absDx > axisThreshold || absDy > axisThreshold) {
         touchDragStarted = true;
-        startPanning();
+        touchAxisIntent = isHorizontalIntent ? "horizontal" : "vertical";
+        if (touchAxisIntent === "horizontal") {
+          startPanning();
+        }
+        lastTouchX = t.clientX;
+        lastTouchY = t.clientY;
       } else {
+        lastTouchX = t.clientX;
+        lastTouchY = t.clientY;
         return;
       }
     }
 
-    timeline.scrollLeft = touchStartScrollLeft - dx;
-    timeline.scrollTop = touchStartScrollTop - dy;
-    e.preventDefault();
+    const deltaX = lastTouchX - t.clientX;
+
+    if (touchAxisIntent === "horizontal") {
+      timeline.scrollLeft += deltaX;
+      e.preventDefault();
+    } else {
+      // let the browser handle vertical drags
+    }
+
+    lastTouchX = t.clientX;
+    lastTouchY = t.clientY;
+    logTouchMovement(dxFromStart, dyFromStart);
   };
 
   const onTouchEnd = (e) => {
@@ -1005,6 +1039,13 @@ function enableHorizontalAutoAlign() {
   const onScroll = () => {
     if (selfScroll) return;
     const currentLeft = timeline.scrollLeft;
+    const isPanning = timeline.dataset.panning === "true";
+    const nearBottom =
+      timeline.scrollTop + timeline.clientHeight >= timeline.scrollHeight - tolerancePx;
+    if (isPanning || nearBottom) {
+      lastScrollLeft = currentLeft;
+      return;
+    }
     const movedRight = currentLeft > lastScrollLeft + tolerancePx;
     const movedLeft = currentLeft < lastScrollLeft - tolerancePx;
 
