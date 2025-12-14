@@ -5,8 +5,17 @@
   "type": "module",
   "scripts": {
     "dev": "vite",
+    "server": "node server/soundcloudProxy.js",
     "build": "vite build",
-    "preview": "vite preview"
+    "preview": "vite preview",
+    "lint": "eslint . --fix --cache",
+    "format": "prettier --write src/",
+
+    "deploy": "npm run build && npm run deploy:frontend && npm run deploy:backend && npm run deploy:reload",
+
+    "deploy:frontend": "rsync -az --delete --no-perms --no-owner --no-group -e \"ssh -i ~/.ssh/default_my\" dist/ root@139.59.136.231:/var/www/html/",
+    "deploy:backend": "rsync -az --delete --no-perms --no-owner --no-group -e \"ssh -i ~/.ssh/default_my\" server/ root@139.59.136.231:/var/www/composers-backend/server/",
+    "deploy:reload": "ssh -i ~/.ssh/default_my root@139.59.136.231 'cd /var/www/composers-backend && pm2 restart composers-soundcloud'"
   },
   "dependencies": {
     "dotenv": "^17.2.3",
@@ -16,6 +25,8 @@
   },
   "devDependencies": {
     "@vitejs/plugin-vue": "^6.0.1",
-    "vite": "^7.2.4"
+    "vite": "^7.2.4",
+    "eslint": "^9.0.0",
+    "prettier": "^3.0.0"
   }
 }

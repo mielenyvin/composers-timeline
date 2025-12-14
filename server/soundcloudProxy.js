@@ -8,155 +8,135 @@ dotenv.config();
 const app = express();
 const PORT = process.env.PORT || 3001;
 
-// Allow local dev access from Vite (localhost:5173/5174/etc.)
-app.use((req, res, next) => {
-  res.header("Access-Control-Allow-Origin", "*");
-  res.header(
-    "Access-Control-Allow-Headers",
-    "Origin, X-Requested-With, Content-Type, Accept"
-  );
-  res.header("Access-Control-Allow-Methods", "GET, OPTIONS");
-  if (req.method === "OPTIONS") {
-    return res.sendStatus(204);
-  }
-  next();
-});
+const SOUND_CLOUD_PUBLIC_CLIENT_ID =
+  process.env.SOUND_CLOUD_PUBLIC_CLIENT_ID ||
+  process.env.SOUND_CLOUD_CLIENT_ID;
 
-const SOUND_CLOUD_CLIENT_ID = process.env.SOUND_CLOUD_CLIENT_ID;
-const SOUND_CLOUD_CLIENT_SECRET = process.env.SOUND_CLOUD_CLIENT_SECRET;
-const SOUND_CLOUD_TOKEN_ENDPOINT = "https://api.soundcloud.com/oauth2/token";
-const SOUND_CLOUD_RESOLVE_ENDPOINT = "https://api.soundcloud.com/resolve";
-
-if (!SOUND_CLOUD_CLIENT_ID || !SOUND_CLOUD_CLIENT_SECRET) {
-  console.error("Missing SoundCloud credentials in .env");
+if (!SOUND_CLOUD_PUBLIC_CLIENT_ID) {
+  console.error("Missing SoundCloud client id in .env");
   process.exit(1);
 }
 
-let cachedToken = null;
-let cachedTokenExpiresAt = 0;
-let tokenPromise = null;
-let tokenCooldownUntil = 0;
+const WIDGET_BASE = "https://api-widget.soundcloud.com";
 
-// Получаем и кэшируем access_token
-async function getAccessToken() {
-  const now = Date.now();
+function createError(status, message) {
+  const err = new Error(message);
+  err.status = status;
+  return err;
+}
 
-  if (cachedToken && now < cachedTokenExpiresAt) {
-    return cachedToken;
+function withQuery(urlString, params = {}) {
+  const url = new URL(urlString);
+  Object.entries(params).forEach(([key, value]) => {
+    if (value !== undefined && value !== null && value !== "") {
+      url.searchParams.set(key, value);
+    }
+  });
+  return url.toString();
+}
+
+async function resolveWithWidget(targetUrl, trackAuth) {
+  const resolveUrl = new URL(`${WIDGET_BASE}/resolve`);
+  resolveUrl.searchParams.set("url", targetUrl);
+  resolveUrl.searchParams.set("format", "json");
+  resolveUrl.searchParams.set("client_id", SOUND_CLOUD_PUBLIC_CLIENT_ID);
+  if (trackAuth) {
+    resolveUrl.searchParams.set("track_authorization", trackAuth);
   }
 
-  // Respect a cooldown after hitting rate limits
-  if (tokenCooldownUntil && now < tokenCooldownUntil) {
-    const retryIn = Math.max(1, Math.round((tokenCooldownUntil - now) / 1000));
-    const err = new Error(`SoundCloud token rate-limited, retry in ${retryIn}s`);
-    err.status = 429;
-    err.retryAfter = retryIn;
-    throw err;
+  const resp = await fetch(resolveUrl.toString());
+  if (!resp.ok) {
+    const body = await resp.text().catch(() => "");
+    console.error("SoundCloud widget resolve error", {
+      status: resp.status,
+      body,
+    });
+    throw createError(resp.status, `SoundCloud resolve error: ${resp.status}`);
   }
 
-  // Reuse in-flight promise to avoid bursts
-  if (tokenPromise) {
-    return tokenPromise;
-  }
+  return resp.json();
+}
 
-  const body = new URLSearchParams();
-  body.set("grant_type", "client_credentials");
-  body.set("client_id", SOUND_CLOUD_CLIENT_ID);
-  body.set("client_secret", SOUND_CLOUD_CLIENT_SECRET);
+async function fetchTrackDetails(trackId, trackAuth) {
+  if (!trackId) return null;
+  const url = `https://api.soundcloud.com/tracks/${trackId}`;
+  return resolveWithWidget(url, trackAuth);
+}
 
-  tokenPromise = (async () => {
-    const resp = await fetch(SOUND_CLOUD_TOKEN_ENDPOINT, {
-      method: "POST",
-      headers: { "Content-Type": "application/x-www-form-urlencoded" },
-      body: body.toString(),
+async function resolveTranscodingUrl(transcodingUrl, trackAuth) {
+  const urlWithParams = withQuery(transcodingUrl, {
+    client_id: SOUND_CLOUD_PUBLIC_CLIENT_ID,
+    track_authorization: trackAuth,
+  });
+
+  const resp = await fetch(urlWithParams);
+  if (!resp.ok) {
+    const errBody = await resp.text().catch(() => "");
+    console.error("SoundCloud transcoding upstream error", {
+      status: resp.status,
+      body: errBody,
     });
 
-    if (!resp.ok) {
-      const err = new Error(`SoundCloud token error: ${resp.status}`);
-      err.status = resp.status;
-
-      // If we are rate-limited, pause future token calls briefly
-      if (resp.status === 429) {
-        tokenCooldownUntil = Date.now() + 60_000; // 1 minute backoff
-      }
-
+    if (resp.status === 429) {
+      const retryAfterHeader = resp.headers.get("Retry-After");
+      const err = createError(429, "SoundCloud transcoding rate-limited");
+      err.retryAfter = Number(retryAfterHeader) || undefined;
       throw err;
     }
 
-    const data = await resp.json();
-    if (!data.access_token) {
-      throw new Error("SoundCloud token response missing access_token");
-    }
-
-    const expiresInSec = data.expires_in || 3600;
-    cachedToken = data.access_token;
-    cachedTokenExpiresAt = Date.now() + (expiresInSec - 60) * 1000; // небольшой запас
-
-    return cachedToken;
-  })();
-
-  try {
-    return await tokenPromise;
-  } finally {
-    tokenPromise = null;
+    throw createError(
+      resp.status,
+      `SoundCloud transcoding error: ${resp.status}`
+    );
   }
+
+  const data = await resp.json();
+  if (!data || !data.url) {
+    throw createError(
+      502,
+      "SoundCloud transcoding response missing url"
+    );
+  }
+
+  return data.url;
+}
+
+function pickTranscoding(track) {
+  const list =
+    track?.media && Array.isArray(track.media.transcodings)
+      ? track.media.transcodings
+      : [];
+
+  if (!list.length) return null;
+
+  const progressive = list.find(
+    (t) => t?.format && t.format.protocol === "progressive"
+  );
+
+  return progressive || list[0];
 }
 
 // 3) Проксируем media.transcodings (получение финального URL по transcoding.url)
 app.get("/api/soundcloud/transcoding", async (req, res) => {
   try {
     const transcodingUrl = req.query.url;
+    const trackAuth = req.query.track_authorization;
     if (!transcodingUrl) {
       return res.status(400).json({ error: "Missing url parameter" });
     }
 
-    const token = await getAccessToken();
-
-    const resp = await fetch(transcodingUrl, {
-      headers: { Authorization: `OAuth ${token}` },
-    });
-
-    if (!resp.ok) {
-      const errBody = await resp.text().catch(() => "");
-      console.error(
-        "SoundCloud transcoding proxy upstream error",
-        resp.status,
-        errBody
-      );
-
-      if (resp.status === 429) {
-        const retryAfterHeader = resp.headers.get("Retry-After");
-        if (retryAfterHeader) {
-          res.set("Retry-After", retryAfterHeader);
-        }
-        return res.status(429).json({
-          error: "SoundCloud transcoding rate-limited, try again shortly",
-        });
-      }
-
-      return res
-        .status(resp.status)
-        .json({ error: `SoundCloud transcoding error: ${resp.status}` });
-    }
-
-    const data = await resp.json();
-    if (!data || !data.url) {
-      return res
-        .status(502)
-        .json({ error: "SoundCloud transcoding response missing url" });
-    }
-
-    // Возвращаем только финальный URL, который можно безопасно отдать <audio>
-    res.json({ url: data.url });
+    const finalUrl = await resolveTranscodingUrl(transcodingUrl, trackAuth);
+    res.json({ url: finalUrl });
   } catch (err) {
     console.error("SoundCloud transcoding proxy error", err);
     if (err.status === 429) {
       res.set("Retry-After", err.retryAfter || 60);
       return res
         .status(429)
-        .json({ error: "SoundCloud token rate-limited, try again shortly" });
+        .json({ error: "SoundCloud request rate-limited, try again shortly" });
     }
-    res.status(500).json({ error: "Internal server error" });
+    const status = err.status || 500;
+    res.status(status).json({ error: err.message || "Internal server error" });
   }
 });
 
@@ -168,22 +148,33 @@ app.get("/api/soundcloud/playlist", async (req, res) => {
       return res.status(400).json({ error: "Missing url parameter" });
     }
 
-    const token = await getAccessToken();
-    const url =
-      `${SOUND_CLOUD_RESOLVE_ENDPOINT}?url=` +
-      encodeURIComponent(playlistUrl);
+    const data = await resolveWithWidget(playlistUrl);
 
-    const resp = await fetch(url, {
-      headers: { Authorization: `OAuth ${token}` },
-    });
+    if (Array.isArray(data?.tracks) && data.tracks.length) {
+      const tracks = [];
+      for (const track of data.tracks) {
+        if (
+          !track ||
+          (track.title && String(track.title).trim() && track.media?.transcodings?.length)
+        ) {
+          tracks.push(track);
+          continue;
+        }
 
-    if (!resp.ok) {
-      return res
-        .status(resp.status)
-        .json({ error: `SoundCloud resolve error: ${resp.status}` });
+        try {
+          const resolved = await fetchTrackDetails(
+            track?.id,
+            track?.track_authorization
+          );
+          tracks.push(resolved || track);
+        } catch (err) {
+          console.error("SoundCloud track detail fetch failed", err);
+          tracks.push(track);
+        }
+      }
+      data.tracks = tracks;
     }
 
-    const data = await resp.json();
     res.json(data);
   } catch (err) {
     console.error("SoundCloud playlist proxy error", err);
@@ -191,9 +182,10 @@ app.get("/api/soundcloud/playlist", async (req, res) => {
       res.set("Retry-After", err.retryAfter || 60);
       return res
         .status(429)
-        .json({ error: "SoundCloud token rate-limited, try again shortly" });
+        .json({ error: "SoundCloud request rate-limited, try again shortly" });
     }
-    res.status(500).json({ error: "Internal server error" });
+    const status = err.status || 500;
+    res.status(status).json({ error: err.message || "Internal server error" });
   }
 });
 
@@ -201,111 +193,36 @@ app.get("/api/soundcloud/playlist", async (req, res) => {
 app.get("/api/soundcloud/streams/:trackId", async (req, res) => {
   try {
     const trackId = req.params.trackId;
+    const trackAuth = req.query.track_authorization;
     if (!trackId) {
       return res.status(400).json({ error: "Missing trackId" });
     }
 
-    const token = await getAccessToken();
-    const url = `https://api.soundcloud.com/tracks/${trackId}/streams`;
+    const trackUrl = `https://api.soundcloud.com/tracks/${trackId}`;
+    const track = await resolveWithWidget(trackUrl, trackAuth);
+    const candidate = pickTranscoding(track);
 
-    const resp = await fetch(url, {
-      headers: { Authorization: `OAuth ${token}` },
-    });
-
-    if (!resp.ok) {
-      const errBody = await resp.text().catch(() => "");
-      console.error(
-        "SoundCloud streams proxy upstream error",
-        resp.status,
-        errBody
-      );
-      if (resp.status === 429) {
-        const retryAfterHeader = resp.headers.get("Retry-After");
-        if (retryAfterHeader) {
-          res.set("Retry-After", retryAfterHeader);
-        }
-        return res.status(429).json({
-          error: "SoundCloud streams rate-limited, try again shortly",
-        });
-      }
-      return res
-        .status(resp.status)
-        .json({ error: `SoundCloud streams error: ${resp.status}` });
-    }
-
-    const streams = await resp.json();
-
-    // Выбираем лучший кандидат для дальнейшего резолва
-    const candidate =
-      streams.http_mp3_128_url ||
-      streams.preview_mp3_128_url ||
-      streams.hls_mp3_128_url ||
-      streams.hls_aac_160_url ||
-      streams.hls_opus_64_url;
-
-    if (!candidate) {
+    if (!candidate || !candidate.url) {
       console.error(
         "SoundCloud streams proxy: no suitable stream URL",
-        streams
+        track
       );
       return res.status(502).json({
         error: "No suitable stream URL found in SoundCloud response",
       });
     }
 
-    // Разрешаем candidate до финального CDN-URL
-    const resp2 = await fetch(candidate, {
-      headers: { Authorization: `OAuth ${token}` },
-      redirect: "follow",
-    });
-
-    if (!resp2.ok) {
-      const errBody2 = await resp2.text().catch(() => "");
-      console.error(
-        "SoundCloud streams proxy resolve error",
-        resp2.status,
-        errBody2
-      );
-      if (resp2.status === 429) {
-        const retryAfterHeader = resp2.headers.get("Retry-After");
-        if (retryAfterHeader) {
-          res.set("Retry-After", retryAfterHeader);
-        }
-        return res.status(429).json({
-          error: "SoundCloud stream resolve rate-limited, try again shortly",
-        });
-      }
-      return res
-        .status(resp2.status)
-        .json({ error: `SoundCloud stream resolve error: ${resp2.status}` });
-    }
-
-    let finalUrl = null;
-    let json = null;
-    try {
-      json = await resp2.json();
-    } catch {
-      json = null;
-    }
-
-    if (json && json.url) {
-      // Классический случай: API вернул JSON c { url: "https://...mp3" }
-      finalUrl = json.url;
-    } else if (resp2.url && resp2.url.startsWith("http")) {
-      // Если это был чистый редирект — берем финальный URL из resp2.url
-      finalUrl = resp2.url;
-    } else {
-      // В крайнем случае отдаем исходный candidate (может тоже оказаться рабочим)
-      finalUrl = candidate;
-    }
+    const finalUrl = await resolveTranscodingUrl(
+      candidate.url,
+      trackAuth || track?.track_authorization
+    );
 
     console.log("SoundCloud streams proxy final URL", {
       trackId,
-      candidate,
+      candidate: candidate.url,
       finalUrl,
     });
 
-    // Важно: возвращаем ТОЛЬКО финальный URL
     res.json({ url: finalUrl });
   } catch (err) {
     console.error("SoundCloud streams proxy error", err);
@@ -313,15 +230,11 @@ app.get("/api/soundcloud/streams/:trackId", async (req, res) => {
       res.set("Retry-After", err.retryAfter || 60);
       return res
         .status(429)
-        .json({ error: "SoundCloud token rate-limited, try again shortly" });
+        .json({ error: "SoundCloud request rate-limited, try again shortly" });
     }
-    res.status(500).json({ error: "Internal server error" });
+    const status = err.status || 500;
+    res.status(status).json({ error: err.message || "Internal server error" });
   }
-});
-
-// Ensure 404s also include CORS headers
-app.use((req, res) => {
-  res.status(404).json({ error: "Not found" });
 });
 
 app.listen(PORT, () => {

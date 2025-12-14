@@ -15,7 +15,7 @@
       <nav class="menu-nav">
         <button class="menu-item" :class="{ 'menu-item--active': currentView === 'composers' }"
           @click="selectView('composers')">
-          Composers
+          Composers Timeline
         </button>
         <button class="menu-item" :class="{ 'menu-item--active': currentView === 'about' }"
           @click="selectView('about')">
@@ -87,7 +87,8 @@
 
       <section v-else-if="currentView === 'about'" class="about">
         <div class="about__card">
-          <p class="about__eyebrow">About</p>
+          <img class="about__logo" src="/images/about_music_logo.png" alt="Music logo" loading="lazy" />
+
           <h1 class="about__title">Understand classical music by ear</h1>
           <p class="about__text">
             Sometimes you hear a familiar melody and know it is classical music. But whose? Bach, Beethoven, or Mozart -
@@ -98,15 +99,38 @@
             and musical voices, and never get lost in the names again.
           </p>
 
+
           <div class="about__author">
             <img class="about__photo" src="/images/dk3-min.jpg" alt="Dmitrii Kotikov" loading="lazy" />
             <div class="about__author-body">
               <div class="about__author-label">Project creator and author</div>
               <div class="about__author-name">Dmitrii Kotikov</div>
               <a class="about__link" href="https://www.linkedin.com/in/dmitrykotikov/" target="_blank" rel="noreferrer">
-                Check out Dmitrii Kotikov’s profile on LinkedIn
+                LinkedIn
+              </a>
+              <a class="about__link" href="https://thequot.es/" target="_blank" rel="noreferrer">
+                thequot.es
               </a>
             </div>
+          </div>
+
+          <div class="about__contributors">
+            <div class="about__contributors-title">Project collaborators</div>
+            <ul class="about__contributors-list">
+              <li class="about__contributors-item">
+                <span class="about__contributors-name">Timofey Muhortov</span>
+                <a class="about__contributors-link" href="https://timofeymuhortov.ru" target="_blank" rel="noreferrer">
+                  timofeymuhortov.ru
+                </a>
+              </li>
+              <li class="about__contributors-item">
+                <span class="about__contributors-name">Olga Shibanova</span>
+                <a class="about__contributors-link" href="https://facebook.com/olga.shibanova" target="_blank"
+                  rel="noreferrer">
+                  facebook.com/olga.shibanova
+                </a>
+              </li>
+            </ul>
           </div>
         </div>
       </section>
@@ -143,6 +167,18 @@
             <div v-if="currentImage" class="composer-modal__hero">
               <img class="composer-modal__photo" :src="currentImage" :alt="currentComposer?.name" />
 
+              <div class="composer-modal__nav composer-modal__nav--mobile" aria-label="Composer navigation">
+                <button class="composer-modal__arrow" @click="prevComposer" :disabled="!hasPrev" aria-label="Previous">
+                  ←
+                </button>
+                <span class="composer-modal__position">
+                  {{ (currentIndex ?? 0) + 1 }} / {{ sortedComposers.length }}
+                </span>
+                <button class="composer-modal__arrow" @click="nextComposer" :disabled="!hasNext" aria-label="Next">
+                  →
+                </button>
+              </div>
+
               <div class="composer-modal__hero-meta">
                 <div class="composer-modal__name-small">{{ currentComposer?.name }}</div>
                 <div class="composer-modal__dates-small" v-if="currentComposer">
@@ -154,28 +190,15 @@
             <div class="composer-modal__playlist">
               <div class="composer-modal__playlist-header">
                 <div class="composer-modal__playlist-title">Key works to know</div>
-                <a
-                  v-if="playlistSources.length"
-                  class="sc-powered"
-                  href="https://soundcloud.com"
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  aria-label="Powered by SoundCloud"
-                >
-                  <img
-                    class="sc-powered__img"
-                    src="/images/powered_by_black-4339b4c3c9cf88da9bfb15a16c4f6914.png"
-                    alt="Powered by SoundCloud"
-                  />
+                <a v-if="playlistSources.length" class="sc-powered" href="https://soundcloud.com" target="_blank"
+                  rel="noopener noreferrer" aria-label="Powered by SoundCloud">
+                  <img class="sc-powered__img" src="/images/powered_by_black-4339b4c3c9cf88da9bfb15a16c4f6914.png"
+                    alt="Powered by SoundCloud" />
                 </a>
               </div>
-              <div
-                v-if="playlistSources.length"
-                :key="playlistSources[0]"
-                class="composer-modal__playlist-box sc-player"
-                :data-soundcloud-playlist="playlistSources[0]"
-                :data-soundcloud-playlist-alt="playlistSources.slice(1).join('|')"
-              >
+              <div v-if="playlistSources.length" :key="playlistSources[0]"
+                class="composer-modal__playlist-box sc-player" :data-soundcloud-playlist="playlistSources[0]"
+                :data-soundcloud-playlist-alt="playlistSources.slice(1).join('|')">
                 <div class="sc-player__status">Loading tracks...</div>
               </div>
               <div v-else class="composer-modal__playlist-box composer-modal__playlist-box--empty">
@@ -348,6 +371,7 @@ const timelineSettings = reactive({
   fontScale: computeFontScale(SIZE_STEPS[DEFAULT_SIZE_INDEX]),
 });
 const sizeIndex = ref(DEFAULT_SIZE_INDEX);
+const SCROLL_EDGE_EPS = 6; // small tolerance so minor auto-scrolls don't flip the edge state
 
 const isAtMinHeight = computed(() => sizeIndex.value <= 0);
 const isAtMaxHeight = computed(() => sizeIndex.value >= SIZE_STEPS.length - 1);
@@ -373,9 +397,11 @@ function updateScrollFlags() {
   if (!timeline) return;
   const maxScrollX = Math.max(0, timeline.scrollWidth - timeline.clientWidth);
   const maxScrollY = Math.max(0, timeline.scrollHeight - timeline.clientHeight);
-  isAtTimelineStart.value = timeline.scrollLeft <= 1 && timeline.scrollTop <= 1;
+  isAtTimelineStart.value =
+    timeline.scrollLeft <= SCROLL_EDGE_EPS && timeline.scrollTop <= SCROLL_EDGE_EPS;
   isAtTimelineEnd.value =
-    timeline.scrollLeft >= maxScrollX - 1 && timeline.scrollTop >= maxScrollY - 1;
+    timeline.scrollLeft >= maxScrollX - SCROLL_EDGE_EPS &&
+    timeline.scrollTop >= maxScrollY - SCROLL_EDGE_EPS;
 }
 
 function goToStart() {
@@ -532,11 +558,10 @@ function buildFactsTitle(name) {
 
 function getComposerPlaylistIds(name) {
   const ids = [];
-  const fromMap = pickComposerValue(playlistIdsByKey, name);
-  if (fromMap) ids.push(fromMap);
-
   const slugFull = slugifyForPlaylist(name);
   if (slugFull && !ids.includes(slugFull)) ids.push(slugFull);
+  const fromMap = pickComposerValue(playlistIdsByKey, name);
+  if (fromMap && !ids.includes(fromMap)) ids.push(fromMap);
 
   return ids;
 }
@@ -640,8 +665,8 @@ watch(isModalOpen, async (open) => {
     document.body.style.overscrollBehavior = "none";
     document.body.style.overflow = "hidden";
     document.body.style.touchAction = "none";
+    await nextTick();
     if (playlistSources.value.length) {
-      await nextTick();
       initSoundCloudPlayers();
     }
   } else {
@@ -664,10 +689,12 @@ watch(currentIndex, (laneIndex) => {
 });
 
 watch(playlistSources, async (urls) => {
-  if (!isModalOpen.value || !urls.length) return;
+  if (!isModalOpen.value) return;
   stopAllSoundCloudAudio();
   await nextTick();
-  initSoundCloudPlayers();
+  if (urls.length) {
+    initSoundCloudPlayers();
+  }
 });
 
 watch(
@@ -778,12 +805,13 @@ async function hydrateSoundCloudPlayer(container, onReady) {
   for (const playlistUrl of candidates) {
     try {
       const playlist = await fetchSoundCloudPlaylist(playlistUrl);
-      const tracks =
+      const rawTracks =
         Array.isArray(playlist.tracks) && playlist.tracks.length
           ? playlist.tracks
           : playlist && playlist.kind === "track"
             ? [playlist]
             : [];
+      const tracks = normalizeSoundCloudTracks(rawTracks);
       renderSoundCloudPlayer(container, tracks, playlistUrl);
       finalize();
       return;
@@ -831,7 +859,10 @@ async function resolveSoundCloudStreamUrl(track) {
 
     if (chosen && chosen.url) {
       try {
-        const finalUrl = await fetchSoundCloudTranscodingUrl(chosen.url);
+        const finalUrl = await fetchSoundCloudTranscodingUrl(
+          chosen.url,
+          track.track_authorization
+        );
         console.debug("[SC] Using transcoding URL", {
           trackId: track.id,
           transcodingUrl: chosen.url,
@@ -851,7 +882,7 @@ async function resolveSoundCloudStreamUrl(track) {
     throw new Error("No track id provided");
   }
 
-  return fetchSoundCloudStreamUrl(track.id);
+  return fetchSoundCloudStreamUrl(track.id, track.track_authorization);
 }
 
 async function fetchSoundCloudPlaylist(playlistUrl) {
@@ -868,10 +899,37 @@ async function fetchSoundCloudPlaylist(playlistUrl) {
   return resp.json();
 }
 
-async function fetchSoundCloudTranscodingUrl(transcodingUrl) {
+function normalizeSoundCloudTracks(tracks = []) {
+  if (!Array.isArray(tracks)) return [];
+  return tracks
+    .map((track, idx) => {
+      if (!track) return null;
+      const fallbackTitle = `Track ${idx + 1}`;
+      const titleCandidates = [
+        track.title,
+        track.publisher_metadata?.release_title,
+        track.permalink,
+        track.permalink_url,
+        track.id ? String(track.id) : null,
+      ]
+        .map((t) => (typeof t === "string" ? t.trim() : ""))
+        .filter(Boolean);
+      const title = titleCandidates[0] || fallbackTitle;
+      return { ...track, title };
+    })
+    .filter(Boolean);
+}
+
+async function fetchSoundCloudTranscodingUrl(
+  transcodingUrl,
+  trackAuthorization
+) {
   const url =
     buildProxyUrl("/api/soundcloud/transcoding") +
-    `?url=${encodeURIComponent(transcodingUrl)}`;
+    `?url=${encodeURIComponent(transcodingUrl)}${trackAuthorization
+      ? `&track_authorization=${encodeURIComponent(trackAuthorization)}`
+      : ""
+    }`;
   const resp = await fetch(url);
   if (!resp.ok) {
     const err = new Error(`SoundCloud transcoding error: ${resp.status}`);
@@ -886,8 +944,12 @@ async function fetchSoundCloudTranscodingUrl(transcodingUrl) {
   return data.url;
 }
 
-async function fetchSoundCloudStreamUrl(trackId) {
-  const url = buildProxyUrl(`/api/soundcloud/streams/${trackId}`);
+async function fetchSoundCloudStreamUrl(trackId, trackAuthorization) {
+  const url =
+    buildProxyUrl(`/api/soundcloud/streams/${trackId}`) +
+    (trackAuthorization
+      ? `?track_authorization=${encodeURIComponent(trackAuthorization)}`
+      : "");
   const resp = await fetch(url);
   if (!resp.ok) {
     const err = new Error(`SoundCloud stream error: ${resp.status}`);
@@ -1041,7 +1103,7 @@ function renderSoundCloudPlayer(container, tracks, playlistUrl) {
 .about__card {
   background: none;
   border-radius: 0;
-  padding: 36px;
+  padding: 0px 36px;
   box-shadow: none;
   backdrop-filter: none;
 }
@@ -1051,12 +1113,25 @@ function renderSoundCloudPlayer(container, tracks, playlistUrl) {
   overflow-y: auto;
 }
 
+.about,
+.about * {
+  font-family: "Source Sans 3";
+}
+
 .about__eyebrow {
   margin: 0 0 8px;
   color: #6b7280;
   text-transform: uppercase;
   letter-spacing: 0.08em;
   font-size: 12px;
+}
+
+.about__logo {
+  display: block;
+  width: min(140px, 40vw);
+  height: auto;
+  margin: 14px auto 10px;
+  object-fit: contain;
 }
 
 .about__title {
@@ -1071,24 +1146,26 @@ function renderSoundCloudPlayer(container, tracks, playlistUrl) {
   font-size: 16px;
   line-height: 1.6;
   color: #1f2937;
+  font-family: "Source Sans 3";
 }
 
 .about__author {
   margin-top: 28px;
-  padding: 18px;
-  border-radius: 14px;
-  border: 1px dashed rgba(148, 163, 184, 0.6);
+  padding: 0;
+  border-radius: 0;
+  border: 0;
   display: flex;
   align-items: center;
   gap: 16px;
-  background: rgba(255, 255, 255, 0.7);
+  background: transparent;
 }
 
 .about__photo {
-  width: 50%;
-  max-width: 500px;
+  width: 120px;
+  height: 120px;
   border-radius: 14px;
   object-fit: cover;
+  flex: 0 0 auto;
 }
 
 .about__author-body {
@@ -1107,6 +1184,7 @@ function renderSoundCloudPlayer(container, tracks, playlistUrl) {
 .about__author-name {
   font-size: 18px;
   font-weight: 600;
+  font-family: "Source Sans 3";
 }
 
 .about__link {
@@ -1117,6 +1195,52 @@ function renderSoundCloudPlayer(container, tracks, playlistUrl) {
 }
 
 .about__link:hover {
+  border-bottom-color: currentColor;
+}
+
+.about__contributors {
+  margin-top: 18px;
+  padding: 0;
+  border-radius: 0;
+  border: 0;
+  background: transparent;
+}
+
+.about__contributors-title {
+  font-size: 13px;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  color: #6b7280;
+  margin: 0 0 10px;
+}
+
+.about__contributors-list {
+  list-style: none;
+  padding: 0;
+  margin: 0;
+  display: grid;
+  gap: 10px;
+}
+
+.about__contributors-item {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  gap: 10px;
+}
+
+.about__contributors-name {
+  font-weight: 600;
+  color: #111827;
+}
+
+.about__contributors-link {
+  color: #2563eb;
+  text-decoration: none;
+  border-bottom: 1px solid transparent;
+}
+
+.about__contributors-link:hover {
   border-bottom-color: currentColor;
 }
 
@@ -1133,7 +1257,7 @@ function renderSoundCloudPlayer(container, tracks, playlistUrl) {
 
 .composer-modal__content {
   width: min(960px, 100%);
-  max-height: 90vh;
+  max-height: min(90vh, calc(100dvh - 24px));
   background: #ffffff;
   border-radius: 20px;
   box-shadow: 0 20px 60px rgba(0, 0, 0, 0.35);
@@ -1148,7 +1272,7 @@ function renderSoundCloudPlayer(container, tracks, playlistUrl) {
   align-items: flex-start;
   gap: 14px;
   padding: 20px 24px 12px;
-  padding-right: 260px;
+  padding-right: 20px;
   border-bottom: 1px solid rgba(0, 0, 0, 0.06);
   flex-wrap: wrap;
 }
@@ -1159,7 +1283,7 @@ function renderSoundCloudPlayer(container, tracks, playlistUrl) {
   gap: 4px;
   flex: 1;
   min-width: 220px;
-  max-width: calc(100% - 260px);
+  max-width: calc(100% - 20px);
 }
 
 .composer-modal__name {
@@ -1191,12 +1315,17 @@ function renderSoundCloudPlayer(container, tracks, playlistUrl) {
 
 .composer-modal__body {
   padding: 12px 24px 24px;
+  padding-bottom: calc(24px + env(safe-area-inset-bottom, 0px));
+  flex: 1 1 auto;
+  min-height: 0;
   overflow-y: auto;
+  scroll-padding-bottom: 32px;
   display: grid;
   grid-template-columns: auto 1fr;
   grid-auto-rows: auto;
   column-gap: 16px;
   row-gap: 16px;
+  -webkit-overflow-scrolling: touch;
 }
 
 .composer-modal__hero {
@@ -1230,6 +1359,7 @@ function renderSoundCloudPlayer(container, tracks, playlistUrl) {
   gap: 12px;
   flex-wrap: wrap;
 }
+
 .composer-modal__nav--header {
   position: absolute;
   top: 16px;
@@ -1238,6 +1368,10 @@ function renderSoundCloudPlayer(container, tracks, playlistUrl) {
   gap: 10px;
   flex-wrap: nowrap;
   z-index: 2;
+}
+
+.composer-modal__nav--mobile {
+  display: none;
 }
 
 .composer-modal__arrow {
@@ -1280,7 +1414,7 @@ function renderSoundCloudPlayer(container, tracks, playlistUrl) {
   align-items: center;
   justify-content: space-between;
   gap: 12px;
-  margin: 0 0 6px;
+  margin: 0px;
 }
 
 .composer-modal__playlist-title {
@@ -1304,12 +1438,21 @@ function renderSoundCloudPlayer(container, tracks, playlistUrl) {
 
 .composer-modal__playlist {
   min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 0px;
+  align-self: stretch;
+  width: 100%;
+  max-width: 100%;
 }
 
 .composer-modal__playlist-box {
   width: 100%;
   max-width: 100%;
-  overflow: hidden;
+  max-height: 250px;
+  border: #757575 1px solid;
+  overflow-x: hidden;
+  overflow-y: auto;
 }
 
 :deep(.sc-player) {
@@ -1448,13 +1591,14 @@ function renderSoundCloudPlayer(container, tracks, playlistUrl) {
   border: 1px solid rgba(15, 23, 42, 0.16);
   background: rgba(255, 255, 255, 0.98);
   color: #111827;
-  font-size: 16px;
+  font-size: 20px;
   font-weight: 500;
   line-height: 1;
   display: inline-grid;
   place-items: center;
   cursor: pointer;
   user-select: none;
+  font-family: "Source Sans 3";
 }
 
 .control-btn:hover {
@@ -1466,9 +1610,16 @@ function renderSoundCloudPlayer(container, tracks, playlistUrl) {
 }
 
 .control-btn:disabled {
+  background: rgba(255, 255, 255, 0.98);
+  color: #111827;
   opacity: 0.35;
   cursor: not-allowed;
   transform: none;
+}
+
+.control-btn:disabled:hover,
+.control-btn:disabled:active {
+  background: rgba(255, 255, 255, 0.98);
 }
 
 .control-primary {
@@ -1546,6 +1697,12 @@ function renderSoundCloudPlayer(container, tracks, playlistUrl) {
 }
 
 @media (max-width: 720px) {
+
+  .composer-modal__playlist-box {
+    max-height: 500px;
+    border: none;
+  }
+
   .filter-dock {
     left: 10px;
     right: 10px;
@@ -1563,9 +1720,9 @@ function renderSoundCloudPlayer(container, tracks, playlistUrl) {
   }
 
   .composer-modal__facts li {
-  padding: 4px 12px;
+    padding: 4px 12px;
 
-}
+  }
 }
 
 .fade-enter-active,
@@ -1580,19 +1737,21 @@ function renderSoundCloudPlayer(container, tracks, playlistUrl) {
 
 @media (max-width: 720px) {
   .composer-modal {
-    padding: calc(env(safe-area-inset-top, 16px) + 12px) 0 0;
+    padding: calc(env(safe-area-inset-top, 16px) + 12px) 0 calc(env(safe-area-inset-bottom, 12px));
     align-items: flex-start;
   }
 
   .composer-modal__content {
     border-radius: 16px 16px 0 0;
     width: calc(100% - 12px);
-    max-height: calc(100vh - env(safe-area-inset-top, 16px) - 16px);
+    max-height: calc(100dvh - env(safe-area-inset-top, 16px) - env(safe-area-inset-bottom, 0px) - 16px);
+    height: auto;
     margin: 0 auto;
   }
 
   .composer-modal__body {
-    padding: 10px 16px 18px;
+    padding: 10px 16px calc(18px + env(safe-area-inset-bottom, 0px));
+    min-height: 0;
     display: flex;
     flex-direction: column;
   }
@@ -1605,7 +1764,7 @@ function renderSoundCloudPlayer(container, tracks, playlistUrl) {
     display: grid;
     grid-template-columns: auto 1fr;
     column-gap: 14px;
-    align-items: start;
+    align-items: center;
   }
 
   .composer-modal__photo {
@@ -1619,39 +1778,67 @@ function renderSoundCloudPlayer(container, tracks, playlistUrl) {
   .composer-modal__name-small {
     font-size: 16px;
   }
+
+  .composer-modal__nav--header {
+    display: none;
+  }
+
+  .composer-modal__nav--mobile {
+    display: inline-flex;
+    grid-column: 2;
+    grid-row: 1;
+    align-self: center;
+    justify-self: center;
+    justify-content: center;
+    gap: 10px;
+  }
+
+  .composer-modal__nav--mobile .composer-modal__arrow {
+    width: 38px;
+    height: 38px;
+  }
+
+  .composer-modal__nav--mobile .composer-modal__position {
+    font-size: 14px;
+  }
 }
 
 @media (max-width: 640px) {
   .about__card {
-    padding: 26px 22px;
+    padding: 0px 22px;
+  }
+
+  .about__logo {
+    width: min(120px, 55vw);
+    margin: 12px auto 10px;
   }
 
   .about__title {
-    font-size: 26px;
+    font-size: 24px;
     line-height: 1.2;
   }
 
   .about__author {
-    flex-direction: column;
-    align-items: flex-start;
+    flex-direction: row;
+    align-items: center;
   }
 
   .about__photo {
-    width: 100%;
-    max-width: 500px;
-    margin: 0 auto;
+    width: 120px;
+    height: 120px;
+    margin: 0;
   }
 }
 </style>
 
-  .composer-modal__header {
-    padding-right: 200px;
-  }
+.composer-modal__header {
+padding-right: 200px;
+}
 
-  .composer-modal__titles {
-    max-width: calc(100% - 200px);
-  }
+.composer-modal__titles {
+max-width: calc(100% - 200px);
+}
 
-  :deep(.sc-player__embed) {
-    height: 320px;
-  }
+:deep(.sc-player__embed) {
+height: 320px;
+}
