@@ -126,8 +126,6 @@ Name (ru): Людвиг ван Бетховен
 - Deaf composer: He began to lose his hearing in his late twenties, yet wrote many of his greatest works when almost or completely deaf.
 - Landmark works: His Third ("Eroica"), Fifth and Ninth symphonies, the late string quartets and 32 piano sonatas reshaped Western music.
 - Heroic image: His music often sounds like a struggle from darkness to light, helping create the modern image of the tormented, independent artist.
-- Influence: Later composers felt they had to respond to Beethoven in some way – either continue his path or react against it.
-
 
 ## Ludwig van Beethoven essentials (ru) {#ludwig-van-beethoven}
 
@@ -135,7 +133,6 @@ Name (ru): Людвиг ван Бетховен
 - Глухой композитор: Он начал терять слух в конце двадцатых, но написал многие из величайших произведений, будучи почти или полностью глухим.
 - Вехи: Третья («Eroica»), Пятая и Девятая симфонии, поздние струнные квартеты и 32 фортепианные сонаты изменили историю западной музыки.
 - Героический образ: Его музыка часто звучит как борьба от тьмы к свету - так сформировался современный образ независимого, «страдающего» художника.
-- Влияние: Поздним композиторам приходилось так или иначе отвечать на Бетховена - продолжать его путь или сознательно отталкиваться от него.
 
 ## Niccolò Paganini essentials {#niccolo-paganini}
 
@@ -749,7 +746,6 @@ Name (ru): Дмитрий Шостакович
 - Tauber Komponist: Er verlor ab Ende zwanzig zunehmend sein Gehoer - und schrieb viele seiner groessten Werke, als er fast oder ganz taub war.
 - Meilensteine: Die 3. ("Eroica"), 5. und 9. Sinfonie, die spaeten Streichquartette und die 32 Klaviersonaten praegten die Musikgeschichte nachhaltig.
 - Heroisches Bild: Seine Musik klingt oft wie ein Kampf vom Dunkel ins Licht - das half, das moderne Bild des gequaelten, unabhängigen Kuenstlers zu formen.
-- Einfluss: Spaetere Komponisten sahen sich gezwungen, irgendwie auf Beethoven zu reagieren - entweder seinen Weg fortzusetzen oder sich bewusst davon abzusetzen.
 
 ## Niccolo Paganini essentials (de) {#niccolo-paganini}
 

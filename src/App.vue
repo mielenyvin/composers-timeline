@@ -9,7 +9,7 @@
       <div class="app-title" role="button" @click="returnToTitle">{{ appTitle }}</div>
       <div class="language-switcher">
         <label class="visually-hidden" for="language-select">{{ languageLabel }}</label>
-        <select id="language-select" class="language-select" v-model="language" :aria-label="languageLabel">
+        <select id="language-select" class="language-select" v-model="language" :aria-label="languageLabel" @change="handleLanguageChange">
           <option v-for="option in languageOptions" :key="option.value" :value="option.value">
             {{ option.label }}
           </option>
@@ -68,7 +68,7 @@
               </svg>
             </button>
 
-            <transition name="fade">
+            <transition name="filter-fade">
               <div v-if="isFilterOpen" id="filter-panel" class="filter-panel" role="dialog"
                 aria-label="Composer filters">
                 <div class="filter-panel__options">
@@ -375,12 +375,16 @@ const LOCALES = {
 };
 
 const SUPPORTED_LANGUAGES = Object.keys(LOCALES);
+const DEFAULT_LANGUAGE = "en";
+const STORAGE_KEY = "timeline-language";
+const UNKNOWN_COUNTRY = "UNKNOWN";
+const hasUserSetLanguage = ref(false);
 const FACTS_TITLE_BY_LOCALE = {
   en: "essentials",
   de: "- Kurzprofil",
   ru: "ключевые факты",
 };
-const language = ref("en");
+const language = ref(DEFAULT_LANGUAGE);
 const activeLocale = computed(() => LOCALES[language.value] || LOCALES.en);
 const languageOptions = computed(() =>
   SUPPORTED_LANGUAGES.map((code) => ({
@@ -908,6 +912,118 @@ function closeFilters() {
   isFilterOpen.value = false;
 }
 
+function applyLanguage(lang, { persist = false } = {}) {
+  const safe = SUPPORTED_LANGUAGES.includes(lang) ? lang : DEFAULT_LANGUAGE;
+  language.value = safe;
+
+  if (persist) {
+    try {
+      localStorage.setItem(STORAGE_KEY, safe);
+    } catch (err) {
+      // Ignore storage errors (e.g., private mode).
+    }
+  }
+}
+
+function setLanguage(lang) {
+  hasUserSetLanguage.value = true;
+  applyLanguage(lang, { persist: true });
+}
+
+function handleLanguageChange(event) {
+  const next = event?.target?.value;
+  if (next) setLanguage(next);
+}
+
+function getStoredLanguage() {
+  try {
+    return localStorage.getItem(STORAGE_KEY);
+  } catch (err) {
+    return null;
+  }
+}
+
+function initializeLanguage() {
+  const stored = getStoredLanguage();
+  if (stored && SUPPORTED_LANGUAGES.includes(stored)) {
+    hasUserSetLanguage.value = true;
+    applyLanguage(stored);
+    showDetectionAlert("STORED", stored);
+    return;
+  }
+  detectPreferredLanguage();
+}
+
+async function detectPreferredLanguage() {
+  if (hasUserSetLanguage.value) {
+    showDetectionAlert("STORED", language.value);
+    return;
+  }
+
+  const detectors = [detectViaIpApi, detectViaIpWhoIs];
+  for (const detector of detectors) {
+    const country = await detector();
+    if (country) {
+      const normalizedCountry = String(country).toUpperCase();
+      const lang =
+        normalizedCountry === "RU"
+          ? "ru"
+          : ["DE", "AT", "CH"].includes(normalizedCountry)
+            ? "de"
+            : DEFAULT_LANGUAGE;
+      applyLanguage(lang);
+      showDetectionAlert(normalizedCountry, lang);
+      return;
+    }
+  }
+
+  // Fallback to browser language if geo lookup fails
+  const navLang = (navigator.language || "").toLowerCase();
+  if (navLang.startsWith("de")) {
+    applyLanguage("de");
+    showDetectionAlert(UNKNOWN_COUNTRY, "de");
+    return;
+  }
+  if (navLang.startsWith("ru")) {
+    applyLanguage("ru");
+    showDetectionAlert(UNKNOWN_COUNTRY, "ru");
+    return;
+  }
+
+  applyLanguage(DEFAULT_LANGUAGE);
+  showDetectionAlert(UNKNOWN_COUNTRY, DEFAULT_LANGUAGE);
+}
+
+async function detectViaIpApi() {
+  try {
+    const response = await fetch("https://ipapi.co/json/");
+    if (!response.ok) return null;
+    const data = await response.json();
+    return data?.country_code || null;
+  } catch (err) {
+    console.warn("ipapi lookup failed:", err);
+  }
+  return null;
+}
+
+async function detectViaIpWhoIs() {
+  try {
+    const response = await fetch("https://ipwho.is/");
+    if (!response.ok) return null;
+    const data = await response.json();
+    return data?.country_code || null;
+  } catch (err) {
+    console.warn("ipwho.is lookup failed:", err);
+  }
+  return null;
+}
+
+function showDetectionAlert(country, lang) {
+  // Intentionally silent (kept for debugging parity with the other project)
+  void country;
+  void lang;
+}
+
 
 function returnToTitle() {
   navigateTo("/");
@@ -944,26 +1060,7 @@ function nextComposer() {
 }
 
 onMounted(() => {
-  const storedLang = (() => {
-    try {
-      return localStorage.getItem("timeline-language");
-    } catch (err) {
-      return null;
-    }
-  })();
-  if (storedLang && SUPPORTED_LANGUAGES.includes(storedLang)) {
-    language.value = storedLang;
-  } else if (
-    navigator.language &&
-    navigator.language.toLowerCase().startsWith("de")
-  ) {
-    language.value = "de";
-  } else if (
-    navigator.language &&
-    navigator.language.toLowerCase().startsWith("ru")
-  ) {
-    language.value = "ru";
-  }
+  initializeLanguage();
   updateViewFromLocation();
   // Fallback: if timeline instance exposes subscription hook later
   if (window.timeline && typeof window.timeline.onBarClick === "function") {
@@ -998,20 +1095,19 @@ watch(
 );
 
 watch(language, (next) => {
-  const safe = SUPPORTED_LANGUAGES.includes(next) ? next : "en";
+  const safe = SUPPORTED_LANGUAGES.includes(next) ? next : DEFAULT_LANGUAGE;
   if (safe !== next) {
     language.value = safe;
     return;
   }
+
   try {
-    localStorage.setItem("timeline-language", safe);
+    document.documentElement.setAttribute("data-lang", safe);
   } catch (err) {
-    // Ignore storage errors (e.g., private mode).
+    // Ignore DOM errors.
   }
-  if (
-    window.timeline &&
-    typeof window.timeline.updateEraLabels === "function"
-  ) {
+
+  if (window.timeline && typeof window.timeline.updateEraLabels === "function") {
     window.timeline.updateEraLabels(eraLabels.value);
   }
 });
@@ -1807,7 +1903,7 @@ function renderSoundCloudPlayer(container, tracks, playlistUrl) {
   width: 100%;
   max-width: 100%;
   max-height: 250px;
-  border: #757575 1px solid;
+  border: #757575 0.5px solid;
   overflow-x: hidden;
   overflow-y: auto;
 }
@@ -1958,9 +2054,42 @@ function renderSoundCloudPlayer(container, tracks, playlistUrl) {
   font-family: "Source Sans 3";
 }
 
-.control-btn:hover {
-  background: rgba(15, 23, 42, 0.5);
+.control-btn {
+  -webkit-tap-highlight-color: transparent;
 }
+
+.control-btn:focus {
+  outline: none;
+}
+
+.control-btn:focus-visible {
+  outline: 2px solid rgba(15, 23, 42, 0.35);
+  outline-offset: 2px;
+}
+
+/* Hover - только для устройств с мышью/трекпадом */
+@media (hover: hover) and (pointer: fine) {
+  .control-btn:hover {
+    background: rgba(15, 23, 42, 0.5);
+  }
+
+  .control-primary:hover {
+    filter: brightness(1.02);
+  }
+
+  .control-btn:disabled:hover,
+  .control-btn:disabled:active {
+    background: rgba(255, 255, 255, 0.98);
+  }
+}
+
+/* На мобилке даем короткий feedback по :active без залипания */
+@media (hover: none) and (pointer: coarse) {
+  .control-btn:active {
+    background: rgba(15, 23, 42, 0.12);
+  }
+}
+
 
 .control-btn:active {
   transform: translateY(1px);
@@ -1983,10 +2112,6 @@ function renderSoundCloudPlayer(container, tracks, playlistUrl) {
   border-color: rgba(15, 23, 42, 0.18);
   background: #ffffff;
   color: #101827;
-}
-
-.control-primary:hover {
-  filter: brightness(1.02);
 }
 
 
@@ -2090,6 +2215,16 @@ function renderSoundCloudPlayer(container, tracks, playlistUrl) {
 .fade-enter-from,
 .fade-leave-to {
   opacity: 0;
+}
+
+.filter-fade-enter-active,
+.filter-fade-leave-active {
+  transition: none;
+}
+
+.filter-fade-enter-from,
+.filter-fade-leave-to {
+  opacity: 1;
 }
 
 @media (max-width: 720px) {
