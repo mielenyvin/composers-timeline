@@ -313,11 +313,7 @@ const LOCALES = {
       romantic: "Romantik",
       twentieth: "20. Jahrhundert",
     },
-    composers: {
-      factsTitles: {
-        "antonio vivaldi": "Vivaldi kompakt",
-      },
-    },
+    composers: {},
     filter: {
       groups: {
         essentials: "Essenzielle Ikonen",
@@ -366,11 +362,7 @@ const LOCALES = {
       romantic: "Романтизм",
       twentieth: "XX век",
     },
-    composers: {
-      factsTitles: {
-        "antonio vivaldi": "Вивальди - кратко",
-      },
-    },
+    composers: {},
     filter: {
       groups: {
         essentials: "Ключевые фигуры",
@@ -383,6 +375,11 @@ const LOCALES = {
 };
 
 const SUPPORTED_LANGUAGES = Object.keys(LOCALES);
+const FACTS_TITLE_BY_LOCALE = {
+  en: "essentials",
+  de: "- Kurzprofil",
+  ru: "ключевые факты",
+};
 const language = ref("en");
 const activeLocale = computed(() => LOCALES[language.value] || LOCALES.en);
 const languageOptions = computed(() =>
@@ -417,12 +414,13 @@ const namesFromFacts = computed(() => {
   const mapped = {};
   Object.entries(namesByLocale || {}).forEach(([key, locales]) => {
     const normalizedKey = normalizeName(key);
-    const localized =
-      locales?.[language.value] ||
-      locales?.en ||
-      Object.values(locales || {})[0];
+    const localized = locales?.[language.value];
     if (localized) {
       mapped[normalizedKey] = localized;
+      return;
+    }
+    if (language.value === "en" && locales?.en) {
+      mapped[normalizedKey] = locales.en;
     }
   });
   return mapped;
@@ -843,6 +841,18 @@ function slugifyForPlaylist(text) {
 }
 
 function buildFactsTitle(name) {
+  const suffix =
+    FACTS_TITLE_BY_LOCALE[language.value] ||
+    FACTS_TITLE_BY_LOCALE.en ||
+    "Essentials";
+
+  const localizedName =
+    language.value === "ru" ? getLocalizedComposerName(name) : "";
+
+  if (language.value === "ru" && localizedName) {
+    return `${localizedName} - ${suffix}`;
+  }
+
   const parts = String(name || "")
     .trim()
     .split(/\s+/)
@@ -851,7 +861,7 @@ function buildFactsTitle(name) {
   const last = parts[parts.length - 1];
   const isSuffix = /^(?:[IVX]+|\d+|Jr\.?|Sr\.?)$/i.test(last);
   const core = isSuffix && parts.length >= 2 ? parts[parts.length - 2] : last;
-  return `${core} essentials`;
+  return `${core} ${suffix}`;
 }
 
 function getComposerPlaylistIds(name) {
