@@ -662,10 +662,11 @@ function enablePanning() {
   let isDragging = false;
   const horizontalDragThreshold = 4;
   const verticalDragThreshold = 1;
-  const logTouchMovement = (dx, dy) => {
+  const logTouchMovement = (dx, dy, axisHint) => {
     const dominantAxis = Math.abs(dx) >= Math.abs(dy) ? "horizontal" : "vertical";
+    const axis = axisHint || dominantAxis;
     console.log(
-      `[timeline] touch pan (${dominantAxis}) dx=${dx.toFixed(1)} dy=${dy.toFixed(
+      `[timeline] touch pan (${axis}) dx=${dx.toFixed(1)} dy=${dy.toFixed(
         1
       )} scrollLeft=${timeline.scrollLeft.toFixed(1)} scrollTop=${timeline.scrollTop.toFixed(1)}`
     );
@@ -774,6 +775,18 @@ function enablePanning() {
   let touchAxisIntent = null;
   let lastTouchX = 0;
   let lastTouchY = 0;
+  const axisSwitchMargin = 10;
+
+  const switchTouchAxis = (axis) => {
+    if (touchAxisIntent === axis) return;
+    if (touchAxisIntent === "horizontal") {
+      stopPanning();
+    }
+    touchAxisIntent = axis;
+    if (axis === "horizontal") {
+      startPanning();
+    }
+  };
 
   const onTouchStart = (e) => {
     if (touchId !== null) return;
@@ -788,6 +801,8 @@ function enablePanning() {
     lastClientY = t.clientY;
     lastTouchX = t.clientX;
     lastTouchY = t.clientY;
+    startScrollLeft = timeline.scrollLeft;
+    startScrollTop = timeline.scrollTop;
     stopPanning();
   };
 
@@ -798,41 +813,38 @@ function enablePanning() {
 
     const dxFromStart = t.clientX - startX;
     const dyFromStart = t.clientY - startY;
+    const absDx = Math.abs(dxFromStart);
+    const absDy = Math.abs(dyFromStart);
+    const dominantAxis = absDx >= absDy ? "horizontal" : "vertical";
 
     if (!touchDragStarted) {
-      const absDx = Math.abs(dxFromStart);
-      const absDy = Math.abs(dyFromStart);
-      const isHorizontalIntent = absDx >= absDy;
-      const axisThreshold = isHorizontalIntent
-        ? horizontalDragThreshold
-        : verticalDragThreshold;
-      if (absDx > axisThreshold || absDy > axisThreshold) {
+      if (absDx > horizontalDragThreshold || absDy > verticalDragThreshold) {
         touchDragStarted = true;
-        touchAxisIntent = isHorizontalIntent ? "horizontal" : "vertical";
-        if (touchAxisIntent === "horizontal") {
-          startPanning();
-        }
-        lastTouchX = t.clientX;
-        lastTouchY = t.clientY;
+        switchTouchAxis(dominantAxis);
       } else {
         lastTouchX = t.clientX;
         lastTouchY = t.clientY;
         return;
       }
+    } else if (
+      touchAxisIntent &&
+      dominantAxis !== touchAxisIntent &&
+      Math.abs(absDx - absDy) > axisSwitchMargin
+    ) {
+      switchTouchAxis(dominantAxis);
     }
 
-    const deltaX = lastTouchX - t.clientX;
-
     if (touchAxisIntent === "horizontal") {
-      timeline.scrollLeft += deltaX;
+      timeline.scrollLeft = startScrollLeft - dxFromStart;
       e.preventDefault();
-    } else {
-      // let the browser handle vertical drags
+    } else if (touchAxisIntent === "vertical") {
+      timeline.scrollTop = startScrollTop - dyFromStart;
+      e.preventDefault();
     }
 
     lastTouchX = t.clientX;
     lastTouchY = t.clientY;
-    logTouchMovement(dxFromStart, dyFromStart);
+    logTouchMovement(dxFromStart, dyFromStart, touchAxisIntent);
   };
 
   const onTouchEnd = (e) => {
@@ -843,6 +855,7 @@ function enablePanning() {
     if (!ended) return;
     touchId = null;
     touchDragStarted = false;
+    touchAxisIntent = null;
     stopPanning();
   };
 
