@@ -6,7 +6,14 @@
         <span class="menu-icon"></span>
       </button>
       <img class="logo" src="/favicon.png" alt="Logo" @click="returnToTitle" />
-      <div class="app-title" role="button" @click="returnToTitle">The Story of Classical Music in Time
+      <div class="app-title" role="button" @click="returnToTitle">{{ appTitle }}</div>
+      <div class="language-switcher">
+        <label class="visually-hidden" for="language-select">{{ languageLabel }}</label>
+        <select id="language-select" class="language-select" v-model="language" :aria-label="languageLabel">
+          <option v-for="option in languageOptions" :key="option.value" :value="option.value">
+            {{ option.label }}
+          </option>
+        </select>
       </div>
     </header>
 
@@ -15,11 +22,11 @@
       <nav class="menu-nav">
         <button class="menu-item" :class="{ 'menu-item--active': currentView === 'composers' }"
           @click="selectView('composers')">
-          Composers Timeline
+          {{ navigationLabels.composers }}
         </button>
         <button class="menu-item" :class="{ 'menu-item--active': currentView === 'about' }"
           @click="selectView('about')">
-          About
+          {{ navigationLabels.about }}
         </button>
       </nav>
     </aside>
@@ -67,14 +74,14 @@
                 <div class="filter-panel__options">
                   <label v-for="group in filterGroups" :key="group.id" class="filter-panel__item">
                     <input v-model="filterState[group.id]" type="checkbox" class="filter-panel__checkbox"
-                      :aria-label="`Toggle ${group.label}`" />
-                    <span class="filter-panel__label">{{ group.label }}</span>
+                      :aria-label="`Toggle ${getFilterLabel(group.id)}`" />
+                    <span class="filter-panel__label">{{ getFilterLabel(group.id) }}</span>
                   </label>
                 </div>
                 <div class="filter-panel__actions">
                   <button type="button" class="filter-panel__ok control-btn" @click="closeFilters"
                     aria-label="Close filters">
-                    OK
+                    {{ filterApplyLabel }}
                   </button>
                 </div>
               </div>
@@ -82,29 +89,23 @@
           </div>
         </div>
 
-        <ComposersTimeline :composers="sortedComposers" :settings="timelineSettings" />
+        <ComposersTimeline :composers="sortedComposers" :settings="timelineSettings" :era-labels="eraLabels" />
       </section>
 
       <section v-else-if="currentView === 'about'" class="about">
         <div class="about__card">
           <img class="about__logo" src="/images/about_music_logo.png" alt="Music logo" loading="lazy" />
 
-          <h1 class="about__title">Understand classical music by ear</h1>
-          <p class="about__text">
-            Sometimes you hear a familiar melody and know it is classical music. But whose? Bach, Beethoven, or Mozart -
-            it can be hard to tell immediately.
-          </p>
-          <p class="about__text">
-            This site is designed to help you hear the character of each era and each composer, compare their stories
-            and musical voices, and never get lost in the names again.
-          </p>
+          <h1 class="about__title">{{ aboutContent.title }}</h1>
+          <p class="about__text">{{ aboutContent.intro }}</p>
+          <p class="about__text">{{ aboutContent.goal }}</p>
 
 
           <div class="about__author">
             <img class="about__photo" src="/images/dk3-min.jpg" alt="Dmitrii Kotikov" loading="lazy" />
             <div class="about__author-body">
-              <div class="about__author-label">Project creator and author</div>
-              <div class="about__author-name">Dmitrii Kotikov</div>
+              <div class="about__author-label">{{ aboutContent.authorLabel }}</div>
+              <div class="about__author-name">{{ aboutContent.authorName }}</div>
               <a class="about__link" href="https://www.linkedin.com/in/dmitrykotikov/" target="_blank" rel="noreferrer">
                 LinkedIn
               </a>
@@ -115,19 +116,12 @@
           </div>
 
           <div class="about__contributors">
-            <div class="about__contributors-title">Project collaborators</div>
+            <div class="about__contributors-title">{{ aboutContent.contributorsTitle }}</div>
             <ul class="about__contributors-list">
-              <li class="about__contributors-item">
-                <span class="about__contributors-name">Timofey Muhortov</span>
-                <a class="about__contributors-link" href="https://timofeymuhortov.ru" target="_blank" rel="noreferrer">
-                  timofeymuhortov.ru
-                </a>
-              </li>
-              <li class="about__contributors-item">
-                <span class="about__contributors-name">Olga Shibanova</span>
-                <a class="about__contributors-link" href="https://facebook.com/olga.shibanova" target="_blank"
-                  rel="noreferrer">
-                  facebook.com/olga.shibanova
+              <li v-for="person in aboutContributors" :key="person.url" class="about__contributors-item">
+                <span class="about__contributors-name">{{ person.name }}</span>
+                <a class="about__contributors-link" :href="person.url" target="_blank" rel="noreferrer">
+                  {{ person.linkText }}
                 </a>
               </li>
             </ul>
@@ -142,7 +136,7 @@
         <div class="composer-modal__content">
           <header class="composer-modal__header">
             <div class="composer-modal__titles">
-              <h2 class="composer-modal__name">{{ currentComposer?.name }}</h2>
+              <h2 class="composer-modal__name">{{ currentDisplayName }}</h2>
               <p class="composer-modal__dates" v-if="currentComposer">
                 {{ currentComposer.birth }} — {{ currentComposer.death }}
               </p>
@@ -163,9 +157,9 @@
             <button class="composer-modal__close" @click="closeModal" aria-label="Close composer details">×</button>
           </header>
 
-          <div class="composer-modal__body">
-            <div v-if="currentImage" class="composer-modal__hero">
-              <img class="composer-modal__photo" :src="currentImage" :alt="currentComposer?.name" />
+            <div class="composer-modal__body">
+              <div v-if="currentImage" class="composer-modal__hero">
+              <img class="composer-modal__photo" :src="currentImage" :alt="currentDisplayName" />
 
               <div class="composer-modal__nav composer-modal__nav--mobile" aria-label="Composer navigation">
                 <button class="composer-modal__arrow" @click="prevComposer" :disabled="!hasPrev" aria-label="Previous">
@@ -180,7 +174,7 @@
               </div>
 
               <div class="composer-modal__hero-meta">
-                <div class="composer-modal__name-small">{{ currentComposer?.name }}</div>
+                <div class="composer-modal__name-small">{{ currentDisplayName }}</div>
                 <div class="composer-modal__dates-small" v-if="currentComposer">
                   {{ currentComposer.birth }} — {{ currentComposer.death }}
                 </div>
@@ -189,7 +183,7 @@
 
             <div class="composer-modal__playlist">
               <div class="composer-modal__playlist-header">
-                <div class="composer-modal__playlist-title">Key works to know</div>
+                <div class="composer-modal__playlist-title">{{ modalText.keyWorks }}</div>
                 <a v-if="playlistSources.length" class="sc-powered" href="https://soundcloud.com" target="_blank"
                   rel="noopener noreferrer" aria-label="Powered by SoundCloud">
                   <img class="sc-powered__img" src="/images/powered_by_black-4339b4c3c9cf88da9bfb15a16c4f6914.png"
@@ -229,6 +223,238 @@ import { computed, nextTick, onBeforeUnmount, onMounted, reactive, ref, watch } 
 import ComposersTimeline from "./components/ComposersTimeline.vue";
 import { composers, getComposerImage } from "./timeline-core";
 import composerFactsRaw from "../composers.md?raw";
+
+const LOCALES = {
+  en: {
+    label: "En",
+    appTitle: "The Story of Classical Music in Time",
+    languageLabel: "Language",
+    navigation: {
+      composers: "Composers Timeline",
+      about: "About",
+    },
+    modal: {
+      keyWorks: "Key works to know",
+    },
+    about: {
+      title: "Understand classical music by ear",
+      intro:
+        "Sometimes you hear a familiar melody and know it is classical music. But whose? Bach, Beethoven, or Mozart - it can be hard to tell immediately.",
+      goal:
+        "This site is designed to help you hear the character of each era and each composer, compare their stories and musical voices, and never get lost in the names again.",
+      authorLabel: "Project creator and author",
+      authorName: "Dmitrii Kotikov",
+      contributorsTitle: "Project collaborators",
+      contributors: [
+        {
+          name: "Timofey Muhortov",
+          url: "https://timofeymuhortov.ru",
+          linkText: "timofeymuhortov.ru",
+        },
+        {
+          name: "Olga Shibanova",
+          url: "https://facebook.com/olga.shibanova",
+          linkText: "facebook.com/olga.shibanova",
+        },
+      ],
+    },
+    eras: {
+      baroque: "Baroque",
+      classical: "Classical",
+      romantic: "Romantic",
+      twentieth: "20th Century",
+    },
+    composers: {},
+    filter: {
+      groups: {
+        essentials: "Essential Icons",
+        core: "Core Classics",
+        expanded: "Extended Classics",
+      },
+      apply: "Apply",
+    },
+  },
+  de: {
+    label: "De",
+    appTitle: "Die Geschichte der klassischen Musik",
+    languageLabel: "Sprache",
+    navigation: {
+      composers: "Zeitstrahl der Komponisten",
+      about: "Über das Projekt",
+    },
+    modal: {
+      keyWorks: "Wichtige Werke zum Kennenlernen",
+    },
+    about: {
+      title: "Klassische Musik mit dem Ohr verstehen",
+      intro:
+        "Manchmal hört man eine vertraute Melodie und weiß: Das ist klassische Musik. Aber von wem? Bach, Beethoven oder Mozart – das erkennt man nicht immer sofort.",
+      goal:
+        "Diese Seite soll helfen, den Charakter jeder Epoche und jedes Komponisten zu hören, ihre Geschichten und Klangfarben zu vergleichen und sich in all den Namen nicht mehr zu verlieren.",
+      authorLabel: "Initiator und Autor des Projekts",
+      authorName: "Dmitrii Kotikov",
+      contributorsTitle: "Projektpartner",
+      contributors: [
+        {
+          name: "Timofey Muhortov",
+          url: "https://timofeymuhortov.ru",
+          linkText: "timofeymuhortov.ru",
+        },
+        {
+          name: "Olga Shibanova",
+          url: "https://facebook.com/olga.shibanova",
+          linkText: "facebook.com/olga.shibanova",
+        },
+      ],
+    },
+    eras: {
+      baroque: "Barock",
+      classical: "Klassik",
+      romantic: "Romantik",
+      twentieth: "20. Jahrhundert",
+    },
+    composers: {
+      factsTitles: {
+        "antonio vivaldi": "Vivaldi kompakt",
+      },
+    },
+    filter: {
+      groups: {
+        essentials: "Essenzielle Ikonen",
+        core: "Kernklassiker",
+        expanded: "Erweiterte Klassiker",
+      },
+      apply: "Anwenden",
+    },
+  },
+  ru: {
+    label: "Ru",
+    appTitle: "История классической музыки",
+    languageLabel: "Язык",
+    navigation: {
+      composers: "Таймлайн композиторов",
+      about: "О проекте",
+    },
+    modal: {
+      keyWorks: "Ключевые произведения",
+    },
+    about: {
+      title: "Понимать классическую музыку на слух",
+      intro:
+        "Иногда слышишь знакомую мелодию и понимаешь: это классическая музыка. Но чья? Баха, Бетховена или Моцарта - сразу не всегда понятно.",
+      goal:
+        "Этот сайт помогает услышать характер каждой эпохи и каждого композитора, сравнивать их истории и музыкальные голоса - и больше не теряться в именах.",
+      authorLabel: "Автор и создатель проекта",
+      authorName: "Дмитрий Котиков",
+      contributorsTitle: "Соавторы проекта",
+      contributors: [
+        {
+          name: "Тимофей Мухортов",
+          url: "https://timofeymuhortov.ru",
+          linkText: "timofeymuhortov.ru",
+        },
+        {
+          name: "Ольга Шибанова",
+          url: "https://facebook.com/olga.shibanova",
+          linkText: "facebook.com/olga.shibanova",
+        },
+      ],
+    },
+    eras: {
+      baroque: "Барокко",
+      classical: "Классицизм",
+      romantic: "Романтизм",
+      twentieth: "XX век",
+    },
+    composers: {
+      factsTitles: {
+        "antonio vivaldi": "Вивальди - кратко",
+      },
+    },
+    filter: {
+      groups: {
+        essentials: "Ключевые фигуры",
+        core: "Основа классики",
+        expanded: "Расширенный канон",
+      },
+      apply: "Применить",
+    },
+  },
+};
+
+const SUPPORTED_LANGUAGES = Object.keys(LOCALES);
+const language = ref("en");
+const activeLocale = computed(() => LOCALES[language.value] || LOCALES.en);
+const languageOptions = computed(() =>
+  SUPPORTED_LANGUAGES.map((code) => ({
+    value: code,
+    label: LOCALES[code]?.label || code.toUpperCase(),
+  }))
+);
+const appTitle = computed(() => activeLocale.value.appTitle);
+const languageLabel = computed(
+  () => activeLocale.value.languageLabel || "Language"
+);
+const navigationLabels = computed(
+  () => activeLocale.value.navigation || LOCALES.en.navigation
+);
+const aboutContent = computed(
+  () => activeLocale.value.about || LOCALES.en.about
+);
+
+const aboutContributors = computed(() => aboutContent.value.contributors || LOCALES.en.about.contributors || []);
+const eraLabels = computed(() => activeLocale.value.eras || LOCALES.en.eras);
+const composerLocale = computed(() => activeLocale.value.composers || {});
+const namesFromLocale = computed(() => {
+  const raw = composerLocale.value.names || {};
+  const mapped = {};
+  Object.entries(raw).forEach(([key, value]) => {
+    mapped[normalizeName(key)] = value;
+  });
+  return mapped;
+});
+const namesFromFacts = computed(() => {
+  const mapped = {};
+  Object.entries(namesByLocale || {}).forEach(([key, locales]) => {
+    const normalizedKey = normalizeName(key);
+    const localized =
+      locales?.[language.value] ||
+      locales?.en ||
+      Object.values(locales || {})[0];
+    if (localized) {
+      mapped[normalizedKey] = localized;
+    }
+  });
+  return mapped;
+});
+const composerNames = computed(() => ({
+  ...namesFromFacts.value,
+  ...namesFromLocale.value,
+}));
+const filterConfig = computed(() => activeLocale.value.filter || LOCALES.en.filter);
+const filterLabels = computed(() => ({
+  essentials: filterConfig.value.groups?.essentials || "Essential Icons",
+  core: filterConfig.value.groups?.core || "Core Classics",
+  expanded: filterConfig.value.groups?.expanded || "Extended Classics",
+}));
+const filterApplyLabel = computed(() => filterConfig.value.apply || "Apply");
+const composerDescriptions = computed(() => {
+  const raw = composerLocale.value.descriptions || {};
+  const mapped = {};
+  Object.entries(raw).forEach(([key, value]) => {
+    mapped[normalizeName(key)] = value;
+  });
+  return mapped;
+});
+const composerFactsTitleOverrides = computed(() => {
+  const raw = composerLocale.value.factsTitles || {};
+  const mapped = {};
+  Object.entries(raw).forEach(([key, value]) => {
+    mapped[normalizeName(key)] = value;
+  });
+  return mapped;
+});
+const modalText = computed(() => activeLocale.value.modal || LOCALES.en.modal);
 
 const isMenuOpen = ref(false);
 const currentView = ref("composers");
@@ -437,26 +663,34 @@ const filteredComposers = computed(() => {
 });
 
 const sortedComposers = computed(() =>
-  [...filteredComposers.value].sort((a, b) => a.birth - b.birth)
+  [...filteredComposers.value]
+    .sort((a, b) => a.birth - b.birth)
+    .map((composer) => ({
+      ...composer,
+      displayName: getLocalizedComposerName(composer.name),
+    }))
 );
 
-const { descriptionsByKey, playlistIdsByKey } = parseComposerFacts(composerFactsRaw);
+const { descriptionsByLocale, playlistIdsByKey, namesByLocale } = parseComposerFacts(composerFactsRaw);
 const currentIndex = ref(null);
 
 const isModalOpen = computed(() => currentIndex.value !== null);
 const currentComposer = computed(() =>
   currentIndex.value === null ? null : sortedComposers.value[currentIndex.value]
 );
+const currentDisplayName = computed(() =>
+  currentComposer.value ? getLocalizedComposerName(currentComposer.value.name) : ""
+);
 const currentImage = computed(() =>
   currentComposer.value ? getComposerImage(currentComposer.value.name) : null
 );
 const currentDescription = computed(() =>
   currentComposer.value
-    ? getComposerDescription(currentComposer.value.name)
+    ? getLocalizedComposerDescription(currentComposer.value.name)
     : ""
 );
 const currentFactsTitle = computed(() =>
-  currentComposer.value ? buildFactsTitle(currentComposer.value.name) : ""
+  currentComposer.value ? getLocalizedFactsTitle(currentComposer.value.name) : ""
 );
 const currentPlaylistIds = computed(() =>
   currentComposer.value ? getComposerPlaylistIds(currentComposer.value.name) : []
@@ -485,32 +719,66 @@ function normalizeName(name) {
     .trim();
 }
 
+function getLocalizedComposerName(name) {
+  const normalized = normalizeName(name);
+  return composerNames.value[normalized] || name;
+}
+
+function getFilterLabel(id) {
+  return filterLabels.value[id] || id;
+}
+
 function parseComposerFacts(raw) {
   const lines = raw.split("\n");
   const descriptions = {};
+  const names = {};
   const playlistIds = {};
   let currentKey = null;
+  let currentKeyAlt = null;
   let currentSlug = null;
+  let currentLocale = "en";
   let buffer = [];
   const flush = () => {
-    if (currentKey) {
-      descriptions[currentKey] = buffer.join("\n").trim();
-      if (currentSlug) {
-        playlistIds[currentKey] = currentSlug;
-      }
+    if (currentKey || currentKeyAlt) {
+      const keys = [currentKey, currentKeyAlt].filter(Boolean);
+      keys.forEach((key) => {
+        descriptions[key] = descriptions[key] || {};
+        descriptions[key][currentLocale] = buffer.join("\n").trim();
+        if (currentSlug) {
+          playlistIds[key] = currentSlug;
+        }
+      });
     }
     buffer = [];
     currentSlug = null;
+    currentKeyAlt = null;
   };
 
   for (const line of lines) {
     const heading = line.match(
-      /^##\s+(.+?)\s+essentials(?:\s*\{#([a-z0-9_-]+)\})?/i
+      /^##\s+(.+?)\s+essentials(?:\s*\((\w{2})\))?(?:\s*\{#([a-z0-9_-]+)\})?/i
     );
     if (heading) {
       flush();
-      currentKey = normalizeName(heading[1]);
-      currentSlug = heading[2] || null;
+      const [, nameRaw, localeRaw, slugRaw] = heading;
+      currentKey = normalizeName(slugRaw || nameRaw);
+      currentKeyAlt = normalizeName(nameRaw);
+      currentLocale = (localeRaw || "en").toLowerCase();
+      currentSlug = slugRaw || null;
+      continue;
+    }
+    const nameLine = currentKey
+      ? line.match(/^name\s*(?:\((\w{2})\))?\s*:\s*(.+)$/i)
+      : null;
+    if (nameLine) {
+      const [, localeRaw, valueRaw] = nameLine;
+      const locale = (localeRaw || currentLocale || "en").toLowerCase();
+      const value = valueRaw.trim();
+      const keys = [currentKey, currentKeyAlt].filter(Boolean);
+      keys.forEach((key) => {
+        names[key] = names[key] || {};
+        names[key][locale] = value;
+      });
       continue;
     }
     if (currentKey && line.startsWith("- ")) {
@@ -518,7 +786,25 @@ function parseComposerFacts(raw) {
     }
   }
   flush();
-  return { descriptionsByKey: descriptions, playlistIdsByKey: playlistIds };
+  return { descriptionsByLocale: descriptions, playlistIdsByKey: playlistIds, namesByLocale: names };
+}
+
+function getLocalizedComposerDescription(name) {
+  const localeMap = getLocaleMapForComposer(name);
+  const normalized = normalizeName(name);
+  const override = composerDescriptions.value[normalized];
+  if (override) return override;
+  const byLang = localeMap[language.value];
+  if (byLang) return byLang;
+  if (localeMap.en) return localeMap.en;
+  const first = Object.values(localeMap)[0];
+  return first || "";
+}
+
+function getLocalizedFactsTitle(name) {
+  const override = composerFactsTitleOverrides.value[normalizeName(name)];
+  if (override) return override;
+  return buildFactsTitle(name);
 }
 
 function pickComposerValue(map, name) {
@@ -534,8 +820,20 @@ function pickComposerValue(map, name) {
   return "";
 }
 
-function getComposerDescription(name) {
-  return pickComposerValue(descriptionsByKey, name);
+function getLocaleMapForComposer(name) {
+  const normalized = normalizeName(name);
+  const parts = normalized.split(" ").filter(Boolean);
+  const candidates = [normalized];
+  const last = parts[parts.length - 1];
+  if (last && last !== normalized) {
+    candidates.push(last);
+  }
+  for (const key of candidates) {
+    if (descriptionsByLocale[key]) {
+      return descriptionsByLocale[key];
+    }
+  }
+  return {};
 }
 
 function slugifyForPlaylist(text) {
@@ -636,6 +934,26 @@ function nextComposer() {
 }
 
 onMounted(() => {
+  const storedLang = (() => {
+    try {
+      return localStorage.getItem("timeline-language");
+    } catch (err) {
+      return null;
+    }
+  })();
+  if (storedLang && SUPPORTED_LANGUAGES.includes(storedLang)) {
+    language.value = storedLang;
+  } else if (
+    navigator.language &&
+    navigator.language.toLowerCase().startsWith("de")
+  ) {
+    language.value = "de";
+  } else if (
+    navigator.language &&
+    navigator.language.toLowerCase().startsWith("ru")
+  ) {
+    language.value = "ru";
+  }
   updateViewFromLocation();
   // Fallback: if timeline instance exposes subscription hook later
   if (window.timeline && typeof window.timeline.onBarClick === "function") {
@@ -656,6 +974,35 @@ onBeforeUnmount(() => {
   const timeline = document.getElementById("timeline");
   if (timeline) {
     timeline.removeEventListener("scroll", updateScrollFlags);
+  }
+});
+
+watch(
+  appTitle,
+  (title) => {
+    if (title) {
+      document.title = title;
+    }
+  },
+  { immediate: true }
+);
+
+watch(language, (next) => {
+  const safe = SUPPORTED_LANGUAGES.includes(next) ? next : "en";
+  if (safe !== next) {
+    language.value = safe;
+    return;
+  }
+  try {
+    localStorage.setItem("timeline-language", safe);
+  } catch (err) {
+    // Ignore storage errors (e.g., private mode).
+  }
+  if (
+    window.timeline &&
+    typeof window.timeline.updateEraLabels === "function"
+  ) {
+    window.timeline.updateEraLabels(eraLabels.value);
   }
 });
 
@@ -1591,7 +1938,7 @@ function renderSoundCloudPlayer(container, tracks, playlistUrl) {
   border: 1px solid rgba(15, 23, 42, 0.16);
   background: rgba(255, 255, 255, 0.98);
   color: #111827;
-  font-size: 20px;
+  font-size: 16px;
   font-weight: 500;
   line-height: 1;
   display: inline-grid;
@@ -1640,7 +1987,7 @@ function renderSoundCloudPlayer(container, tracks, playlistUrl) {
 
 .filter-panel {
   position: relative;
-  width: 180px;
+  width: 200px;
   max-width: calc(100vw - 32px);
   padding: 8px 10px;
   background: rgba(255, 255, 255, 0.2);
@@ -1814,8 +2161,9 @@ function renderSoundCloudPlayer(container, tracks, playlistUrl) {
   }
 
   .about__title {
-    font-size: 24px;
+    font-size: 21px;
     line-height: 1.2;
+    margin-top: 15px;
   }
 
   .about__author {

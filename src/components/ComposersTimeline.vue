@@ -23,6 +23,10 @@ const props = defineProps({
     type: Object,
     default: () => ({}),
   },
+  eraLabels: {
+    type: Object,
+    default: () => ({}),
+  },
 });
 
 let timelineInstance = null;
@@ -50,6 +54,7 @@ onMounted(() => {
   timelineInstance = initTimeline({
     composers: props.composers,
     settings: props.settings,
+    eraLabels: props.eraLabels,
   });
   window.timeline = timelineInstance;
 });
@@ -77,6 +82,15 @@ watch(
   (next) => {
     if (!timelineInstance || !timelineInstance.updateSettings) return;
     timelineInstance.updateSettings(next);
+  },
+  { deep: true }
+);
+
+watch(
+  () => props.eraLabels,
+  (next) => {
+    if (!timelineInstance || !timelineInstance.updateEraLabels) return;
+    timelineInstance.updateEraLabels(next);
   },
   { deep: true }
 );

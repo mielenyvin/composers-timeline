@@ -164,6 +164,11 @@ const ERAS = [
   },
 ];
 
+let eraLabels = ERAS.reduce((acc, era) => {
+  acc[era.id] = era.label;
+  return acc;
+}, {});
+
 const earliestBirth = Math.min(...composers.map((c) => c.birth));
 const latestBirth = Math.max(...composers.map((c) => c.birth));
 let activeComposers = [...composers];
@@ -342,6 +347,19 @@ function eraColor(eraId) {
   return ERA_COLORS[eraId] || "#f3f4f6";
 }
 
+function getEraLabel(eraId) {
+  if (!eraId) return "";
+  return (
+    eraLabels[eraId] ||
+    ERAS.find((e) => e.id === eraId)?.label ||
+    eraId
+  );
+}
+
+function setEraLabels(next = {}) {
+  if (!next || typeof next !== "object") return;
+  eraLabels = { ...eraLabels, ...next };
+}
 
 function getEraIdForYear(year) {
   const era = ERAS.find((e) => year >= e.from && year < e.to);
@@ -460,7 +478,7 @@ function buildAxis() {
     // Solid (non-gradient) era backgrounds
     band.style.backgroundImage = "none";
     band.style.backgroundColor = eraColor(era.id);
-    band.textContent = era.label;
+    band.textContent = getEraLabel(era.id) || era.label;
 
     // Для первой эры (Baroque) подпись выравниваем по правому краю полосы
     if (era.id === "baroque") {
@@ -549,6 +567,7 @@ function buildGantt() {
   if (!laneCount) return;
 
   placements.forEach(({ composer: c, laneIndex }) => {
+    const displayName = c.displayName || c.name;
     const startPercent = yearToPercent(c.birth);
     const endPercent = yearToPercent(c.death);
     const bar = document.createElement("div");
@@ -595,14 +614,14 @@ function buildGantt() {
       img.style.width = avatarSize + "px";
       img.style.height = avatarSize + "px";
       img.src = imgSrc;
-      img.alt = c.name;
+      img.alt = displayName || c.name;
       bar.appendChild(img);
     }
 
     // Create label span for the name
     const labelSpan = document.createElement("span");
     labelSpan.className = "bar-label";
-    labelSpan.textContent = c.name;
+    labelSpan.textContent = displayName;
     bar.appendChild(labelSpan);
 
     gantt.appendChild(bar);
@@ -623,9 +642,9 @@ function buildGantt() {
     // If the label is truncated (ellipsis), try initials + last name first (e.g. "W. A. Mozart");
     // if it still does not fit, fall back to last name only.
     if (labelSpan.scrollWidth > labelSpan.clientWidth) {
-      labelSpan.textContent = getInitialsPlusLastName(c.name);
+      labelSpan.textContent = getInitialsPlusLastName(displayName);
       if (labelSpan.scrollWidth > labelSpan.clientWidth) {
-        labelSpan.textContent = getLastNamePart(c.name);
+        labelSpan.textContent = getLastNamePart(displayName);
       }
     }
   });
@@ -1034,6 +1053,7 @@ export function initTimeline(options = {}) {
     ? options.composers
     : composers;
   setActiveComposers(initial);
+  setEraLabels(options.eraLabels || {});
   ensureTimelineWidth();
   buildAxis();
   buildGantt();
@@ -1079,6 +1099,11 @@ export function initTimeline(options = {}) {
       applySettings(nextSettings || {});
       ensureTimelineWidth();
       buildGantt();
+    },
+    updateEraLabels(nextEraLabels) {
+      setEraLabels(nextEraLabels || {});
+      ensureTimelineWidth();
+      buildAxis();
     },
     setSelectedLane,
     setHoveredLane,
