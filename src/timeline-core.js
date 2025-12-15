@@ -660,17 +660,7 @@ function enablePanning() {
 
   let isDown = false;
   let isDragging = false;
-  const horizontalDragThreshold = 4;
-  const verticalDragThreshold = 1;
-  const logTouchMovement = (dx, dy, axisHint) => {
-    const dominantAxis = Math.abs(dx) >= Math.abs(dy) ? "horizontal" : "vertical";
-    const axis = axisHint || dominantAxis;
-    console.log(
-      `[timeline] touch pan (${axis}) dx=${dx.toFixed(1)} dy=${dy.toFixed(
-        1
-      )} scrollLeft=${timeline.scrollLeft.toFixed(1)} scrollTop=${timeline.scrollTop.toFixed(1)}`
-    );
-  };
+  const dragThreshold = 4;
   let startX = 0;
   let startY = 0;
   let startScrollLeft = 0;
@@ -705,13 +695,11 @@ function enablePanning() {
     const dx = lastClientX - startX;
     const dy = lastClientY - startY;
 
-    // drag right -> scroll left; drag down -> scroll up
     timeline.scrollLeft = startScrollLeft - dx;
     timeline.scrollTop = startScrollTop - dy;
   }
 
   const onMouseDown = (e) => {
-    // Only left button drag
     if (e.button !== 0) return;
 
     isDown = true;
@@ -726,7 +714,6 @@ function enablePanning() {
     startScrollLeft = timeline.scrollLeft;
     startScrollTop = timeline.scrollTop;
 
-    // prevent text selection / image drag
     e.preventDefault();
   };
 
@@ -738,14 +725,10 @@ function enablePanning() {
     if (!isDragging) {
       const dx = Math.abs(lastClientX - startX);
       const dy = Math.abs(lastClientY - startY);
-      const isVerticalIntent = dy > dx;
-      const axisThreshold = isVerticalIntent
-        ? verticalDragThreshold
-        : horizontalDragThreshold;
-      if (dx > axisThreshold || dy > axisThreshold) {
+      if (dx > dragThreshold || dy > dragThreshold) {
         startPanning();
       } else {
-        return; // keep clicks working when there is no real drag
+        return;
       }
     }
 
@@ -772,21 +755,6 @@ function enablePanning() {
   // Touch panning with bounce blocking (iOS)
   let touchId = null;
   let touchDragStarted = false;
-  let touchAxisIntent = null;
-  let lastTouchX = 0;
-  let lastTouchY = 0;
-  const axisSwitchMargin = 10;
-
-  const switchTouchAxis = (axis) => {
-    if (touchAxisIntent === axis) return;
-    if (touchAxisIntent === "horizontal") {
-      stopPanning();
-    }
-    touchAxisIntent = axis;
-    if (axis === "horizontal") {
-      startPanning();
-    }
-  };
 
   const onTouchStart = (e) => {
     if (touchId !== null) return;
@@ -794,13 +762,10 @@ function enablePanning() {
     const t = e.touches[0];
     touchId = t.identifier;
     touchDragStarted = false;
-    touchAxisIntent = null;
     startX = t.clientX;
     startY = t.clientY;
     lastClientX = t.clientX;
     lastClientY = t.clientY;
-    lastTouchX = t.clientX;
-    lastTouchY = t.clientY;
     startScrollLeft = timeline.scrollLeft;
     startScrollTop = timeline.scrollTop;
     stopPanning();
@@ -815,36 +780,19 @@ function enablePanning() {
     const dyFromStart = t.clientY - startY;
     const absDx = Math.abs(dxFromStart);
     const absDy = Math.abs(dyFromStart);
-    const dominantAxis = absDx >= absDy ? "horizontal" : "vertical";
 
     if (!touchDragStarted) {
-      if (absDx > horizontalDragThreshold || absDy > verticalDragThreshold) {
+      if (absDx > dragThreshold || absDy > dragThreshold) {
         touchDragStarted = true;
-        switchTouchAxis(dominantAxis);
+        startPanning();
       } else {
-        lastTouchX = t.clientX;
-        lastTouchY = t.clientY;
         return;
       }
-    } else if (
-      touchAxisIntent &&
-      dominantAxis !== touchAxisIntent &&
-      Math.abs(absDx - absDy) > axisSwitchMargin
-    ) {
-      switchTouchAxis(dominantAxis);
     }
 
-    if (touchAxisIntent === "horizontal") {
-      timeline.scrollLeft = startScrollLeft - dxFromStart;
-      e.preventDefault();
-    } else if (touchAxisIntent === "vertical") {
-      timeline.scrollTop = startScrollTop - dyFromStart;
-      e.preventDefault();
-    }
-
-    lastTouchX = t.clientX;
-    lastTouchY = t.clientY;
-    logTouchMovement(dxFromStart, dyFromStart, touchAxisIntent);
+    timeline.scrollLeft = startScrollLeft - dxFromStart;
+    timeline.scrollTop = startScrollTop - dyFromStart;
+    e.preventDefault();
   };
 
   const onTouchEnd = (e) => {
@@ -855,7 +803,6 @@ function enablePanning() {
     if (!ended) return;
     touchId = null;
     touchDragStarted = false;
-    touchAxisIntent = null;
     stopPanning();
   };
 
@@ -865,72 +812,20 @@ function enablePanning() {
   timeline.addEventListener("touchcancel", onTouchEnd, { passive: true });
 }
 
-// When the user pans to the right and the visible bars get clipped on the left,
-// auto-scroll vertically so the first visible bar starts at (or near) the left edge.
-function enableHorizontalAutoAlign() {
+function enableVerticalSnapOnRelease() {
   const timeline = document.getElementById("timeline");
   const gantt = document.getElementById("gantt");
   const axis = document.getElementById("axis");
   if (!timeline || !gantt) return () => {};
 
-  let lastScrollLeft = timeline.scrollLeft;
-  let selfScroll = false;
-   let selfScrollTimer = null;
-  let settleTimer = null;
-
   const tolerancePx = 0.5;
-  const rightClipThreshold = 5; // px of hidden left part before we auto-scroll down
-
-  const clearSettleTimer = () => {
-    if (settleTimer !== null) {
-      clearTimeout(settleTimer);
-      settleTimer = null;
-    }
-  };
-
-  const clearSelfScrollTimer = () => {
-    if (selfScrollTimer !== null) {
-      clearTimeout(selfScrollTimer);
-      selfScrollTimer = null;
-    }
-  };
-
-  const smoothSelfScrollTo = (left, top) => {
-    clearSelfScrollTimer();
-    const prefersReducedMotion = window.matchMedia?.(
-      "(prefers-reduced-motion: reduce)"
-    ).matches;
-    selfScroll = true;
-    if (timeline.scrollTo && !prefersReducedMotion) {
-      timeline.scrollTo({ left, top, behavior: "smooth" });
-      selfScrollTimer = setTimeout(() => {
-        selfScroll = false;
-        selfScrollTimer = null;
-      }, 320);
-    } else {
-      timeline.scrollLeft = left;
-      timeline.scrollTop = top;
-      selfScroll = false;
-    }
-  };
-
-  const alignAfterSettle = (direction) => {
-    clearSettleTimer();
-    settleTimer = setTimeout(() => {
-      settleTimer = null;
-      align(direction);
-    }, 90);
-  };
 
   const isBarVerticallyVisible = (bar, top, bottom) => {
     const rect = bar.getBoundingClientRect();
     return rect.bottom > top && rect.top < bottom;
   };
 
-  const getLaneIndex = (bar) =>
-    Number(bar.getAttribute("data-lane-index")) || 0;
-
-  const align = (direction) => {
+  const snapToFirstVisible = () => {
     const bars = Array.from(gantt.querySelectorAll(".bar"));
     if (!bars.length) return;
 
@@ -939,149 +834,29 @@ function enableHorizontalAutoAlign() {
     const barViewportTop = (axisRect?.bottom ?? containerRect.top) + 1;
     const barViewportBottom = containerRect.bottom;
 
-    const firstVisible = bars.find((bar) => {
-      return isBarVerticallyVisible(bar, barViewportTop, barViewportBottom);
-    });
+    const firstVisible = bars.find((bar) =>
+      isBarVerticallyVisible(bar, barViewportTop, barViewportBottom)
+    );
     if (!firstVisible) return;
 
-    const viewportLeft = timeline.scrollLeft;
-    const viewportRight = viewportLeft + timeline.clientWidth;
-    const currentLane = getLaneIndex(firstVisible);
-    const topLaneBar =
-      bars.reduce((best, bar) => {
-        const lane = getLaneIndex(bar);
-        if (!best) return bar;
-        const bestLane = getLaneIndex(best);
-        return lane < bestLane ? bar : best;
-      }, null) || firstVisible;
+    const targetRect = firstVisible.getBoundingClientRect();
+    const desiredTop = barViewportTop;
+    const delta = targetRect.top - desiredTop;
+    if (Math.abs(delta) <= tolerancePx) return;
 
-    if (direction === "right") {
-      const isClippedLeft =
-        firstVisible.offsetLeft < viewportLeft - rightClipThreshold;
-      if (!isClippedLeft) return;
-
-      let targetBar =
-        bars.find((bar) => {
-          const lane = getLaneIndex(bar);
-          return (
-            lane > currentLane &&
-            bar.offsetLeft >= viewportLeft - tolerancePx &&
-            isBarVerticallyVisible(bar, barViewportTop, barViewportBottom)
-          );
-        }) || null;
-
-      if (!targetBar) {
-        // If everything starts before the viewport, pick the latest-starting bar.
-        targetBar = bars.reduce((best, bar) => {
-          const lane = getLaneIndex(bar);
-          if (lane <= currentLane) return best;
-          if (!best) return bar;
-          return bar.offsetLeft > best.offsetLeft ? bar : best;
-        }, null);
-      }
-      if (!targetBar) return;
-
-      const targetRect = targetBar.getBoundingClientRect();
-      const desiredTop = barViewportTop + 1; // keep a tiny gap under the axis
-      const delta = targetRect.top - desiredTop;
-
-      if (Math.abs(delta) > tolerancePx) {
-        smoothSelfScrollTo(timeline.scrollLeft, timeline.scrollTop + delta);
-      }
-      return;
-    }
-
-    if (direction === "left") {
-      const firstRect = firstVisible.getBoundingClientRect();
-      const isClippedRight = firstRect.right > containerRect.right + tolerancePx;
-      const atHardLeft = viewportLeft <= tolerancePx; // near the very start
-      // If we're moving left and a bar above starts inside the viewport, we should align even if
-      // nothing is clipped. Otherwise, allow the old behavior (clip or hard-left).
-
-      let targetBar = null;
-      // Find a bar above the current one whose left edge is already inside the viewport
-      const candidates = bars.filter((bar) => {
-        const lane = getLaneIndex(bar);
-        if (lane >= currentLane) return false;
-        return bar.offsetLeft >= viewportLeft - tolerancePx;
-      });
-
-      // If nothing is clipped and no candidates above, keep the current view.
-      if (!atHardLeft && !isClippedRight && !candidates.length) return;
-
-      if (atHardLeft) {
-        // At the very left edge we always align to the topmost composer.
-        targetBar = topLaneBar;
-      } else if (candidates.length) {
-        // Prefer the closest lane above; within that lane, choose the closest left alignment.
-        targetBar = candidates.reduce((best, bar) => {
-          if (!best) return bar;
-          const lane = getLaneIndex(bar);
-          const bestLane = getLaneIndex(best);
-          if (lane > bestLane) return bar;
-          if (lane === bestLane) {
-            const dist = Math.abs(bar.offsetLeft - viewportLeft);
-            const bestDist = Math.abs(best.offsetLeft - viewportLeft);
-            return dist < bestDist ? bar : best;
-          }
-          return best;
-        }, null);
-      }
-
-      // Fallback: topmost bar (lane 0) to guarantee alignment when at the far left.
-      if (!targetBar) {
-        targetBar = topLaneBar;
-      }
-      if (!targetBar) return;
-
-      const targetRect = targetBar.getBoundingClientRect();
-      const desiredTop = barViewportTop + 1;
-      const delta = targetRect.top - desiredTop;
-      const desiredLeft = Math.max(0, targetBar.offsetLeft);
-      const deltaLeft = desiredLeft - timeline.scrollLeft;
-
-      if (Math.abs(delta) > tolerancePx || Math.abs(deltaLeft) > tolerancePx) {
-        smoothSelfScrollTo(
-          Math.abs(deltaLeft) > tolerancePx ? desiredLeft : timeline.scrollLeft,
-          Math.abs(delta) > tolerancePx ? timeline.scrollTop + delta : timeline.scrollTop
-        );
-      }
-    }
+    smoothScrollTo(timeline, {
+      left: timeline.scrollLeft,
+      top: Math.max(0, timeline.scrollTop + delta),
+    });
   };
 
-  const onScroll = () => {
-    if (selfScroll) return;
-    const currentLeft = timeline.scrollLeft;
-    const isPanning = timeline.dataset.panning === "true";
-    const nearBottom =
-      timeline.scrollTop + timeline.clientHeight >= timeline.scrollHeight - tolerancePx;
-    if (isPanning || nearBottom) {
-      lastScrollLeft = currentLeft;
-      return;
-    }
-    const movedRight = currentLeft > lastScrollLeft + tolerancePx;
-    const movedLeft = currentLeft < lastScrollLeft - tolerancePx;
-
-    if (movedRight) {
-      alignAfterSettle("right");
-    } else if (movedLeft) {
-      alignAfterSettle("left");
-    }
-
-    // When we are parked at the left edge, still align to the topmost composer.
-    if (currentLeft <= tolerancePx) {
-      alignAfterSettle("left");
-    }
-
-    lastScrollLeft = currentLeft;
+  const onPanEnd = () => {
+    snapToFirstVisible();
   };
 
-  timeline.addEventListener("scroll", onScroll, { passive: true });
-
+  timeline.addEventListener("timeline-pan-end", onPanEnd);
   return () => {
-    timeline.removeEventListener("scroll", onScroll);
-    clearSettleTimer();
-    clearSelfScrollTimer();
+    timeline.removeEventListener("timeline-pan-end", onPanEnd);
   };
 }
 
@@ -1112,7 +887,7 @@ export function initTimeline(options = {}) {
   buildAxis();
   buildGantt();
   enablePanning();
-  const teardownAutoAlign = enableHorizontalAutoAlign();
+  const teardownVerticalSnap = enableVerticalSnapOnRelease();
 
   // Пересчитываем ширину при смене ориентации/ресайзе окна
   const onResize = () => ensureTimelineWidth();
@@ -1163,7 +938,7 @@ export function initTimeline(options = {}) {
     setHoveredLane,
     destroy() {
       window.removeEventListener("resize", onResize);
-      teardownAutoAlign();
+      teardownVerticalSnap();
     },
   };
 }
