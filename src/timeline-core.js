@@ -607,10 +607,11 @@ function buildGantt() {
 
     // Create thumbnail image if available
     const imgSrc = getComposerImage(c.name);
+    let avatarSize = 0;
     if (imgSrc) {
       const img = document.createElement("img");
       img.className = "bar-avatar";
-      const avatarSize = Math.max(10, Math.round(barHeight * 0.9));
+      avatarSize = Math.max(10, Math.round(barHeight * 1.1));
       img.style.width = avatarSize + "px";
       img.style.height = avatarSize + "px";
       img.src = imgSrc;
@@ -623,8 +624,48 @@ function buildGantt() {
     labelSpan.className = "bar-label";
     labelSpan.textContent = displayName;
     bar.appendChild(labelSpan);
+    const datesSpan = document.createElement("span");
+    datesSpan.className = "bar-dates";
+    datesSpan.textContent = `${c.birth} – ${c.death}`;
+    bar.appendChild(datesSpan);
 
     gantt.appendChild(bar);
+
+    // If the label is truncated (ellipsis), try initials + last name first (e.g. "W. A. Mozart");
+    // if it still does not fit, fall back to last name only.
+    if (labelSpan.scrollWidth > labelSpan.clientWidth) {
+      labelSpan.textContent = getInitialsPlusLastName(displayName);
+      if (labelSpan.scrollWidth > labelSpan.clientWidth) {
+        labelSpan.textContent = getLastNamePart(displayName);
+      }
+    }
+
+    const adjustDatesVisibility = () => {
+      const horizontalPadding = 12; // matches `.bar` padding: 6px on each side
+      const spanGap = 6; // gap set on .bar between flex items
+      const availableWidth =
+        bar.clientWidth -
+        horizontalPadding -
+        (avatarSize ? avatarSize + spanGap : 0) -
+        spanGap;
+      if (availableWidth <= 0) {
+        datesSpan.style.display = "none";
+        return;
+      }
+      const requiredWidth =
+        labelSpan.scrollWidth + datesSpan.scrollWidth + spanGap;
+      if (requiredWidth > availableWidth) {
+        datesSpan.style.display = "none";
+      }
+    };
+    const scheduleAdjustment = () => {
+      if (bar.clientWidth > 0) {
+        adjustDatesVisibility();
+      } else if (typeof window !== "undefined") {
+        window.requestAnimationFrame(adjustDatesVisibility);
+      }
+    };
+    scheduleAdjustment();
 
     // Fire selection event on click (used by Vue app)
     bar.addEventListener("click", (event) => {
@@ -638,15 +679,6 @@ function buildGantt() {
     });
     bar.addEventListener("mouseenter", () => setHoveredLane(laneIndex));
     bar.addEventListener("mouseleave", () => setHoveredLane(null));
-
-    // If the label is truncated (ellipsis), try initials + last name first (e.g. "W. A. Mozart");
-    // if it still does not fit, fall back to last name only.
-    if (labelSpan.scrollWidth > labelSpan.clientWidth) {
-      labelSpan.textContent = getInitialsPlusLastName(displayName);
-      if (labelSpan.scrollWidth > labelSpan.clientWidth) {
-        labelSpan.textContent = getLastNamePart(displayName);
-      }
-    }
   });
 
   gantt.appendChild(connectors);
@@ -714,6 +746,15 @@ function enablePanning() {
     startScrollLeft = timeline.scrollLeft;
     startScrollTop = timeline.scrollTop;
 
+    // Cancel any ongoing native smooth scrolling immediately when the user starts dragging.
+    if (timeline.scrollTo) {
+      timeline.scrollTo({
+        left: timeline.scrollLeft,
+        top: timeline.scrollTop,
+        behavior: "auto",
+      });
+    }
+
     e.preventDefault();
   };
 
@@ -768,6 +809,16 @@ function enablePanning() {
     lastClientY = t.clientY;
     startScrollLeft = timeline.scrollLeft;
     startScrollTop = timeline.scrollTop;
+
+    // Cancel any ongoing native smooth scrolling immediately when the user starts dragging.
+    if (timeline.scrollTo) {
+      timeline.scrollTo({
+        left: timeline.scrollLeft,
+        top: timeline.scrollTop,
+        behavior: "auto",
+      });
+    }
+
     stopPanning();
   };
 
@@ -819,13 +870,20 @@ function enableVerticalSnapOnRelease() {
   if (!timeline || !gantt) return () => {};
 
   const tolerancePx = 0.5;
+  const bottomSnapThreshold = 12;
 
   const isBarVerticallyVisible = (bar, top, bottom) => {
     const rect = bar.getBoundingClientRect();
     return rect.bottom > top && rect.top < bottom;
   };
 
+  const isNearBottom = () =>
+    timeline.scrollTop + timeline.clientHeight >=
+    timeline.scrollHeight - bottomSnapThreshold;
+
   const snapToFirstVisible = () => {
+    if (isNearBottom()) return;
+
     const bars = Array.from(gantt.querySelectorAll(".bar"));
     if (!bars.length) return;
 
@@ -847,6 +905,7 @@ function enableVerticalSnapOnRelease() {
     smoothScrollTo(timeline, {
       left: timeline.scrollLeft,
       top: Math.max(0, timeline.scrollTop + delta),
+      behavior: "auto",
     });
   };
 
@@ -860,18 +919,20 @@ function enableVerticalSnapOnRelease() {
   };
 }
 
-function smoothScrollTo(timeline, { left = 0, top = 0 }) {
+function smoothScrollTo(timeline, { left = 0, top = 0, behavior = "smooth" }) {
   const prefersReducedMotion = window.matchMedia?.(
     "(prefers-reduced-motion: reduce)"
   ).matches;
 
-  // Use native smooth scroll when available and motion is allowed.
-  if (timeline.scrollTo && !prefersReducedMotion) {
-    timeline.scrollTo({ left, top, behavior: "smooth" });
+  const finalBehavior = prefersReducedMotion ? "auto" : behavior;
+
+  // Use native scrollTo when available.
+  if (timeline.scrollTo) {
+    timeline.scrollTo({ left, top, behavior: finalBehavior });
     return;
   }
 
-  // Fallback: jump instantly when smooth scrolling is unavailable or disabled.
+  // Fallback: jump instantly when scrollTo is unavailable.
   timeline.scrollLeft = left;
   timeline.scrollTop = top;
 }
@@ -903,7 +964,7 @@ export function initTimeline(options = {}) {
   function goToStart() {
     const timeline = document.getElementById("timeline");
     if (timeline) {
-      smoothScrollTo(timeline, { left: 0, top: 0 });
+      smoothScrollTo(timeline, { left: 0, top: 0, behavior: "auto" });
     }
   }
 
@@ -913,6 +974,7 @@ export function initTimeline(options = {}) {
       smoothScrollTo(timeline, {
         left: Math.max(0, timeline.scrollWidth - timeline.clientWidth),
         top: Math.max(0, timeline.scrollHeight - timeline.clientHeight),
+        behavior: "auto",
       });
     }
   }

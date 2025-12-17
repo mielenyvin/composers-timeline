@@ -332,7 +332,6 @@ Name (ru): Жак Оффенбах
 - Famous works: Orphée aux enfers (with the famous “can-can”/Infernal Galop), La belle Hélène and La vie parisienne defined the sound of Second Empire Paris.
 - One serious masterpiece: Late in life he wrote the darker, larger-scale opera The Tales of Hoffmann, left unfinished at his death and later completed by others.
 
-
 ## Jacques Offenbach essentials (ru) {#jaques-offenbach}
 
 - Кем он был: Родился в Германии (Кёльн), композитор и виолончелист, ставший французской музыкальной знаменитостью, мастер оперетты.
@@ -359,6 +358,8 @@ Name (ru): Иоганн Штраус II
 - Образ Вены: Его музыка во многом определяет то, как мы «слышим» старую Вену - вальсы, шампанское и бальные залы.
 
 ## Johannes Brahms essentials {#johannes-brahms}
+
+Name (ru): Иоганнес Брамс
 
 - Who he was: German Romantic composer, pianist and conductor, based mainly in Hamburg and Vienna.
 - Symphonic craft: His four symphonies, concertos and chamber works are admired for their dense, organic development and structural control.
