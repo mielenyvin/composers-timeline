@@ -13,9 +13,9 @@
 
     "deploy": "npm run build && npm run deploy:frontend && npm run deploy:backend && npm run deploy:reload",
 
-    "deploy:frontend": "rsync -az --delete --no-perms --no-owner --no-group -e \"ssh -i ~/.ssh/default_my\" dist/ root@139.59.136.231:/var/www/html/",
-    "deploy:backend": "rsync -az --delete --no-perms --no-owner --no-group -e \"ssh -i ~/.ssh/default_my\" server/ root@139.59.136.231:/var/www/composers-backend/server/",
-    "deploy:reload": "ssh -i ~/.ssh/default_my root@139.59.136.231 'cd /var/www/composers-backend && pm2 restart composers-soundcloud'"
+    "deploy:frontend": "rsync -az --delete --no-perms --no-owner --no-group -e \"ssh -i ~/.ssh/default_my\" dist/ root@31.130.135.145:/var/www/html/",
+    "deploy:backend": "rsync -az --delete --no-perms --no-owner --no-group -e \"ssh -i ~/.ssh/default_my\" server/ root@31.130.135.145:/var/www/composers-backend/server/",
+    "deploy:reload": "ssh -i ~/.ssh/default_my root@31.130.135.145 'cd /var/www/composers-backend && pm2 restart composers-soundcloud'"
   },
   "dependencies": {
     "dotenv": "^17.2.3",

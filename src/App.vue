@@ -274,7 +274,7 @@ const LOCALES = {
           linkText: "timofeymuhortov.ru",
         },
         {
-          name: "Olga Shibanova",
+          name: "Olga Matveeva",
           url: "https://facebook.com/olga.shibanova",
           linkText: "facebook.com/olga.shibanova",
         },
