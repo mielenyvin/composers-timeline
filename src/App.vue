@@ -145,6 +145,20 @@
                 <a class="about__contributors-link" :href="person.url" target="_blank" rel="noreferrer">
                   {{ person.linkText }}
                 </a>
+                <div
+                  v-if="person.url === 'https://facebook.com/olga.shibanova'"
+                  class="about__contributors-toggle"
+                >
+                  <label class="about__contributors-toggle-label">
+                    <input
+                      v-model="testFeaturesEnabled"
+                      class="about__contributors-toggle-input"
+                      type="checkbox"
+                      aria-label="Toggle test features"
+                    />
+                    <span>{{ testFeaturesLabel }}</span>
+                  </label>
+                </div>
               </li>
             </ul>
           </div>
@@ -267,6 +281,7 @@ const LOCALES = {
       authorLabel: "Project creator and author",
       authorName: "Dmitrii Kotikov",
       contributorsTitle: "Project collaborators",
+      testFeaturesLabel: "Turn on test functions",
       contributors: [
         {
           name: "Timofey Muhortov",
@@ -325,7 +340,7 @@ const LOCALES = {
           linkText: "timofeymuhortov.ru",
         },
         {
-          name: "Olga Shibanova",
+          name: "Olga Matveeva",
           url: "https://facebook.com/olga.shibanova",
           linkText: "facebook.com/olga.shibanova",
         },
@@ -369,6 +384,7 @@ const LOCALES = {
       authorLabel: "Автор и создатель проекта",
       authorName: "Дмитрий Котиков",
       contributorsTitle: "Соавторы проекта",
+      testFeaturesLabel: "Включить тестовые функции",
       contributors: [
         {
           name: "Тимофей Мухортов",
@@ -376,7 +392,7 @@ const LOCALES = {
           linkText: "timofeymuhortov.ru",
         },
         {
-          name: "Ольга Шибанова",
+          name: "Ольга Матвеева",
           url: "https://facebook.com/olga.shibanova",
           linkText: "facebook.com/olga.shibanova",
         },
@@ -452,6 +468,8 @@ const FACTS_TITLE_BY_LOCALE = {
   ru: "ключевые факты",
 };
 const language = ref(DEFAULT_LANGUAGE);
+const testFeaturesEnabled = ref(false);
+const shouldUseSoundCloudAudioProxy = computed(() => !testFeaturesEnabled.value);
 const activeLocale = computed(() => LOCALES[language.value] || LOCALES.en);
 const languageOptions = computed(() =>
   SUPPORTED_LANGUAGES.map((code) => ({
@@ -471,6 +489,9 @@ const aboutContent = computed(
 );
 
 const aboutContributors = computed(() => aboutContent.value.contributors || LOCALES.en.about.contributors || []);
+const testFeaturesLabel = computed(
+  () => aboutContent.value.testFeaturesLabel || LOCALES.en.about.testFeaturesLabel || "Test functions"
+);
 const eraLabels = computed(() => activeLocale.value.eras || LOCALES.en.eras);
 const composerLocale = computed(() => activeLocale.value.composers || {});
 const namesFromLocale = computed(() => {
@@ -1424,9 +1445,9 @@ function initializeLanguage() {
 }
 
 async function detectPreferredLanguage() {
-  if (hasUserSetLanguage.value) {
+  const allowLanguageSwitch = !hasUserSetLanguage.value;
+  if (!allowLanguageSwitch) {
     showDetectionAlert("STORED", language.value);
-    return;
   }
 
   const detectors = [detectViaIpApi, detectViaIpWhoIs];
@@ -1434,6 +1455,9 @@ async function detectPreferredLanguage() {
     const country = await detector();
     if (country) {
       const normalizedCountry = String(country).toUpperCase();
+      if (!allowLanguageSwitch) {
+        return;
+      }
       const lang =
         normalizedCountry === "RU"
           ? "ru"
@@ -1446,6 +1470,9 @@ async function detectPreferredLanguage() {
     }
   }
 
+  if (!allowLanguageSwitch) {
+    return;
+  }
   // If geo lookups fail, keep English (no timezone / navigator fallbacks).
   applyLanguage(DEFAULT_LANGUAGE);
   showDetectionAlert(UNKNOWN_COUNTRY, DEFAULT_LANGUAGE);
@@ -1860,12 +1887,15 @@ async function fetchSoundCloudTranscodingUrl(
   transcodingUrl,
   trackAuthorization
 ) {
-  const url =
-    buildProxyUrl("/api/soundcloud/transcoding") +
-    `?url=${encodeURIComponent(transcodingUrl)}${trackAuthorization
-      ? `&track_authorization=${encodeURIComponent(trackAuthorization)}`
-      : ""
-    }`;
+  const params = new URLSearchParams();
+  params.set("url", transcodingUrl);
+  if (trackAuthorization) {
+    params.set("track_authorization", trackAuthorization);
+  }
+  if (shouldUseSoundCloudAudioProxy.value) {
+    params.set("proxy", "1");
+  }
+  const url = buildProxyUrl("/api/soundcloud/transcoding") + `?${params.toString()}`;
   const resp = await fetch(url);
   if (!resp.ok) {
     const err = new Error(`SoundCloud transcoding error: ${resp.status}`);
@@ -1881,11 +1911,17 @@ async function fetchSoundCloudTranscodingUrl(
 }
 
 async function fetchSoundCloudStreamUrl(trackId, trackAuthorization) {
+  const params = new URLSearchParams();
+  if (trackAuthorization) {
+    params.set("track_authorization", trackAuthorization);
+  }
+  if (shouldUseSoundCloudAudioProxy.value) {
+    params.set("proxy", "1");
+  }
+  const query = params.toString();
   const url =
     buildProxyUrl(`/api/soundcloud/streams/${trackId}`) +
-    (trackAuthorization
-      ? `?track_authorization=${encodeURIComponent(trackAuthorization)}`
-      : "");
+    (query ? `?${query}` : "");
   const resp = await fetch(url);
   if (!resp.ok) {
     const err = new Error(`SoundCloud stream error: ${resp.status}`);
@@ -2178,6 +2214,27 @@ function renderSoundCloudPlayer(container, tracks, playlistUrl) {
 
 .about__contributors-link:hover {
   border-bottom-color: currentColor;
+}
+
+.about__contributors-toggle {
+  flex-basis: 100%;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin-top: 4px;
+  font-size: 12px;
+  color: #111827;
+}
+
+.about__contributors-toggle-label {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 16px;
+}
+
+.about__contributors-toggle-input {
+  accent-color: #111827;
 }
 
 .composer-modal {
@@ -2825,15 +2882,3 @@ function renderSoundCloudPlayer(container, tracks, playlistUrl) {
   }
 }
 </style>
-
-.composer-modal__header {
-padding-right: 200px;
-}
-
-.composer-modal__titles {
-max-width: calc(100% - 200px);
-}
-
-:deep(.sc-player__embed) {
-height: 320px;
-}

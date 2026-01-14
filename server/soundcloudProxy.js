@@ -187,18 +187,24 @@ app.get("/api/soundcloud/transcoding", async (req, res) => {
   try {
     const transcodingUrl = req.query.url;
     const trackAuth = req.query.track_authorization;
+    const useProxy = req.query.proxy === "1";
 
     if (!transcodingUrl) {
       return res.status(400).json({ error: "Missing url parameter" });
+    }
+
+    if (!useProxy) {
+      const finalUrl = await resolveTranscodingUrl(transcodingUrl, trackAuth);
+      return res.json({ url: finalUrl });
     }
 
     // Extract trackId from transcoding URL like:
     // https://api-widget.soundcloud.com/media/soundcloud:tracks:58903671/<uuid>/stream/progressive
     const m = String(transcodingUrl).match(/soundcloud:tracks:(\d+)/);
     if (!m) {
-      // Fallback: if we can't parse trackId - at least return resolved final URL
-      const finalUrl = await resolveTranscodingUrl(transcodingUrl, trackAuth);
-      return res.json({ url: finalUrl });
+      return res
+        .status(502)
+        .json({ error: "Cannot parse trackId for proxy mode" });
     }
 
     const trackId = m[1];
@@ -274,6 +280,7 @@ app.get("/api/soundcloud/streams/:trackId", async (req, res) => {
   try {
     const trackId = req.params.trackId;
     const trackAuth = req.query.track_authorization;
+    const useProxy = req.query.proxy === "1";
     if (!trackId) {
       return res.status(400).json({ error: "Missing trackId" });
     }
@@ -299,6 +306,10 @@ app.get("/api/soundcloud/streams/:trackId", async (req, res) => {
       candidate: candidate.url,
       finalUrl,
     });
+
+    if (!useProxy) {
+      return res.json({ url: finalUrl });
+    }
 
     const auth = encodeURIComponent(
       trackAuth || track?.track_authorization || ""
