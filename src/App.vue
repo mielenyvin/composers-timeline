@@ -1974,7 +1974,9 @@ function renderSoundCloudPlayer(container, tracks, playlistUrl) {
 
   let currentTrackId = null;
   let currentButton = null;
+  let currentIndex = null;
   let isLoading = false;
+  const buttons = [];
 
   const setButtonState = (btn, state) => {
     btn.dataset.state = state;
@@ -1989,14 +1991,59 @@ function renderSoundCloudPlayer(container, tracks, playlistUrl) {
     }
     currentTrackId = null;
     currentButton = null;
+    currentIndex = null;
   };
 
-  audio.addEventListener("ended", resetCurrent);
+  audio.addEventListener("ended", () => {
+    const nextIndex = currentIndex === null ? -1 : currentIndex + 1;
+    if (nextIndex >= 0 && nextIndex < tracks.length) {
+      playTrackAt(nextIndex, { auto: true });
+      return;
+    }
+    resetCurrent();
+  });
   audio.addEventListener("pause", () => {
     if (currentButton && audio.currentTime < (audio.duration || Infinity)) {
       resetButton(currentButton);
     }
   });
+
+  const playTrackAt = async (index, { auto = false } = {}) => {
+    if (isLoading) return;
+    const track = tracks[index];
+    const button = buttons[index];
+    if (!track || !button) return;
+
+    if (!auto && currentIndex === index && !audio.paused) {
+      audio.pause();
+      resetButton(button);
+      return;
+    }
+
+    isLoading = true;
+    setButtonState(button, "loading");
+    try {
+      const streamUrl = await resolveSoundCloudStreamUrl(track);
+      if (!streamUrl) throw new Error("No stream URL returned");
+      audio.src = streamUrl;
+      await audio.play();
+
+      if (currentButton && currentButton !== button) {
+        resetButton(currentButton);
+      }
+
+      currentButton = button;
+      currentTrackId = track?.id ?? index;
+      currentIndex = index;
+      setButtonState(button, "playing");
+    } catch (err) {
+      console.error("Failed to play SoundCloud track", err);
+      resetButton(button);
+      container.dataset.soundcloudReady = "error";
+    } finally {
+      isLoading = false;
+    }
+  };
 
   tracks.forEach((track, index) => {
     const trackEl = document.createElement("div");
@@ -2007,6 +2054,7 @@ function renderSoundCloudPlayer(container, tracks, playlistUrl) {
     button.className = "sc-track__button";
     button.setAttribute("aria-label", "Play track");
     setButtonState(button, "idle");
+    buttons.push(button);
 
     const titleEl = document.createElement("div");
     titleEl.className = "sc-track__title";
@@ -2015,37 +2063,8 @@ function renderSoundCloudPlayer(container, tracks, playlistUrl) {
     trackEl.append(button, titleEl);
     list.append(trackEl);
 
-    button.addEventListener("click", async () => {
-      if (isLoading) return;
-
-      if (currentTrackId === (track?.id ?? index) && !audio.paused) {
-        audio.pause();
-        resetButton(button);
-        return;
-      }
-
-      isLoading = true;
-      setButtonState(button, "loading");
-      try {
-        const streamUrl = await resolveSoundCloudStreamUrl(track);
-        if (!streamUrl) throw new Error("No stream URL returned");
-        audio.src = streamUrl;
-        await audio.play();
-
-        if (currentButton && currentButton !== button) {
-          resetButton(currentButton);
-        }
-
-        currentButton = button;
-        currentTrackId = track?.id ?? index;
-        setButtonState(button, "playing");
-      } catch (err) {
-        console.error("Failed to play SoundCloud track", err);
-        resetButton(button);
-        container.dataset.soundcloudReady = "error";
-      } finally {
-        isLoading = false;
-      }
+    button.addEventListener("click", () => {
+      void playTrackAt(index);
     });
   });
 
