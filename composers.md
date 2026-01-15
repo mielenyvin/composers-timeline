@@ -179,7 +179,6 @@ Name (ru): Гектор Берлиоз
 - Who he was: French Romantic composer and conductor, a pioneer of large-scale programmatic symphonic music.
 - Symphonie fantastique: His most famous work, a revolutionary program symphony that follows an obsessive, dreamlike narrative and uses a recurring idée fixe.
 - Orchestral imagination: He stretched the size, color and possibilities of the orchestra, later documented in his Treatise on Instrumentation.
-- Other key works: Harold in Italy, the dramatic legend The Damnation of Faust and his massive opera Les Troyens.
 
 
 ## Hector Berlioz essentials (ru) {#hector-berlioz}
@@ -187,7 +186,6 @@ Name (ru): Гектор Берлиоз
 - Кем он был: Французский композитор и дирижер романтизма, один из пионеров масштабной программной симфонической музыки.
 - Symphonie fantastique: Его самое известное произведение - революционная программная симфония с навязчивым, почти сновидческим сюжетом и повторяющейся idee fixe.
 - Оркестровое воображение: Он расширил размеры, краски и возможности оркестра, позже изложив это в своей Treatise on Instrumentation.
-- Другие ключевые вещи: Harold in Italy, драматическая легенда The Damnation of Faust и монументальная опера Les Troyens.
 
 ## Mikhail Glinka essentials {#mikhail-glinka}
 
@@ -770,7 +768,6 @@ Name (ru): Дмитрий Шостакович
 - Wer er war: Franzoesischer Komponist und Dirigent der Romantik, ein Pionier grossformatiger programmmusikalischer Sinfonik.
 - Symphonie fantastique: Sein bekanntestes Werk - eine revolutionaere Programmsinfonie mit obsessiver, traumhafter Handlung und einer wiederkehrenden idee fixe.
 - Orchesterfantasie: Er erweiterte Groesse, Klangfarben und Moeglichkeiten des Orchesters; spaeter dokumentierte er das in seiner Instrumentationslehre.
-- Weitere Schluesselwerke: Harold in Italy, die dramatische Legende The Damnation of Faust und die monumentale Oper Les Troyens.
 
 ## Mikhail Glinka essentials (de) {#mikhail-glinka}
 

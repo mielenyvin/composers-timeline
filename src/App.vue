@@ -178,19 +178,31 @@
               </p>
             </div>
 
-            <div class="composer-modal__nav composer-modal__nav--header" aria-label="Composer navigation">
-              <button class="composer-modal__arrow" @click="prevComposer" :disabled="!hasPrev" aria-label="Previous">
-                ←
+            <div class="composer-modal__header-actions">
+              <button
+                class="composer-modal__share"
+                type="button"
+                @click="shareCurrentComposer"
+                :aria-label="shareLabels.button"
+              >
+                <img class="composer-modal__share-icon" src="/images/share-icon.png" alt="" />
               </button>
-              <span class="composer-modal__position">
-                {{ (currentIndex ?? 0) + 1 }} / {{ sortedComposers.length }}
+              <span v-if="shareFeedback" class="composer-modal__share-feedback">
+                {{ shareFeedback }}
               </span>
-              <button class="composer-modal__arrow" @click="nextComposer" :disabled="!hasNext" aria-label="Next">
-                →
-              </button>
+              <div class="composer-modal__nav composer-modal__nav--header" aria-label="Composer navigation">
+                <button class="composer-modal__arrow" @click="prevComposer" :disabled="!hasPrev" aria-label="Previous">
+                  ←
+                </button>
+                <span class="composer-modal__position">
+                  {{ (currentIndex ?? 0) + 1 }} / {{ sortedComposers.length }}
+                </span>
+                <button class="composer-modal__arrow" @click="nextComposer" :disabled="!hasNext" aria-label="Next">
+                  →
+                </button>
+              </div>
+              <button class="composer-modal__close" @click="closeModal" aria-label="Close composer details">×</button>
             </div>
-
-            <button class="composer-modal__close" @click="closeModal" aria-label="Close composer details">×</button>
           </header>
 
           <div class="composer-modal__body">
@@ -229,7 +241,10 @@
               <div v-if="playlistSources.length" :key="playlistSources[0]"
                 class="composer-modal__playlist-box sc-player" :data-soundcloud-playlist="playlistSources[0]"
                 :data-soundcloud-playlist-alt="playlistSources.slice(1).join('|')">
-                <div class="sc-player__status">Loading tracks...</div>
+                <div class="sc-player__status">
+                  <span class="sc-player__spinner" aria-hidden="true"></span>
+                  <span class="sc-player__status-text">{{ soundCloudLoadingText }}</span>
+                </div>
               </div>
               <div v-else class="composer-modal__playlist-box composer-modal__playlist-box--empty">
                 Playlist will appear here soon.
@@ -271,6 +286,13 @@ const LOCALES = {
     },
     modal: {
       keyWorks: "Key works to know",
+    },
+    share: {
+      button: "Share",
+      copied: "Link copied",
+    },
+    soundcloud: {
+      loading: "Loading tracks from SoundCloud...",
     },
     about: {
       title: "Understand classical music by ear",
@@ -324,6 +346,13 @@ const LOCALES = {
     modal: {
       keyWorks: "Wichtige Werke zum Kennenlernen",
     },
+    share: {
+      button: "Teilen",
+      copied: "Link kopiert",
+    },
+    soundcloud: {
+      loading: "Tracks von SoundCloud werden geladen...",
+    },
     about: {
       title: "Klassische Musik mit dem Ohr verstehen",
       intro:
@@ -375,6 +404,13 @@ const LOCALES = {
     modal: {
       keyWorks: "Ключевые произведения",
     },
+    share: {
+      button: "Поделиться",
+      copied: "Ссылка скопирована",
+    },
+    soundcloud: {
+      loading: "Загружаем треки из SoundCloud...",
+    },
     about: {
       title: "Понимать классическую музыку на слух",
       intro:
@@ -422,6 +458,7 @@ const SUPPORTED_LANGUAGES = Object.keys(LOCALES);
 const DEFAULT_LANGUAGE = "en";
 const STORAGE_KEY = "timeline-language";
 const STORAGE_KEY_USER_SET = "timeline-language-user-set";
+const COMPOSER_PATH_PREFIX = "/composer/";
 const UNKNOWN_COUNTRY = "UNKNOWN";
 const RUSSIAN_TIMEZONES = [
   "europe/kaliningrad",
@@ -493,6 +530,12 @@ const testFeaturesLabel = computed(
   () => aboutContent.value.testFeaturesLabel || LOCALES.en.about.testFeaturesLabel || "Test functions"
 );
 const eraLabels = computed(() => activeLocale.value.eras || LOCALES.en.eras);
+const soundCloudLabels = computed(
+  () => activeLocale.value.soundcloud || LOCALES.en.soundcloud || {}
+);
+const soundCloudLoadingText = computed(
+  () => soundCloudLabels.value.loading || "Loading tracks from SoundCloud..."
+);
 const composerLocale = computed(() => activeLocale.value.composers || {});
 const namesFromLocale = computed(() => {
   const raw = composerLocale.value.names || {};
@@ -545,6 +588,7 @@ const composerFactsTitleOverrides = computed(() => {
   return mapped;
 });
 const modalText = computed(() => activeLocale.value.modal || LOCALES.en.modal);
+const shareLabels = computed(() => activeLocale.value.share || LOCALES.en.share);
 
 const isMenuOpen = ref(false);
 const currentView = ref("composers");
@@ -823,6 +867,9 @@ const sortedComposers = computed(() =>
 
 const { descriptionsByLocale, playlistIdsByKey, namesByLocale } = parseComposerFacts(composerFactsRaw);
 const currentIndex = ref(null);
+const isSyncingFromLocation = ref(false);
+const shareFeedback = ref("");
+let shareFeedbackTimer = null;
 
 const isModalOpen = computed(() => currentIndex.value !== null);
 const currentComposer = computed(() =>
@@ -867,6 +914,111 @@ function normalizeName(name) {
     .toLowerCase()
     .replace(/[^a-z0-9]+/g, " ")
     .trim();
+}
+
+function buildComposerSlug(name) {
+  return normalizeName(name).replace(/\s+/g, "-");
+}
+
+function buildComposerPath(name) {
+  const slug = buildComposerSlug(name);
+  return `${COMPOSER_PATH_PREFIX}${encodeURIComponent(slug)}`;
+}
+
+function parseComposerSlugFromPath(pathname) {
+  if (!pathname.startsWith(COMPOSER_PATH_PREFIX)) return "";
+  return pathname.slice(COMPOSER_PATH_PREFIX.length);
+}
+
+function getComposerNameBySlug(slug) {
+  const normalized = normalizeName(String(slug || "").replace(/-/g, " "));
+  const match = composers.find(
+    (composer) => normalizeName(composer.name) === normalized
+  );
+  return match ? match.name : "";
+}
+
+function ensureComposerVisible(name) {
+  if (!name) return;
+  const group = filterGroups.find((g) => g.composers.includes(name));
+  if (!group || filterState.value[group.id]) return;
+  filterState.value = { ...filterState.value, [group.id]: true };
+}
+
+async function syncFromLocation(pathname = window.location.pathname) {
+  isSyncingFromLocation.value = true;
+  try {
+    updateViewFromLocation(pathname);
+    const slugRaw = parseComposerSlugFromPath(pathname);
+    if (!slugRaw) {
+      currentIndex.value = null;
+      return;
+    }
+    const slug = decodeURIComponent(slugRaw);
+    const name = getComposerNameBySlug(slug);
+    if (!name) {
+      currentIndex.value = null;
+      return;
+    }
+    ensureComposerVisible(name);
+    await nextTick();
+    const nextIndex = sortedComposers.value.findIndex((c) => c.name === name);
+    currentIndex.value = nextIndex >= 0 ? nextIndex : null;
+  } finally {
+    isSyncingFromLocation.value = false;
+  }
+}
+
+function getComposerShareUrl(name) {
+  if (!name || typeof window === "undefined") return "";
+  const path = buildComposerPath(name);
+  return new URL(path, window.location.origin).toString();
+}
+
+async function shareCurrentComposer() {
+  if (!currentComposer.value) return;
+  const url = getComposerShareUrl(currentComposer.value.name);
+  if (!url) return;
+  const title = currentDisplayName.value || currentComposer.value.name;
+
+  try {
+    if (navigator.share) {
+      await navigator.share({ title, url });
+      return;
+    }
+  } catch (err) {
+    if (err?.name !== "AbortError") {
+      console.warn("Share failed, falling back to clipboard", err);
+    } else {
+      return;
+    }
+  }
+
+  try {
+    if (navigator.clipboard && navigator.clipboard.writeText) {
+      await navigator.clipboard.writeText(url);
+    } else {
+      const input = document.createElement("textarea");
+      input.value = url;
+      input.setAttribute("readonly", "true");
+      input.style.position = "absolute";
+      input.style.left = "-9999px";
+      document.body.appendChild(input);
+      input.select();
+      document.execCommand("copy");
+      document.body.removeChild(input);
+    }
+    shareFeedback.value = shareLabels.value.copied || "Link copied";
+    if (shareFeedbackTimer) {
+      clearTimeout(shareFeedbackTimer);
+    }
+    shareFeedbackTimer = setTimeout(() => {
+      shareFeedback.value = "";
+      shareFeedbackTimer = null;
+    }, 2200);
+  } catch (err) {
+    console.warn("Failed to copy share link", err);
+  }
 }
 
 function getLocalizedComposerName(name) {
@@ -1027,10 +1179,14 @@ function getComposerPlaylistIds(name) {
 }
 
 function updateViewFromLocation(pathname = window.location.pathname) {
+  if (pathname.startsWith(COMPOSER_PATH_PREFIX)) {
+    currentView.value = "composers";
+    return;
+  }
   currentView.value = pathname === "/about" ? "about" : "composers";
 }
 
-const handlePopState = () => updateViewFromLocation();
+const handlePopState = () => syncFromLocation();
 
 function navigateTo(path) {
   if (window.location.pathname !== path) {
@@ -1545,7 +1701,7 @@ function nextComposer() {
 
 onMounted(async () => {
   initializeLanguage();
-  updateViewFromLocation();
+  await syncFromLocation();
   await nextTick();
   moveFilterDockToBottomLeft();
   // Fallback: if timeline instance exposes subscription hook later
@@ -1583,6 +1739,10 @@ onBeforeUnmount(() => {
     window.visualViewport.removeEventListener("scroll", handleWindowResize);
   }
   cleanupFilterDockDrag();
+  if (shareFeedbackTimer) {
+    clearTimeout(shareFeedbackTimer);
+    shareFeedbackTimer = null;
+  }
   const timeline = document.getElementById("timeline");
   if (timeline) {
     timeline.removeEventListener("scroll", updateScrollFlags);
@@ -1648,6 +1808,26 @@ watch(currentIndex, (laneIndex) => {
     timeline.setSelectedLane(laneIndex);
   } else {
     timeline.setSelectedLane(null);
+  }
+});
+
+watch(currentIndex, (laneIndex) => {
+  if (isSyncingFromLocation.value) return;
+
+  if (Number.isInteger(laneIndex) && sortedComposers.value[laneIndex]) {
+    const composerName = sortedComposers.value[laneIndex].name;
+    const nextPath = buildComposerPath(composerName);
+    if (window.location.pathname !== nextPath) {
+      history.pushState({}, "", nextPath);
+      updateViewFromLocation(nextPath);
+    }
+    return;
+  }
+
+  const fallbackPath = currentView.value === "about" ? "/about" : "/";
+  if (window.location.pathname !== fallbackPath) {
+    history.replaceState({}, "", fallbackPath);
+    updateViewFromLocation(fallbackPath);
   }
 });
 
@@ -1761,8 +1941,7 @@ async function hydrateSoundCloudPlayer(container, onReady) {
   }
 
   container.dataset.soundcloudReady = "loading";
-  container.innerHTML =
-    '<div class="sc-player__status">Loading tracks from SoundCloud...</div>';
+  container.innerHTML = buildSoundCloudLoadingMarkup();
 
   let lastError = null;
   for (const playlistUrl of candidates) {
@@ -1799,6 +1978,16 @@ async function hydrateSoundCloudPlayer(container, onReady) {
     container.dataset.soundcloudReady = "error";
   }
   finalize();
+}
+
+function buildSoundCloudLoadingMarkup() {
+  const label = soundCloudLoadingText.value;
+  return `
+    <div class="sc-player__status">
+      <span class="sc-player__spinner" aria-hidden="true"></span>
+      <span class="sc-player__status-text">${label}</span>
+    </div>
+  `.trim();
 }
 
 async function resolveSoundCloudStreamUrl(track) {
@@ -2008,7 +2197,7 @@ function renderSoundCloudPlayer(container, tracks, playlistUrl) {
     }
   });
 
-  const playTrackAt = async (index, { auto = false } = {}) => {
+const playTrackAt = async (index, { auto = false } = {}) => {
     if (isLoading) return;
     const track = tracks[index];
     const button = buttons[index];
@@ -2027,6 +2216,7 @@ function renderSoundCloudPlayer(container, tracks, playlistUrl) {
       if (!streamUrl) throw new Error("No stream URL returned");
       audio.src = streamUrl;
       await audio.play();
+      updateMediaSessionMetadata(track);
 
       if (currentButton && currentButton !== button) {
         resetButton(currentButton);
@@ -2072,6 +2262,28 @@ function renderSoundCloudPlayer(container, tracks, playlistUrl) {
   container.append(list, audio);
   // Attribution block removed to avoid double attribution; now handled in header row
   container.dataset.soundcloudReady = "true";
+}
+
+function updateMediaSessionMetadata(track) {
+  if (!("mediaSession" in navigator) || typeof MediaMetadata === "undefined") return;
+  const title = track?.title || "Classical Music";
+  const artist =
+    track?.publisher_metadata?.artist ||
+    track?.user?.username ||
+    track?.user?.full_name ||
+    "";
+  const album = track?.publisher_metadata?.album_title || "";
+  navigator.mediaSession.metadata = new MediaMetadata({
+    title,
+    artist,
+    album,
+    artwork: [
+      {
+        src: "/images/about_music_logo.png",
+        type: "image/png",
+      },
+    ],
+  });
 }
 </script>
 
@@ -2312,9 +2524,6 @@ function renderSoundCloudPlayer(container, tracks, playlistUrl) {
 }
 
 .composer-modal__close {
-  position: absolute;
-  top: 16px;
-  right: 16px;
   border: none;
   background: #e5e7eb;
   border-radius: 12px;
@@ -2372,14 +2581,49 @@ function renderSoundCloudPlayer(container, tracks, playlistUrl) {
   flex-wrap: wrap;
 }
 
-.composer-modal__nav--header {
+.composer-modal__header-actions {
   position: absolute;
   top: 16px;
-  right: 64px;
+  right: 16px;
+  display: inline-flex;
+  align-items: center;
+  gap: 10px;
+  z-index: 2;
+}
+
+.composer-modal__nav--header {
   justify-content: flex-end;
   gap: 10px;
   flex-wrap: nowrap;
-  z-index: 2;
+}
+
+.composer-modal__share {
+  border: 1px solid rgba(0, 0, 0, 0.12);
+  background: #f8fafc;
+  color: inherit;
+  width: 42px;
+  height: 42px;
+  border-radius: 12px;
+  padding: 0;
+  display: grid;
+  place-items: center;
+  cursor: pointer;
+}
+
+.composer-modal__share:active {
+  transform: translateY(1px);
+}
+
+.composer-modal__share-icon {
+  width: 18px;
+  height: 18px;
+  display: block;
+}
+
+.composer-modal__share-feedback {
+  font-size: 12px;
+  color: #64748b;
+  white-space: nowrap;
 }
 
 .composer-modal__nav--mobile {
@@ -2471,6 +2715,31 @@ function renderSoundCloudPlayer(container, tracks, playlistUrl) {
   width: 100%;
   max-width: 100%;
   box-sizing: border-box;
+}
+
+:deep(.sc-player__status) {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 12px 14px;
+  font-size: 14px;
+  color: #1f2937;
+}
+
+:deep(.sc-player__spinner) {
+  width: 16px;
+  height: 16px;
+  border: 2px solid rgba(15, 23, 42, 0.25);
+  border-top-color: #0f172a;
+  border-radius: 50%;
+  animation: sc-spin 0.8s linear infinite;
+  flex: 0 0 auto;
+}
+
+@keyframes sc-spin {
+  to {
+    transform: rotate(360deg);
+  }
 }
 
 :deep(.sc-track-list) {
@@ -2851,6 +3120,12 @@ function renderSoundCloudPlayer(container, tracks, playlistUrl) {
 
   .composer-modal__nav--header {
     display: none;
+  }
+
+  .composer-modal__header-actions {
+    position: absolute;
+    top: 16px;
+    right: 16px;
   }
 
   .composer-modal__nav--mobile {

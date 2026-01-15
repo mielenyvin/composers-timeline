@@ -91,7 +91,9 @@ const composerImages = {
 };
 
 function getComposerImage(name) {
-  return composerImages[name] || null;
+  const image = composerImages[name];
+  if (!image) return null;
+  return image.startsWith("/") ? image : `/${image}`;
 }
 
 function getLastNamePart(fullName) {
