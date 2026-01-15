@@ -158,6 +158,8 @@
   transition: box-shadow 0.15s ease, transform 0.15s ease;
   scroll-snap-align: start;
   scroll-snap-stop: always;
+  -webkit-user-select: none;
+  user-select: none;
 }
 .bar-avatar {
   flex-shrink: 0;
