@@ -193,6 +193,33 @@
   transform: translateY(-1px);
 }
 
+.life-label {
+  position: absolute;
+  top: 2px;
+  transform: translateX(-50%) translateY(-4px);
+  padding: 1px 4px;
+  border-radius: 4px;
+  background: rgba(255, 255, 255, 0.92);
+  border: 1px solid rgba(15, 23, 42, 0.18);
+  font-family: "Source Sans 3", sans-serif;
+  font-size: 10px;
+  line-height: 1.1;
+  color: #0f172a;
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity 0.15s ease, transform 0.15s ease;
+  z-index: 70;
+}
+
+.life-label--active {
+  opacity: 1;
+  transform: translateX(-50%) translateY(0);
+}
+
+.life-label--hover {
+  border-color: rgba(15, 23, 42, 0.32);
+}
+
 .bar-connector {
   position: absolute;
   width: 1px;

@@ -429,6 +429,7 @@ function setActiveComposers(next) {
 
 function applySelectionHighlight() {
   const gantt = document.getElementById("gantt");
+  const axis = document.getElementById("axis");
   if (!gantt) return;
 
   const isSelected = (lane) =>
@@ -449,6 +450,16 @@ function applySelectionHighlight() {
     line.classList.toggle("bar-connector--selected", selected);
     line.classList.toggle("bar-connector--hover", hovered);
   });
+
+  if (axis) {
+    axis.querySelectorAll(".life-label").forEach((label) => {
+      const lane = Number(label.getAttribute("data-lane-index"));
+      const selected = isSelected(lane);
+      const hovered = isHovered(lane);
+      label.classList.toggle("life-label--active", selected || hovered);
+      label.classList.toggle("life-label--hover", hovered);
+    });
+  }
 }
 
 function setSelectedLane(laneIndex) {
@@ -533,9 +544,13 @@ function buildGantt() {
   const timeline = document.getElementById("timeline");
   if (!gantt) return;
   gantt.innerHTML = "";
+  if (axis) {
+    axis.querySelectorAll(".life-label").forEach((label) => label.remove());
+  }
   const axisGap =
     parseFloat(window.getComputedStyle(gantt).marginTop || "0") || 0;
   const connectors = document.createDocumentFragment();
+  const lifeLabels = document.createDocumentFragment();
 
   const data = activeComposers || [];
   const ganttWidth =
@@ -610,6 +625,24 @@ function buildGantt() {
 
     makeConnector(left, "start"); // birth
     makeConnector(left + width, "end"); // death
+
+    if (axis) {
+      const birthLabel = document.createElement("div");
+      birthLabel.className = "life-label";
+      birthLabel.setAttribute("data-lane-index", laneIndex);
+      birthLabel.setAttribute("data-side", "start");
+      birthLabel.style.left = left + "%";
+      birthLabel.textContent = c.birth;
+      lifeLabels.appendChild(birthLabel);
+
+      const deathLabel = document.createElement("div");
+      deathLabel.className = "life-label";
+      deathLabel.setAttribute("data-lane-index", laneIndex);
+      deathLabel.setAttribute("data-side", "end");
+      deathLabel.style.left = left + width + "%";
+      deathLabel.textContent = c.death;
+      lifeLabels.appendChild(deathLabel);
+    }
 
     bar.style.left = left + "%";
     bar.style.width = width + "%";
@@ -692,9 +725,52 @@ function buildGantt() {
     });
     bar.addEventListener("mouseenter", () => setHoveredLane(laneIndex));
     bar.addEventListener("mouseleave", () => setHoveredLane(null));
+    bar.addEventListener(
+      "touchstart",
+      (event) => {
+        if (!event.touches || event.touches.length !== 1) return;
+        const touch = event.touches[0];
+        bar.dataset.touchStartX = String(touch.clientX);
+        bar.dataset.touchStartY = String(touch.clientY);
+        setHoveredLane(laneIndex);
+      },
+      { passive: true }
+    );
+    bar.addEventListener(
+      "touchmove",
+      (event) => {
+        if (!event.touches || event.touches.length !== 1) return;
+        const startX = Number(bar.dataset.touchStartX || "0");
+        const startY = Number(bar.dataset.touchStartY || "0");
+        const touch = event.touches[0];
+        const dx = Math.abs(touch.clientX - startX);
+        const dy = Math.abs(touch.clientY - startY);
+        if (dx > 6 || dy > 6) {
+          setHoveredLane(null);
+        }
+      },
+      { passive: true }
+    );
+    bar.addEventListener(
+      "touchend",
+      () => {
+        setHoveredLane(null);
+      },
+      { passive: true }
+    );
+    bar.addEventListener(
+      "touchcancel",
+      () => {
+        setHoveredLane(null);
+      },
+      { passive: true }
+    );
   });
 
   gantt.appendChild(connectors);
+  if (axis) {
+    axis.appendChild(lifeLabels);
+  }
   applySelectionHighlight();
 }
 
@@ -1008,6 +1084,7 @@ export function initTimeline(options = {}) {
       setEraLabels(nextEraLabels || {});
       ensureTimelineWidth();
       buildAxis();
+      buildGantt();
     },
     setSelectedLane,
     setHoveredLane,
