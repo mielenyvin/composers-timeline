@@ -8,6 +8,7 @@ const composers = [
   { name: "Wolfgang Amadeus Mozart", birth: 1756, death: 1791 },
   { name: "Ludwig van Beethoven", birth: 1770, death: 1827 },
   { name: "Niccolò Paganini", birth: 1782, death: 1840 },
+  { name: "Gioachino Rossini", birth: 1792, death: 1868 },
   { name: "Franz Schubert", birth: 1797, death: 1828 },
   { name: "Hector Berlioz", birth: 1803, death: 1869 },
   { name: "Mikhail Glinka", birth: 1804, death: 1857 },
@@ -16,6 +17,7 @@ const composers = [
   { name: "Robert Schumann", birth: 1810, death: 1856 },
   { name: "Franz Liszt", birth: 1811, death: 1886 },
   { name: "Giuseppe Verdi", birth: 1813, death: 1901 },
+  { name: "Bedřich Smetana", birth: 1824, death: 1884 },
   { name: "Johann Strauss II", birth: 1825, death: 1899 },
   { name: "Johannes Brahms", birth: 1833, death: 1897 },
   { name: "Alexander Borodin", birth: 1833, death: 1887 },
@@ -30,17 +32,22 @@ const composers = [
   { name: "Giacomo Puccini", birth: 1858, death: 1924 },
   { name: "Gustav Mahler", birth: 1860, death: 1911 },
   { name: "Claude Debussy", birth: 1862, death: 1918 },
+  { name: "Richard Strauss", birth: 1864, death: 1949 },
+  { name: "Jean Sibelius", birth: 1865, death: 1957 },
   { name: "Erik Satie", birth: 1866, death: 1925 },
   { name: "Alexander Scriabin", birth: 1872, death: 1915 },
   { name: "Sergei Rachmaninoff", birth: 1873, death: 1943 },
   { name: "Maurice Ravel", birth: 1875, death: 1937 },
+  { name: "Igor Stravinsky", birth: 1882, death: 1971 },
   { name: "Sergei Prokofiev", birth: 1891, death: 1953 },
+  { name: "Carl Orff", birth: 1895, death: 1982 },
+  { name: "George Gershwin", birth: 1898, death: 1937 },
   { name: "Dmitri Shostakovich", birth: 1906, death: 1975 },
 ];
 
 const composerImages = {
   "Richard Wagner": "comp/wagner.jpg",
-  "Igor Stravinsky": "comp/stravinsky.jpg",
+  "Igor Stravinsky": "comp/strawinski.jpg",
 
   "Antonio Vivaldi": "comp/vivaldi.jpg",
   "Johann Sebastian Bach": "comp/bach.png",
@@ -58,6 +65,7 @@ const composerImages = {
   "Robert Schumann": "comp/schumann.jpg",
   "Franz Liszt": "comp/liszt.jpg",
   "Giuseppe Verdi": "comp/verdi.jpg",
+  "Richard Strauss": "comp/rstrauss.jpg",
   "Johann Strauss II": "comp/strauss.jpg",
   "Johannes Brahms": "comp/brahms.jpg",
   "Alexander Borodin": "comp/borodin.jpg",
@@ -80,6 +88,9 @@ const composerImages = {
   "Dmitri Shostakovich": "comp/shostakovich.jpg",
 
   // additional major composers
+  "Bedřich Smetana": "comp/smetana.jpg",
+  "George Gershwin": "comp/gershwin.jpg",
+  "Carl Orff": "comp/orff.jpg",
   "Carl Maria von Weber": "comp/weber.jpg",
   "Giacomo Puccini": "comp/puccini.jpg",
   "Jean Sibelius": "comp/sibelius.jpg",

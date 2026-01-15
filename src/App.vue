@@ -680,6 +680,7 @@ const filterGroups = [
     id: "core",
     label: "Core Classics",
     composers: [
+      "Richard Strauss",
       "Joseph Haydn",
       "George Frideric Handel",
       "Franz Schubert",
@@ -695,6 +696,7 @@ const filterGroups = [
       "Domenico Scarlatti",
       "Camille Saint-Saëns",
       "Georges Bizet",
+      "Gioachino Rossini",
     ],
   },
   {
@@ -713,6 +715,11 @@ const filterGroups = [
       "Erik Satie",
       "Sergei Prokofiev",
       "Dmitri Shostakovich",
+      "George Gershwin",
+      "Igor Stravinsky",
+      "Bedřich Smetana",
+      "Jean Sibelius",
+      "Carl Orff",
     ],
   },
 ];
