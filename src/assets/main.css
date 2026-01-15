@@ -9,7 +9,7 @@
   touch-action: pan-x pan-y; /* разрешаем скролл пальцем по вертикали и горизонтали */
   cursor: grab;
   display: block; /* без flex, чтобы sticky работал предсказуемо */
-  background: #ffffff;
+  background: #fafafa;
   visibility: hidden; /* скрываем до полной отрисовки */
   overscroll-behavior: contain;
   padding-bottom: env(
@@ -135,7 +135,7 @@
   padding-bottom: 0;
   height: auto;
 
-  background-color: #ffffff;
+  background-color: #fafafa;
 }
 
 .bar {

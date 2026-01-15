@@ -50,61 +50,49 @@
               <button type="button" class="filter-dock__collapse control-btn" :aria-pressed="isFilterDockMinimized"
                 :aria-label="isFilterDockMinimized ? filterDockLabels.restore : filterDockLabels.minimize"
                 @click="toggleFilterDockMinimized">
-                <span aria-hidden="true">{{ isFilterDockMinimized ? "↑" : "↓" }}</span>
+                <img
+                  :src="isFilterDockMinimized ? '/images/window-maximize.svg' : '/images/window-minimize.svg'"
+                  alt=""
+                  aria-hidden="true"
+                />
               </button>
             </div>
-
-            <div v-if="!isFilterOpen && !isFilterDockMinimized" class="nav-controls" role="group"
-              aria-label="Timeline navigation">
-              <button type="button" class="control-btn" :disabled="isAtTimelineStart" @click="goToStart"
-                aria-label="Jump to start of timeline">
-                ⇤
-              </button>
-              <button type="button" class="control-btn" :disabled="isAtTimelineEnd" @click="goToEnd"
-                aria-label="Jump to end of timeline">
-                ⇥
-              </button>
-            </div>
-
-            <div v-if="!isFilterOpen && !isFilterDockMinimized" class="scale-controls" role="group"
-              aria-label="Adjust timeline size">
-              <button type="button" class="control-btn" :disabled="isAtMinHeight" @click="adjustSizes(-1)"
-                aria-label="Make timeline blocks smaller">
-                −
-              </button>
-              <button type="button" class="control-btn" :disabled="isAtMaxHeight" @click="adjustSizes(1)"
-                aria-label="Make timeline blocks larger">
-                +
-              </button>
-            </div>
-
-            <button v-if="!isFilterDockMinimized" class="filter-dock__toggle control-btn control-primary"
-              :aria-expanded="isFilterOpen" aria-controls="filter-panel" @click="toggleFilters"
-              aria-label="Filter composers">
-              <svg class="filter-icon" viewBox="0 0 24 24" aria-hidden="true" focusable="false">
-                <path d="M3 5h18l-7 8v5l-4 2v-7L3 5z"></path>
-              </svg>
-            </button>
 
             <transition
-              name="filter-fade"
-              @after-enter="handleFilterPanelAfterTransition"
-              @after-leave="handleFilterPanelAfterTransition"
+              name="filter-dock-collapse"
+              @after-enter="handleFilterDockTransitionEnd"
+              @after-leave="handleFilterDockTransitionEnd"
             >
-              <div v-if="isFilterOpen" id="filter-panel" class="filter-panel" role="dialog"
-                aria-label="Composer filters">
-                <div class="filter-panel__options">
-                  <label v-for="group in filterGroups" :key="group.id" class="filter-panel__item">
-                    <input v-model="filterState[group.id]" type="checkbox" class="filter-panel__checkbox"
-                      :aria-label="`Toggle ${getFilterLabel(group.id)}`" />
-                    <span class="filter-panel__label">{{ getFilterLabel(group.id) }}</span>
-                  </label>
-                </div>
-                <div class="filter-panel__actions">
-                  <button type="button" class="filter-panel__ok control-btn" @click="closeFilters"
-                    aria-label="Close filters">
-                    {{ filterApplyLabel }}
-                  </button>
+              <div v-if="!isFilterDockMinimized" class="filter-dock__body">
+                <div class="filter-dock__body-inner">
+                  <div class="nav-controls" role="group" aria-label="Timeline navigation and zoom">
+                    <button type="button" class="control-btn" :disabled="isAtTimelineStart" @click="goToStart"
+                      aria-label="Jump to start of timeline">
+                      ⇤
+                    </button>
+                    <button type="button" class="control-btn" :disabled="isAtMinHeight" @click="adjustSizes(-1)"
+                      aria-label="Make timeline blocks smaller">
+                      <img class="control-icon" src="/images/zoom-out.png" alt="" aria-hidden="true" />
+                    </button>
+                    <button type="button" class="control-btn" :disabled="isAtMaxHeight" @click="adjustSizes(1)"
+                      aria-label="Make timeline blocks larger">
+                      <img class="control-icon" src="/images/zoom-in.png" alt="" aria-hidden="true" />
+                    </button>
+                    <button type="button" class="control-btn" :disabled="isAtTimelineEnd" @click="goToEnd"
+                      aria-label="Jump to end of timeline">
+                      ⇥
+                    </button>
+                  </div>
+
+                  <div class="filter-panel" role="group" aria-label="Composer filters">
+                    <div class="filter-panel__options">
+                      <label v-for="group in filterGroups" :key="group.id" class="filter-panel__item">
+                        <input v-model="filterState[group.id]" type="checkbox" class="filter-panel__checkbox"
+                          :aria-label="`Toggle ${getFilterLabel(group.id)}`" />
+                        <span class="filter-panel__label">{{ getFilterLabel(group.id) }}</span>
+                      </label>
+                    </div>
+                  </div>
                 </div>
               </div>
             </transition>
@@ -326,9 +314,9 @@ const LOCALES = {
     composers: {},
     filter: {
       groups: {
-        essentials: "Essential Icons",
-        core: "Core Classics",
-        expanded: "Extended Classics",
+        essentials: "Essential Icons", // 
+        core: "Core Classics", // 
+        expanded: "Extended", // 
       },
       apply: "Apply",
       minimizeControls: "Hide timeline controls",
@@ -570,7 +558,6 @@ const filterLabels = computed(() => ({
   core: filterConfig.value.groups?.core || "Core Classics",
   expanded: filterConfig.value.groups?.expanded || "Extended Classics",
 }));
-const filterApplyLabel = computed(() => filterConfig.value.apply || "Apply");
 const composerDescriptions = computed(() => {
   const raw = composerLocale.value.descriptions || {};
   const mapped = {};
@@ -739,30 +726,19 @@ const filterDockLabels = computed(() => {
   };
 });
 
-const isFilterOpen = ref(false);
 const FILTER_DOCK_MARGIN = 12;
+const TIMELINE_AXIS_HEIGHT = 35;
+const TOP_CORNER_EXTRA_OFFSET = 8;
 const FILTER_DOCK_DOUBLE_TAP_DELAY = 320;
 const filterDockRef = ref(null);
 const filterDockLeft = ref(FILTER_DOCK_MARGIN);
 const filterDockTop = ref(null);
 let lastFilterDockTouchEndTime = 0;
 const isFilterDockMinimized = ref(false);
+let filterDockResizeObserver = null;
 
 // Keeps the dock from drifting when its size changes (open/close filter panel)
-const filterDockAnchor = ref("bottom-left"); // "bottom-left" | "top-right" | "free"
-
-// Remember dock position before opening the filter panel so we can restore it on close.
-const filterDockPositionBeforeFilterOpen = ref(null); // { left: number, top: number|null, anchor: string } | null
-
-const filterDockStyle = computed(() => {
-  const style = {
-    left: `${filterDockLeft.value}px`,
-  };
-  if (filterDockTop.value != null) {
-    style.top = `${filterDockTop.value}px`;
-  }
-  return style;
-});
+const filterDockAnchor = ref("bottom-left"); // "bottom-left" | "bottom-right" | "top-left" | "top-right" | "free"
 
 const filterDockDragState = reactive({
   active: false,
@@ -772,6 +748,19 @@ const filterDockDragState = reactive({
   startLeft: 0,
   startTop: 0,
   element: null,
+});
+
+const filterDockStyle = computed(() => {
+  const style = {
+    left: `${filterDockLeft.value}px`,
+    transition: filterDockDragState.active
+      ? "none"
+      : "left 360ms cubic-bezier(0.22, 0.61, 0.36, 1)",
+  };
+  if (filterDockTop.value != null) {
+    style.top = `${filterDockTop.value}px`;
+  }
+  return style;
 });
 
 // Pinch-to-zoom state and helpers
@@ -1215,91 +1204,13 @@ function closeMenu() {
   isMenuOpen.value = false;
 }
 
-async function toggleFilters() {
-  // Ensure we have an initialized position before we snapshot / clamp.
-  updateFilterDockBounds();
-
-  const willOpen = !isFilterOpen.value;
-
-  // Snapshot the current dock position before opening the panel,
-  // so closing can restore it exactly.
-  if (willOpen) {
-    filterDockPositionBeforeFilterOpen.value = {
-      left: filterDockLeft.value,
-      top: filterDockTop.value,
-      anchor: filterDockAnchor.value,
-    };
-  }
-
-  isFilterOpen.value = willOpen;
-  await nextTick();
-
-  // While opening/closing, the dock size changes - just keep it on-screen.
-  updateFilterDockBounds();
+function setFilterDockMinimized(nextValue) {
+  if (isFilterDockMinimized.value === nextValue) return;
+  isFilterDockMinimized.value = nextValue;
 }
 
-async function closeFilters() {
-  // If the panel is open but we somehow missed the snapshot, take it now.
-  if (isFilterOpen.value && !filterDockPositionBeforeFilterOpen.value) {
-    updateFilterDockBounds();
-    filterDockPositionBeforeFilterOpen.value = {
-      left: filterDockLeft.value,
-      top: filterDockTop.value,
-      anchor: filterDockAnchor.value,
-    };
-  }
-
-  isFilterOpen.value = false;
-  await nextTick();
-
-  // Keep it on-screen until the transition fully completes.
-  updateFilterDockBounds();
-}
-
-function waitTwoFrames() {
-  return new Promise((resolve) => {
-    requestAnimationFrame(() => requestAnimationFrame(resolve));
-  });
-}
-
-async function handleFilterPanelAfterTransition() {
-  // When closing the panel, Vue keeps the leaving element in DOM until the end of the transition.
-  // Even with 0s transition, the removal can happen on a later frame - so measure after a couple of RAFs.
-  await nextTick();
-  await waitTwoFrames();
-
-  // After the transition, the dock has its final size - clamp first.
-  updateFilterDockBounds();
-
-  // If the panel is now closed, restore the exact position from before it was opened.
-  if (!isFilterOpen.value && filterDockPositionBeforeFilterOpen.value) {
-    const prev = filterDockPositionBeforeFilterOpen.value;
-    filterDockAnchor.value = prev.anchor || filterDockAnchor.value;
-    filterDockLeft.value = clampFilterDockLeft(prev.left);
-    if (prev.top != null) {
-      filterDockTop.value = clampFilterDockTop(prev.top);
-    }
-    filterDockPositionBeforeFilterOpen.value = null;
-    return;
-  }
-
-  // Otherwise (panel opened), just ensure it stays within the viewport.
-  updateFilterDockBounds();
-}
-
-async function toggleFilterDockMinimized() {
-  isFilterDockMinimized.value = !isFilterDockMinimized.value;
-
-  if (isFilterDockMinimized.value) {
-    isFilterOpen.value = false;
-    await nextTick();
-    moveFilterDockToBottomLeft();
-    return;
-  }
-
-  // Restored: the dock becomes larger again - ensure it's fully on-screen.
-  await nextTick();
-  moveFilterDockToBottomLeft();
+function toggleFilterDockMinimized() {
+  setFilterDockMinimized(!isFilterDockMinimized.value);
 }
 
 function getTopbarHeight() {
@@ -1381,10 +1292,12 @@ function moveFilterDockToTopRight() {
   const el = filterDockRef.value;
   const width = el?.offsetWidth || 0;
 
-  // Right edge with margin.
-  const { width: viewportWidth, offsetLeft } = getViewportMetrics();
+  // Right edge with margin and extra top offset so the axis stays visible.
+  const { width: viewportWidth, offsetLeft, offsetTop } = getViewportMetrics();
   filterDockLeft.value = clampFilterDockLeft(offsetLeft + viewportWidth - width - FILTER_DOCK_MARGIN);
-  filterDockTop.value = clampFilterDockTop(getTopbarHeight() + FILTER_DOCK_MARGIN);
+  const topOffset =
+    getTopbarHeight() + TIMELINE_AXIS_HEIGHT + TOP_CORNER_EXTRA_OFFSET;
+  filterDockTop.value = clampFilterDockTop(offsetTop + topOffset);
 }
 
 function moveFilterDockToBottomLeft() {
@@ -1398,6 +1311,74 @@ function moveFilterDockToBottomLeft() {
 
   filterDockLeft.value = clampFilterDockLeft(FILTER_DOCK_MARGIN);
   filterDockTop.value = clampFilterDockTop(offsetTop + viewportHeight - height - FILTER_DOCK_MARGIN);
+}
+
+function moveFilterDockToTopLeft() {
+  updateFilterDockBounds();
+  filterDockAnchor.value = "top-left";
+
+  const { offsetTop } = getViewportMetrics();
+  const topOffset =
+    getTopbarHeight() + TIMELINE_AXIS_HEIGHT + TOP_CORNER_EXTRA_OFFSET;
+  filterDockLeft.value = clampFilterDockLeft(FILTER_DOCK_MARGIN);
+  filterDockTop.value = clampFilterDockTop(offsetTop + topOffset);
+}
+
+function moveFilterDockToBottomRight() {
+  updateFilterDockBounds();
+  filterDockAnchor.value = "bottom-right";
+
+  const el = filterDockRef.value;
+  const width = el?.offsetWidth || 0;
+  const height = el?.offsetHeight || 0;
+
+  const { width: viewportWidth, height: viewportHeight, offsetLeft, offsetTop } = getViewportMetrics();
+
+  filterDockLeft.value = clampFilterDockLeft(offsetLeft + viewportWidth - width - FILTER_DOCK_MARGIN);
+  filterDockTop.value = clampFilterDockTop(offsetTop + viewportHeight - height - FILTER_DOCK_MARGIN);
+}
+
+function snapFilterDockToNearestCorner() {
+  const el = filterDockRef.value;
+  if (!el) return;
+
+  const { width: viewportWidth, height: viewportHeight, offsetLeft, offsetTop } = getViewportMetrics();
+  const topOffset =
+    getTopbarHeight() + TIMELINE_AXIS_HEIGHT + TOP_CORNER_EXTRA_OFFSET;
+
+  const left = clampFilterDockLeft(FILTER_DOCK_MARGIN);
+  const right = clampFilterDockLeft(
+    offsetLeft + viewportWidth - el.offsetWidth - FILTER_DOCK_MARGIN
+  );
+  const top = clampFilterDockTop(offsetTop + topOffset);
+  const bottom = clampFilterDockTop(
+    offsetTop + viewportHeight - el.offsetHeight - FILTER_DOCK_MARGIN
+  );
+
+  const currentLeft = filterDockLeft.value;
+  const currentTop = filterDockTop.value ?? 0;
+  const distances = [
+    { anchor: "top-left", dx: currentLeft - left, dy: currentTop - top },
+    { anchor: "top-right", dx: currentLeft - right, dy: currentTop - top },
+    { anchor: "bottom-left", dx: currentLeft - left, dy: currentTop - bottom },
+    { anchor: "bottom-right", dx: currentLeft - right, dy: currentTop - bottom },
+  ];
+  distances.sort((a, b) => a.dx * a.dx + a.dy * a.dy - (b.dx * b.dx + b.dy * b.dy));
+  const nearest = distances[0]?.anchor;
+
+  if (nearest === "top-left") {
+    moveFilterDockToTopLeft();
+    return;
+  }
+  if (nearest === "top-right") {
+    moveFilterDockToTopRight();
+    return;
+  }
+  if (nearest === "bottom-left") {
+    moveFilterDockToBottomLeft();
+    return;
+  }
+  moveFilterDockToBottomRight();
 }
 
 function handleFilterDockPointerMove(event) {
@@ -1439,6 +1420,7 @@ function stopFilterDockDrag(event) {
   }
   detachFilterDockPointerListeners();
   finalizeFilterDockDrag(event.pointerId);
+  snapFilterDockToNearestCorner();
 }
 
 function cleanupFilterDockDrag() {
@@ -1544,7 +1526,37 @@ function handleTimelineTouchEnd(event) {
   }
 }
 
+function handleTimelinePanStart() {
+  if (!isFilterDockMinimized.value) {
+    setFilterDockMinimized(true);
+  }
+}
+
+function handleFilterDockTransitionEnd() {
+  moveFilterDockToBottomLeft();
+}
+
+function handleFilterDockResize() {
+  handleWindowResize();
+}
+
 function handleWindowResize() {
+  if (filterDockAnchor.value === "top-left") {
+    moveFilterDockToTopLeft();
+    return;
+  }
+  if (filterDockAnchor.value === "top-right") {
+    moveFilterDockToTopRight();
+    return;
+  }
+  if (filterDockAnchor.value === "bottom-right") {
+    moveFilterDockToBottomRight();
+    return;
+  }
+  if (filterDockAnchor.value === "bottom-left") {
+    moveFilterDockToBottomLeft();
+    return;
+  }
   updateFilterDockBounds();
 }
 
@@ -1711,6 +1723,12 @@ onMounted(async () => {
   await syncFromLocation();
   await nextTick();
   moveFilterDockToBottomLeft();
+  if (typeof ResizeObserver !== "undefined") {
+    filterDockResizeObserver = new ResizeObserver(handleFilterDockResize);
+    if (filterDockRef.value) {
+      filterDockResizeObserver.observe(filterDockRef.value);
+    }
+  }
   // Fallback: if timeline instance exposes subscription hook later
   if (window.timeline && typeof window.timeline.onBarClick === "function") {
     window.timeline.onBarClick(handleComposerSelect);
@@ -1726,6 +1744,7 @@ onMounted(async () => {
   const timeline = document.getElementById("timeline");
   if (timeline) {
     timeline.addEventListener("scroll", updateScrollFlags, { passive: true });
+    timeline.addEventListener("timeline-pan-start", handleTimelinePanStart);
 
     // Pinch-to-zoom (maps to the same discrete levels as +/- buttons).
     timeline.addEventListener("touchstart", handleTimelineTouchStart, { passive: true });
@@ -1745,6 +1764,10 @@ onBeforeUnmount(() => {
     window.visualViewport.removeEventListener("resize", handleWindowResize);
     window.visualViewport.removeEventListener("scroll", handleWindowResize);
   }
+  if (filterDockResizeObserver) {
+    filterDockResizeObserver.disconnect();
+    filterDockResizeObserver = null;
+  }
   cleanupFilterDockDrag();
   if (shareFeedbackTimer) {
     clearTimeout(shareFeedbackTimer);
@@ -1753,6 +1776,7 @@ onBeforeUnmount(() => {
   const timeline = document.getElementById("timeline");
   if (timeline) {
     timeline.removeEventListener("scroll", updateScrollFlags);
+    timeline.removeEventListener("timeline-pan-start", handleTimelinePanStart);
 
     timeline.removeEventListener("touchstart", handleTimelineTouchStart);
     timeline.removeEventListener("touchmove", handleTimelineTouchMove);
@@ -1771,7 +1795,7 @@ watch(
   { immediate: true }
 );
 
-watch(language, (next) => {
+watch(language, async (next) => {
   const safe = SUPPORTED_LANGUAGES.includes(next) ? next : DEFAULT_LANGUAGE;
   if (safe !== next) {
     language.value = safe;
@@ -1787,6 +1811,9 @@ watch(language, (next) => {
   if (window.timeline && typeof window.timeline.updateEraLabels === "function") {
     window.timeline.updateEraLabels(eraLabels.value);
   }
+
+  await nextTick();
+  handleWindowResize();
 });
 
 watch(isModalOpen, async (open) => {
@@ -2829,7 +2856,6 @@ function updateMediaSessionMetadata(track) {
   align-items: flex-start;
   gap: 10px;
   width: max-content;
-  max-width: 360px;
   touch-action: none;
   cursor: grab;
 }
@@ -2846,20 +2872,62 @@ function updateMediaSessionMetadata(track) {
   width: 100%;
 }
 
+.filter-dock__body {
+  display: flex;
+  flex-direction: column;
+  justify-content: flex-end;
+  overflow: hidden;
+}
+
+.filter-dock__body-inner {
+  margin-top: 6px;
+  display: inline-flex;
+  flex-direction: column;
+  gap: 10px;
+  min-width: max-content;
+}
+
+.filter-dock-collapse-enter-active,
+.filter-dock-collapse-leave-active {
+  overflow: hidden;
+  transition: max-height 400ms cubic-bezier(0.22, 0.61, 0.36, 1),
+    max-width 600ms cubic-bezier(0.22, 0.61, 0.36, 1) 160ms,
+    opacity 300ms ease;
+}
+
+.filter-dock-collapse-enter-from,
+.filter-dock-collapse-leave-to {
+  max-height: 0;
+  max-width: 0;
+  opacity: 0;
+}
+
+.filter-dock-collapse-enter-to,
+.filter-dock-collapse-leave-from {
+  max-height: 520px;
+  max-width: 999px;
+  opacity: 1;
+}
+
 
 .filter-dock__collapse {
   padding: 0 10px;
   min-width: 32px;
 }
 
-.nav-controls {
-  width: 100%;
-  display: inline-flex;
-  justify-content: space-between;
-  gap: 10px;
+.filter-dock__collapse img {
+  width: 24px;
+  height: 24px;
+  display: block;
 }
 
-.scale-controls {
+.control-icon {
+  width: 24px;
+  height: 24px;
+  display: block;
+}
+
+.nav-controls {
   width: 100%;
   display: inline-flex;
   justify-content: space-between;
@@ -2871,7 +2939,7 @@ function updateMediaSessionMetadata(track) {
   flex-direction: column;
   align-items: stretch;
   gap: 10px;
-  padding: 10px;
+  padding: 6px;
 }
 
 .filter-icon {
@@ -2884,7 +2952,7 @@ function updateMediaSessionMetadata(track) {
 .control-pill {
   display: inline-flex;
   align-items: center;
-  gap: 6px;
+  gap: 0px;
   border-radius: 9px;
   background: rgba(255, 255, 255, 0.5);
   border: 1px solid rgba(15, 23, 42, 0.12);
@@ -2892,9 +2960,9 @@ function updateMediaSessionMetadata(track) {
 }
 
 .control-btn {
-  height: 32px;
-  min-width: 38px;
-  padding: 0 8px;
+  height: 34px;
+  min-width: 34px;
+  padding: 0 0px;
   border-radius: 999px;
   border: 1px solid rgba(15, 23, 42, 0.16);
   background: rgba(255, 255, 255, 0.98);
@@ -2970,19 +3038,14 @@ function updateMediaSessionMetadata(track) {
 }
 
 
-.filter-dock__toggle {
-  width: 100%;
-  justify-content: center;
-}
-
 .filter-panel {
   position: relative;
-  width: 200px;
+  width: 100%;
   max-width: calc(100vw - 32px);
-  padding: 8px 10px;
+  padding: 2px 2px;
   background: rgba(255, 255, 255, 0.2);
   border: 1px solid rgba(148, 163, 184, 0.35);
-  border-radius: 10px;
+  border-radius: 5px;
   box-shadow: none;
   backdrop-filter: blur(8px);
 }
@@ -2995,9 +3058,10 @@ function updateMediaSessionMetadata(track) {
 }
 
 .filter-panel__item {
-  display: flex;
-  align-items: center;
-  gap: 8px;
+  display: grid;
+  grid-template-columns: 16px 1fr;
+  align-items: start;
+  column-gap: 8px;
   padding: 4px 2px;
   border: none;
   background: transparent;
@@ -3009,28 +3073,18 @@ function updateMediaSessionMetadata(track) {
 .filter-panel__checkbox {
   width: 16px;
   height: 16px;
+  flex: 0 0 16px;
   accent-color: #2563eb;
+  margin-top: 1px;
 }
 
 
 
 .filter-panel__label {
+  display: block;
   font-weight: 400;
   font-size: 14px;
-  line-height: 1.2;
-}
-
-.filter-panel__actions {
-  display: flex;
-  justify-content: flex-end;
-  margin-top: 8px;
-}
-
-.filter-panel__ok {
-  padding: 0 14px;
-  height: 32px;
-  width: 100%;
-  font-weight: 400;
+  line-height: 16px;
 }
 
 @media (max-width: 720px) {
@@ -3046,13 +3100,13 @@ function updateMediaSessionMetadata(track) {
   }
 
   .filter-panel {
-    width: 180px;
+    width: 100%;
     max-width: 100%;
   }
 
   .filter-panel__item {
-    grid-template-columns: auto 1fr;
-    align-items: flex-start;
+    grid-template-columns: 16px 1fr;
+    align-items: start;
   }
 
   .composer-modal__facts li {
@@ -3069,16 +3123,6 @@ function updateMediaSessionMetadata(track) {
 .fade-enter-from,
 .fade-leave-to {
   opacity: 0;
-}
-
-.filter-fade-enter-active,
-.filter-fade-leave-active {
-  transition: none;
-}
-
-.filter-fade-enter-from,
-.filter-fade-leave-to {
-  opacity: 1;
 }
 
 @media (max-width: 720px) {

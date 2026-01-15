@@ -799,6 +799,7 @@ function enablePanning() {
     isDragging = true;
     timeline.classList.add("panning");
     timeline.dataset.panning = "true";
+    timeline.dispatchEvent(new CustomEvent("timeline-pan-start"));
   };
 
   const stopPanning = () => {
@@ -1053,7 +1054,7 @@ export function initTimeline(options = {}) {
   function goToStart() {
     const timeline = document.getElementById("timeline");
     if (timeline) {
-      smoothScrollTo(timeline, { left: 0, top: 0, behavior: "auto" });
+      smoothScrollTo(timeline, { left: 0, top: 0, behavior: "smooth" });
     }
   }
 
@@ -1063,7 +1064,7 @@ export function initTimeline(options = {}) {
       smoothScrollTo(timeline, {
         left: Math.max(0, timeline.scrollWidth - timeline.clientWidth),
         top: Math.max(0, timeline.scrollHeight - timeline.clientHeight),
-        behavior: "auto",
+        behavior: "smooth",
       });
     }
   }
