@@ -17,7 +17,6 @@ const composers = [
   { name: "Robert Schumann", birth: 1810, death: 1856 },
   { name: "Franz Liszt", birth: 1811, death: 1886 },
   { name: "Giuseppe Verdi", birth: 1813, death: 1901 },
-  { name: "Bedřich Smetana", birth: 1824, death: 1884 },
   { name: "Johann Strauss II", birth: 1825, death: 1899 },
   { name: "Johannes Brahms", birth: 1833, death: 1897 },
   { name: "Alexander Borodin", birth: 1833, death: 1887 },
@@ -88,7 +87,7 @@ const composerImages = {
   "Dmitri Shostakovich": "comp/shostakovich.jpg",
 
   // additional major composers
-  "Bedřich Smetana": "comp/smetana.jpg",
+  // "Bedřich Smetana": "comp/smetana.jpg",
   "George Gershwin": "comp/gershwin.jpg",
   "Carl Orff": "comp/orff.jpg",
   "Carl Maria von Weber": "comp/weber.jpg",
@@ -558,6 +557,8 @@ function buildGantt() {
     (axis && axis.clientWidth) ||
     (timeline && timeline.clientWidth) ||
     window.innerWidth;
+  const barTrimPx = 6;
+  const trimPercent = (barTrimPx / ganttWidth) * 100;
 
   // Sort composers by birth year so rows go top-to-bottom in time
   const sorted = [...data].sort((a, b) => a.birth - b.birth);
@@ -609,6 +610,7 @@ function buildGantt() {
 
     const left = startPercent;
     const width = endPercent - startPercent;
+    const endPercentAdjusted = endPercent - trimPercent;
     const barCenterY = laneIndex * laneHeight + barHeight * 0.5;
     const connectorHeight = barCenterY + axisGap;
 
@@ -624,7 +626,7 @@ function buildGantt() {
     };
 
     makeConnector(left, "start"); // birth
-    makeConnector(left + width, "end"); // death
+    makeConnector(endPercentAdjusted, "end"); // death
 
     if (axis) {
       const birthLabel = document.createElement("div");
@@ -639,17 +641,17 @@ function buildGantt() {
       deathLabel.className = "life-label";
       deathLabel.setAttribute("data-lane-index", laneIndex);
       deathLabel.setAttribute("data-side", "end");
-      deathLabel.style.left = left + width + "%";
+      deathLabel.style.left = endPercentAdjusted + "%";
       deathLabel.textContent = c.death;
       lifeLabels.appendChild(deathLabel);
     }
 
     bar.style.left = left + "%";
-    bar.style.width = width + "%";
+    bar.style.width = "calc(" + width + "% - " + barTrimPx + "px)";
     bar.style.top = laneIndex * laneHeight + "px";
     bar.style.height = barHeight + "px";
-    bar.style.lineHeight = barHeight + "px";
-    bar.style.fontSize = barHeight * 0.25 * settings.fontScale + "px";
+    bar.style.lineHeight = "1.15";
+    bar.style.fontSize = barHeight * 0.28 * settings.fontScale + "px";
 
     // Create thumbnail image if available
     const imgSrc = getComposerImage(c.name);
@@ -666,52 +668,31 @@ function buildGantt() {
     }
 
     // Create label span for the name
+    const textWrap = document.createElement("div");
+    textWrap.className = "bar-text";
     const labelSpan = document.createElement("span");
     labelSpan.className = "bar-label";
     labelSpan.textContent = displayName;
-    bar.appendChild(labelSpan);
+    textWrap.appendChild(labelSpan);
     const datesSpan = document.createElement("span");
     datesSpan.className = "bar-dates";
     datesSpan.textContent = `${c.birth} – ${c.death}`;
-    bar.appendChild(datesSpan);
+    textWrap.appendChild(datesSpan);
+    bar.appendChild(textWrap);
 
     gantt.appendChild(bar);
 
-    // If the label is truncated (ellipsis), try initials + last name first (e.g. "W. A. Mozart");
-    // if it still does not fit, fall back to last name only.
-    if (labelSpan.scrollWidth > labelSpan.clientWidth) {
-      labelSpan.textContent = getInitialsPlusLastName(displayName);
+    // If the label is truncated (ellipsis), show only the last name part.
+    const fitLabel = () => {
       if (labelSpan.scrollWidth > labelSpan.clientWidth) {
         labelSpan.textContent = getLastNamePart(displayName);
       }
+    };
+    if (labelSpan.clientWidth > 0) {
+      fitLabel();
+    } else if (typeof window !== "undefined") {
+      window.requestAnimationFrame(fitLabel);
     }
-
-    const adjustDatesVisibility = () => {
-      const horizontalPadding = 12; // matches `.bar` padding: 6px on each side
-      const spanGap = 6; // gap set on .bar between flex items
-      const availableWidth =
-        bar.clientWidth -
-        horizontalPadding -
-        (avatarSize ? avatarSize + spanGap : 0) -
-        spanGap;
-      if (availableWidth <= 0) {
-        datesSpan.style.display = "none";
-        return;
-      }
-      const requiredWidth =
-        labelSpan.scrollWidth + datesSpan.scrollWidth + spanGap;
-      if (requiredWidth > availableWidth) {
-        datesSpan.style.display = "none";
-      }
-    };
-    const scheduleAdjustment = () => {
-      if (bar.clientWidth > 0) {
-        adjustDatesVisibility();
-      } else if (typeof window !== "undefined") {
-        window.requestAnimationFrame(adjustDatesVisibility);
-      }
-    };
-    scheduleAdjustment();
 
     // Fire selection event on click (used by Vue app)
     bar.addEventListener("click", (event) => {

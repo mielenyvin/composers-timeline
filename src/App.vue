@@ -38,31 +38,20 @@
     <!-- Main content -->
     <main class="content">
       <section v-if="currentView === 'composers'">
-        <div
-          class="filter-dock"
-          :style="filterDockStyle"
-          ref="filterDockRef"
-          @pointerdown="startFilterDockDrag"
-          @touchend="handleFilterDockTouchEnd"
-        >
+        <div class="filter-dock" :style="filterDockStyle" ref="filterDockRef" @pointerdown="startFilterDockDrag"
+          @touchend="handleFilterDockTouchEnd">
           <div class="control-stack control-pill" role="group" aria-label="Timeline controls">
             <div class="filter-dock__header">
               <button type="button" class="filter-dock__collapse control-btn" :aria-pressed="isFilterDockMinimized"
                 :aria-label="isFilterDockMinimized ? filterDockLabels.restore : filterDockLabels.minimize"
                 @click="toggleFilterDockMinimized">
-                <img
-                  :src="isFilterDockMinimized ? '/images/window-maximize.svg' : '/images/window-minimize.svg'"
-                  alt=""
-                  aria-hidden="true"
-                />
+                <img :src="isFilterDockMinimized ? '/images/window-maximize.svg' : '/images/window-minimize.svg'" alt=""
+                  aria-hidden="true" />
               </button>
             </div>
 
-            <transition
-              name="filter-dock-collapse"
-              @after-enter="handleFilterDockTransitionEnd"
-              @after-leave="handleFilterDockTransitionEnd"
-            >
+            <transition name="filter-dock-collapse" @after-enter="handleFilterDockTransitionEnd"
+              @after-leave="handleFilterDockTransitionEnd">
               <div v-if="!isFilterDockMinimized" class="filter-dock__body">
                 <div class="filter-dock__body-inner">
                   <div class="nav-controls" role="group" aria-label="Timeline navigation and zoom">
@@ -88,7 +77,7 @@
                     <div class="filter-panel__options">
                       <label v-for="group in filterGroups" :key="group.id" class="filter-panel__item">
                         <input v-model="filterState[group.id]" type="checkbox" class="filter-panel__checkbox"
-                          :aria-label="`Toggle ${getFilterLabel(group.id)}`" />
+                          :aria-label="`Toggle ${getFilterLabel(group.id)}`" @change="handleFilterChange" />
                         <span class="filter-panel__label">{{ getFilterLabel(group.id) }}</span>
                       </label>
                     </div>
@@ -133,17 +122,10 @@
                 <a class="about__contributors-link" :href="person.url" target="_blank" rel="noreferrer">
                   {{ person.linkText }}
                 </a>
-                <div
-                  v-if="person.url === 'https://facebook.com/olga.shibanova'"
-                  class="about__contributors-toggle"
-                >
+                <div v-if="person.url === 'https://facebook.com/olga.shibanova'" class="about__contributors-toggle">
                   <label class="about__contributors-toggle-label">
-                    <input
-                      v-model="testFeaturesEnabled"
-                      class="about__contributors-toggle-input"
-                      type="checkbox"
-                      aria-label="Toggle test features"
-                    />
+                    <input v-model="testFeaturesEnabled" class="about__contributors-toggle-input" type="checkbox"
+                      aria-label="Toggle test features" />
                     <span>{{ testFeaturesLabel }}</span>
                   </label>
                 </div>
@@ -167,12 +149,8 @@
             </div>
 
             <div class="composer-modal__header-actions">
-              <button
-                class="composer-modal__share"
-                type="button"
-                @click="shareCurrentComposer"
-                :aria-label="shareLabels.button"
-              >
+              <button class="composer-modal__share" type="button" @click="shareCurrentComposer"
+                :aria-label="shareLabels.button">
                 <img class="composer-modal__share-icon" src="/images/share-icon.png" alt="" />
               </button>
               <span v-if="shareFeedback" class="composer-modal__share-feedback">
@@ -446,6 +424,7 @@ const SUPPORTED_LANGUAGES = Object.keys(LOCALES);
 const DEFAULT_LANGUAGE = "en";
 const STORAGE_KEY = "timeline-language";
 const STORAGE_KEY_USER_SET = "timeline-language-user-set";
+const STORAGE_KEY_FILTERS = "timeline-filter-groups";
 const COMPOSER_PATH_PREFIX = "/composer/";
 const UNKNOWN_COUNTRY = "UNKNOWN";
 const RUSSIAN_TIMEZONES = [
@@ -585,10 +564,11 @@ const MAX_BAR_HEIGHT = 150;
 const MIN_WIDTH_FACTOR = 0.2; // убран экстремально маленький масштаб
 const MAX_WIDTH_FACTOR = 1.5; // длиннее на ~1.5x на максимуме
 const WIDTH_CURVE = 0.35; // степень, чтобы 50px было близко к базовому 1
-const FONT_MAX_SMALL = 1.7;
-const FONT_MIN_LARGE = 0.95;
+const FONT_MAX_SMALL = 1.45;
+const FONT_MIN_LARGE = 0.5;
 const FONT_CURVE = 0.6;
-const SIZE_STEPS = [30, 40, 50, 70, 100]; // две меньше, одна текущая, две больше
+const SIZE_STEPS = [43, 50, 65]; // одна меньше, одна текущая, одна больше
+const WIDTH_STEPS = [30, 35, 45]; // keep bar widths unchanged vs previous defaults
 const DEFAULT_SIZE_INDEX = 1;
 
 const SOUND_CLOUD_PROXY_BASE = (
@@ -658,17 +638,17 @@ const filterGroups = [
       "Pyotr Ilyich Tchaikovsky",
       "Frédéric Chopin",
       "Antonio Vivaldi",
-      "Johannes Brahms",
-      "Giuseppe Verdi",
       "Claude Debussy",
+      "Sergei Rachmaninoff",
     ],
   },
   {
     id: "core",
     label: "Core Classics",
     composers: [
+      "Johannes Brahms",
+      "Giuseppe Verdi",
       "Richard Strauss",
-      "Joseph Haydn",
       "George Frideric Handel",
       "Franz Schubert",
       "Felix Mendelssohn",
@@ -679,11 +659,19 @@ const filterGroups = [
       "Maurice Ravel",
       "Giacomo Puccini",
       "Gustav Mahler",
-      "Sergei Rachmaninoff",
       "Domenico Scarlatti",
       "Camille Saint-Saëns",
       "Georges Bizet",
       "Gioachino Rossini",
+      "Dmitri Shostakovich",
+      "Sergei Prokofiev",
+      "Mikhail Glinka",
+      "Johann Strauss II",
+      "Alexander Borodin",
+      "Modest Mussorgsky",
+      "Nikolai Rimsky-Korsakov",
+      "Erik Satie",
+      "Joseph Haydn",
     ],
   },
   {
@@ -692,31 +680,36 @@ const filterGroups = [
     composers: [
       "Niccolò Paganini",
       "Hector Berlioz",
-      "Mikhail Glinka",
-      "Johann Strauss II",
-      "Alexander Borodin",
       "Jacques Offenbach",
-      "Modest Mussorgsky",
-      "Nikolai Rimsky-Korsakov",
       "Alexander Scriabin",
-      "Erik Satie",
-      "Sergei Prokofiev",
-      "Dmitri Shostakovich",
       "George Gershwin",
       "Igor Stravinsky",
-      "Bedřich Smetana",
       "Jean Sibelius",
       "Carl Orff",
     ],
   },
 ];
 
-const filterState = ref(
-  filterGroups.reduce((acc, group) => {
-    acc[group.id] = true;
+function buildDefaultFilterState() {
+  return filterGroups.reduce((acc, group) => {
+    acc[group.id] = group.id !== "expanded";
     return acc;
-  }, {})
-);
+  }, {});
+}
+
+function normalizeFilterState(raw) {
+  const base = buildDefaultFilterState();
+  if (!raw || typeof raw !== "object") return base;
+  filterGroups.forEach((group) => {
+    const value = raw[group.id];
+    if (typeof value === "boolean") {
+      base[group.id] = value;
+    }
+  });
+  return base;
+}
+
+const filterState = ref(buildDefaultFilterState());
 
 const filterDockLabels = computed(() => {
   const filter = activeLocale.value.filter || {};
@@ -736,6 +729,12 @@ const filterDockTop = ref(null);
 let lastFilterDockTouchEndTime = 0;
 const isFilterDockMinimized = ref(false);
 let filterDockResizeObserver = null;
+const MOBILE_FILTER_DOCK_MEDIA_QUERY = "(max-width: 720px), (pointer: coarse)";
+
+function shouldAutoMinimizeFilterDock() {
+  if (typeof window === "undefined" || !window.matchMedia) return false;
+  return window.matchMedia(MOBILE_FILTER_DOCK_MEDIA_QUERY).matches;
+}
 
 // Keeps the dock from drifting when its size changes (open/close filter panel)
 const filterDockAnchor = ref("bottom-left"); // "bottom-left" | "bottom-right" | "top-left" | "top-right" | "free"
@@ -779,11 +778,13 @@ function getTouchDistance(t1, t2) {
 }
 const timelineSettings = reactive({
   barHeight: SIZE_STEPS[DEFAULT_SIZE_INDEX],
-  widthScale: computeWidthScale(SIZE_STEPS[DEFAULT_SIZE_INDEX]),
+  widthScale: computeWidthScale(WIDTH_STEPS[DEFAULT_SIZE_INDEX]),
   fontScale: computeFontScale(SIZE_STEPS[DEFAULT_SIZE_INDEX]),
 });
 const sizeIndex = ref(DEFAULT_SIZE_INDEX);
 const SCROLL_EDGE_EPS = 6; // small tolerance so minor auto-scrolls don't flip the edge state
+const SCROLL_ANIMATION_DURATION = 520;
+const SCROLL_ALIGN_INSET = 2;
 
 const isAtMinHeight = computed(() => sizeIndex.value <= 0);
 const isAtMaxHeight = computed(() => sizeIndex.value >= SIZE_STEPS.length - 1);
@@ -795,7 +796,7 @@ function applySize(index) {
   sizeIndex.value = clampedIndex;
   const height = SIZE_STEPS[clampedIndex];
   timelineSettings.barHeight = height;
-  timelineSettings.widthScale = computeWidthScale(height);
+  timelineSettings.widthScale = computeWidthScale(WIDTH_STEPS[clampedIndex]);
   timelineSettings.fontScale = computeFontScale(height);
 }
 
@@ -832,6 +833,58 @@ async function goToEnd() {
   updateScrollFlags();
   await nextTick();
   moveFilterDockToTopRight();
+}
+
+function smoothScrollTimeline(timeline, { left, top, duration = SCROLL_ANIMATION_DURATION } = {}) {
+  const startLeft = timeline.scrollLeft;
+  const startTop = timeline.scrollTop;
+  const targetLeft = Number.isFinite(left) ? left : startLeft;
+  const targetTop = Number.isFinite(top) ? top : startTop;
+  const deltaLeft = targetLeft - startLeft;
+  const deltaTop = targetTop - startTop;
+  if (!deltaLeft && !deltaTop) return;
+  const startTime = performance.now();
+
+  const step = (now) => {
+    const elapsed = now - startTime;
+    const t = Math.min(1, elapsed / duration);
+    const eased =
+      t < 0.5 ? 4 * t * t * t : 1 - Math.pow(-2 * t + 2, 3) / 2;
+    timeline.scrollLeft = startLeft + deltaLeft * eased;
+    timeline.scrollTop = startTop + deltaTop * eased;
+    if (t < 1) {
+      requestAnimationFrame(step);
+    }
+  };
+
+  requestAnimationFrame(step);
+}
+
+async function scrollToFirstComposer() {
+  if (currentView.value !== "composers") return;
+  if (!filteredComposers.value.length) return;
+  await nextTick();
+  const timeline = document.getElementById("timeline");
+  if (!timeline) return;
+  const firstBar = timeline.querySelector('.bar[data-lane-index="0"]');
+  if (!firstBar) return;
+  const timelineRect = timeline.getBoundingClientRect();
+  const barRect = firstBar.getBoundingClientRect();
+  let targetLeft = timeline.scrollLeft;
+  let targetTop = timeline.scrollTop;
+  const leftLimit = timelineRect.left + SCROLL_ALIGN_INSET;
+  const deltaLeft = barRect.left - leftLimit;
+  targetLeft = Math.max(0, timeline.scrollLeft + deltaLeft);
+  if (barRect.top < timelineRect.top || barRect.bottom > timelineRect.bottom) {
+    const deltaTop = barRect.top - timelineRect.top;
+    targetTop = Math.max(0, timeline.scrollTop + deltaTop);
+  }
+  smoothScrollTimeline(timeline, { left: targetLeft, top: targetTop });
+  updateScrollFlags();
+}
+
+async function handleFilterChange() {
+  await scrollToFirstComposer();
 }
 
 const enabledComposerNames = computed(() => {
@@ -1527,7 +1580,7 @@ function handleTimelineTouchEnd(event) {
 }
 
 function handleTimelinePanStart() {
-  if (!isFilterDockMinimized.value) {
+  if (shouldAutoMinimizeFilterDock() && !isFilterDockMinimized.value) {
     setFilterDockMinimized(true);
   }
 }
@@ -1589,6 +1642,23 @@ function getStoredLanguage() {
     return localStorage.getItem(STORAGE_KEY);
   } catch (err) {
     return null;
+  }
+}
+
+function getStoredFilterState() {
+  try {
+    const raw = localStorage.getItem(STORAGE_KEY_FILTERS);
+    if (!raw) return null;
+    return normalizeFilterState(JSON.parse(raw));
+  } catch (err) {
+    return null;
+  }
+}
+
+function initializeFilterState() {
+  const stored = getStoredFilterState();
+  if (stored) {
+    filterState.value = stored;
   }
 }
 
@@ -1720,6 +1790,7 @@ function nextComposer() {
 
 onMounted(async () => {
   initializeLanguage();
+  initializeFilterState();
   await syncFromLocation();
   await nextTick();
   moveFilterDockToBottomLeft();
@@ -1793,6 +1864,18 @@ watch(
     }
   },
   { immediate: true }
+);
+
+watch(
+  filterState,
+  (next) => {
+    try {
+      localStorage.setItem(STORAGE_KEY_FILTERS, JSON.stringify(next));
+    } catch (err) {
+      // Ignore storage errors (e.g., private mode).
+    }
+  },
+  { deep: true }
 );
 
 watch(language, async (next) => {
@@ -2231,7 +2314,7 @@ function renderSoundCloudPlayer(container, tracks, playlistUrl) {
     }
   });
 
-const playTrackAt = async (index, { auto = false } = {}) => {
+  const playTrackAt = async (index, { auto = false } = {}) => {
     if (isLoading) return;
     const track = tracks[index];
     const button = buttons[index];
@@ -3074,7 +3157,7 @@ function updateMediaSessionMetadata(track) {
   width: 16px;
   height: 16px;
   flex: 0 0 16px;
-  accent-color: #2563eb;
+  accent-color: #6c6d6f;
   margin-top: 1px;
 }
 

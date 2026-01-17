@@ -238,12 +238,12 @@ body {
 @media (max-width: 640px) {
 
 .language-select {
-  height: 22px;
+  height: 26px;
   font-size: 14px;
 }
 
   :root {
-    --topbar-height: 32px;
+    --topbar-height: 42px;
   }
 
   .topbar {

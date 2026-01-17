@@ -202,7 +202,7 @@ Name (ru): Михаил Глинка
 - Кем он был: Русский композитор, которого часто называют отцом русской классической музыки и основателем национальной школы.
 - Оперный первопроходец: Его оперы A Life for the Tsar и Ruslan and Lyudmila - одни из первых, где русская история и фольклор звучат на собственном музыкальном языке.
 - Народные корни: Он опирался на русские народные песни и танцы, соединяя их с западными приемами и создавая новое для отечественной аудитории.
-- Влияние: Позднейшие русские композиторы, особенно «The Five», воспринимали его музыку как отправную точку для развития национального стиля.
+- Влияние: Позднейшие русские композиторы, особенно из содружества "Могучая кучка", воспринимали его музыку как отправную точку для развития национального стиля.
 
 ## Felix Mendelssohn essentials {#felix-mendelssohn}
 
@@ -407,18 +407,22 @@ Name (ru): Иоганнес Брамс
 
 Name (ru): Александр Бородин
 
-- Who he was: Russian composer and professional chemist, member of the nationalist group known as "The Mighty Handful" or "The Five".
-- Double career: He made significant contributions to organic chemistry while composing in his limited spare time.
-- Signature works: His opera Prince Igor (with its famous Polovtsian Dances), two symphonies and In the Steppes of Central Asia are his best-known pieces.
-- Posthumous help: Friends like Rimsky-Korsakov and Glazunov edited and completed several of his works after his early death.
+- Who he was: Russian composer and professor of organic chemistry, a member of "The Five".
+- Double life: He taught and did research in St Petersburg, and composed mostly in his limited spare time.
+- Prince Igor: Left unfinished at his death; later completed/orchestrated by Rimsky-Korsakov and Glazunov - the "Polovtsian Dances" became a standalone hit.
+- Chamber music favorite: His String Quartet No. 2 contains the famous "Nocturne", often played separately.
+- Symphonic postcard: In the Steppes of Central Asia is a compact orchestral tone poem that became a classic of musical storytelling.
+- Beyond music: He actively supported women’s higher education in Russia and helped organise early medical courses for women in St Petersburg.
 
 
 ## Alexander Borodin essentials (ru) {#alexander-borodin}
 
-- Кем он был: Русский композитор и профессиональный химик, участник национальной группы «The Mighty Handful» - «The Five».
-- Двойная карьера: Он внес заметный вклад в органическую химию, а сочинял музыку в ограниченное свободное время.
-- Главные произведения: Опера Prince Igor (с «Polovtsian Dances»), две симфонии и In the Steppes of Central Asia - его самые известные сочинения.
-- Посмертная помощь: Друзья - например, Римский-Корсаков и Глазунов - редактировали и завершали некоторые его работы после ранней смерти.
+- Кем он был: Русский композитор и профессор органической химии, участник содружества композиторов «Могучая кучка».
+- Двойная жизнь: В будни - лекции и лаборатория в Петербурге, а музыку он писал в основном по вечерам и урывками, между научной работой.
+- «Князь Игорь»: Опера осталась незавершенной; после смерти Бородина ее дописывали и оркестровали Римский-Корсаков и Глазунов, а «Половецкие пляски» стали отдельным концертным хитом.
+- Камерный хит: Во 2-м струнном квартете есть знаменитый «Ноктюрн» - его часто исполняют отдельно.
+- Симфоническая «открытка»: «В степях Средней Азии» - короткая оркестровая пьеса с очень наглядным, почти кинематографичным рассказом.
+- Не только музыка: Он поддерживал женское высшее образование и помогал организовывать медицинские курсы для женщин в Петербурге.
 
 ## Camille Saint-Saëns essentials {#camille-saint-saens}
 
@@ -458,18 +462,23 @@ Name (ru): Жорж Бизе
 
 Name (ru): Модест Мусоргский
 
-- Who he was: Russian composer and member of "The Five", committed to creating a distinctly Russian style of music.
-- Bold style: His music often uses speech-like melodies, rough harmonies and vivid scenes drawn from Russian history and folklore.
-- Key works: The opera Boris Godunov, the piano suite Pictures at an Exhibition and the tone poem Night on Bald Mountain are his best-known pieces.
-- Revisions: Many of his works were left unfinished or rough and were later revised or orchestrated by others, especially Rimsky-Korsakov.
+- Who he was: Russian composer and member of "The Five", a key figure of Russian musical realism.
+- Speech-like melody: He shaped vocal lines to sound like natural Russian speech, which makes scenes in his operas feel startlingly alive.
+- Boris Godunov: His most famous opera exists in multiple author versions; today theaters often perform editions closer to Mussorgsky’s rough, original intent.
+- Pictures at an Exhibition: Written as a piano suite; later orchestrations (especially Ravel’s) helped turn it into a worldwide orchestral hit.
+- Dark song cycle: Songs and Dances of Death is one of his most powerful works - stark, dramatic and psychologically intense.
+- Afterlife of the scores: Friends and later composers (notably Rimsky-Korsakov, and later Shostakovich) edited/orchestrated unfinished or “raw” manuscripts - and that sparked long debates about what the “true” Mussorgsky sound is.
+
 
 
 ## Modest Mussorgsky essentials (ru) {#modest-mussorgsky}
 
-- Кем он был: Русский композитор и участник «The Five», стремившийся создать по-настоящему русский стиль.
-- Смелая манера: Его музыка часто использует «речевые» мелодии, грубоватую гармонию и яркие сцены из русской истории и фольклора.
-- Ключевые вещи: Опера Boris Godunov, фортепианная сюита Pictures at an Exhibition и симфоническая поэма Night on Bald Mountain - самые известные произведения.
-- Редакции: Многие сочинения остались незавершенными или «черновыми» и позже перерабатывались или оркестровались другими, особенно Римским-Корсаковым.
+- Кем он был: Русский композитор и участник содружества «Могучая кучка» - ключевая фигура русского музыкального реализма.
+- «Речевая» мелодика: Он строил вокальные линии так, чтобы они звучали как живая русская речь - поэтому сцены в его операх ощущаются особенно правдиво.
+- «Борис Годунов»: Его главная опера существует в нескольких авторских редакциях; сегодня часто стремятся играть версии, ближе к «сырому» замыслу Мусоргского.
+- «Картинки с выставки»: Изначально это фортепианная сюита; поздние оркестровки (особенно Равеля) превратили её в мировой оркестровый хит.
+- Мрачный вокальный цикл: «Песни и пляски смерти» - одна из самых сильных его вещей, жёсткая, драматичная и психологически точная.
+- Судьба рукописей: Друзья и позднейшие композиторы (в частности Римский-Корсаков, а позже и Шостакович) редактировали и оркестровали незавершённые или «черновые» партитуры - и это породило споры о том, как на самом деле должен звучать Мусоргский.
 
 ## Pyotr Ilyich Tchaikovsky essentials {#pyotr-ilyich-tchaikovsky}
 
@@ -544,7 +553,7 @@ Name (ru): Николай Римский-Корсаков
 
 ## Nikolai Rimsky-Korsakov essentials (ru) {#nikolai-rimsky-korsakov}
 
-- Кем он был: Русский композитор, педагог и мастер оркестровки, также участник группы «The Five».
+- Кем он был: Русский композитор, педагог и мастер оркестровки, также участник содружества композиторов "Могучая кучка".
 - Оркестровые краски: Сочинения вроде Scheherazade, Capriccio Espagnol и Russian Easter Festival Overture демонстрируют его блестящую работу с тембром и цветом оркестра.
 - Педагог: Он преподавал в Санкт-Петербургской консерватории; среди учеников - Стравинский и многие другие важные композиторы.
 - Редактор и аранжировщик: Он редактировал и оркестровал произведения коллег - например, Мусоргского и Бородина - и тем самым повлиял на то, как их музыка часто звучит сегодня.
@@ -878,10 +887,12 @@ Name (ru): Дмитрий Шостакович
 
 ## Alexander Borodin essentials (de) {#alexander-borodin}
 
-- Wer er war: Russischer Komponist und professioneller Chemiker, Mitglied der nationalistischen Gruppe "Das maechtige Haeuflein" ("Die Fuenf").
-- Doppelkarriere: Er leistete wichtige Beitraege zur organischen Chemie und komponierte in seiner knappen Freizeit.
-- Signaturwerke: Seine Oper Prince Igor (mit den beruehmten Polowetzer Taenzen), zwei Sinfonien und In the Steppes of Central Asia gehoeren zu seinen bekanntesten Stuecken.
-- Hilfe nach dem Tod: Freunde wie Rimsky-Korsakov und Glazunov editierten und vollendeten mehrere Werke nach seinem fruehen Tod.
+- Wer er war: Russischer Komponist und Professor fuer organische Chemie, Mitglied des "maechtigen Haeufleins" ("Die Fuenf").
+- Doppelleben: Tagsueber Forschung und Lehre in St Petersburg, komponiert hat er meist nur in knapper Freizeit.
+- Fuerst Igor: Bei seinem Tod unvollendet; spaeter von Rimsky-Korsakov und Glazunov vervollstaendigt/orchestriert - die "Polowetzer Taenze" wurden zum eigenstaendigen Konzert-Hit.
+- Kammermusik-Liebling: Sein Streichquartett Nr. 2 enthaelt das beruehmte "Nocturne", das oft separat gespielt wird.
+- Sinfonische Postkarte: In the Steppes of Central Asia ist eine kurze sinfonische Dichtung, ein Klassiker des musikalischen Erzaehlens.
+- Mehr als Musik: Er unterstuetzte aktiv die hoehere Bildung fuer Frauen und half bei der Organisation frueher medizinischer Kurse fuer Frauen in St Petersburg.
 
 ## Camille Saint-Saens essentials (de) {#camille-saint-saens}
 
@@ -899,10 +910,12 @@ Name (ru): Дмитрий Шостакович
 
 ## Modest Mussorgsky essentials (de) {#modest-mussorgsky}
 
-- Wer er war: Russischer Komponist und Mitglied der "Fuenf", entschlossen, einen eigenstaendig russischen Stil zu schaffen.
-- Kuehner Stil: Seine Musik nutzt oft sprechnahe Melodien, raue Harmonik und eindrucksvolle Szenen aus russischer Geschichte und Folklore.
-- Schluesselwerke: Die Oper Boris Godunov, die Klaviersuite Pictures at an Exhibition und die sinfonische Dichtung Night on Bald Mountain sind seine bekanntesten Werke.
-- Ueberarbeitungen: Viele Stuecke blieben unvollendet oder roh und wurden spaeter - besonders von Rimsky-Korsakov - revidiert oder orchestriert.
+- Wer er war: Russischer Komponist und Mitglied der "Fuenf" - eine Schluesselfigur des russischen musikalischen Realismus.
+- Sprachnahe Melodik: Er formte Gesangslinien nach dem Rhythmus gesprochener russischer Sprache - dadurch wirken seine Opernszenen ungewoehnlich direkt und lebendig.
+- Boris Godunov: Seine beruehmteste Oper existiert in mehreren Autor-Fassungen; heute werden oft Editionen gespielt, die Mussorgskys rauer Originalidee naeherstehen.
+- Bilder einer Ausstellung: Urspruenglich eine Klaviersuite; spaetere Orchestrierungen (besonders die von Ravel) machten das Werk weltweit zum Orchester-Hit.
+- Dunkler Liederzyklus: Songs and Dances of Death zaehlt zu seinen eindringlichsten Werken - karg, dramatisch und psychologisch scharf.
+- Nachleben der Partituren: Freunde und spaetere Komponisten (vor allem Rimsky-Korsakov, spaeter auch Shostakovich) editierten und orchestrierten unvollendete oder "rohe" Manuskripte - bis heute ein Streitpunkt, wie der "echte" Mussorgsky klingen soll.
 
 ## Pyotr Ilyich Tchaikovsky essentials (de) {#pyotr-ilyich-tchaikovsky}
 
