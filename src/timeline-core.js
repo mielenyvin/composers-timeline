@@ -1,6 +1,7 @@
 // Data
 const composers = [
   { name: "Antonio Vivaldi", birth: 1678, death: 1741 },
+  { name: "Jean-Philippe Rameau", birth: 1683, death: 1764 },
   { name: "Johann Sebastian Bach", birth: 1685, death: 1750 },
   { name: "Domenico Scarlatti", birth: 1685, death: 1757 },
   { name: "George Frideric Handel", birth: 1685, death: 1759 },

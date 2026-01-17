@@ -678,6 +678,7 @@ const filterGroups = [
     id: "expanded",
     label: "Extended Classics",
     composers: [
+      "Jean-Philippe Rameau",
       "Niccolò Paganini",
       "Hector Berlioz",
       "Jacques Offenbach",
@@ -2286,7 +2287,7 @@ function renderSoundCloudPlayer(container, tracks, playlistUrl) {
 
   const setButtonState = (btn, state) => {
     btn.dataset.state = state;
-    btn.textContent = state === "playing" ? "⏸" : state === "loading" ? "..." : "▶";
+    btn.textContent = state === "playing" ? "⏸" : state === "loading" ? "..." : "▶️";
   };
 
   const resetButton = (btn) => setButtonState(btn, "idle");
@@ -2869,7 +2870,7 @@ function updateMediaSessionMetadata(track) {
 :deep(.sc-track) {
   display: flex;
   align-items: center;
-  gap: 6px;
+  gap: 2px;
   min-width: 0;
   width: 100%;
 }
