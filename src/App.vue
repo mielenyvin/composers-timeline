@@ -2282,12 +2282,33 @@ function renderSoundCloudPlayer(container, tracks, playlistUrl) {
   let currentTrackId = null;
   let currentButton = null;
   let currentIndex = null;
+  let currentTitleEl = null;
   let isLoading = false;
   const buttons = [];
+  const titleEls = [];
 
   const setButtonState = (btn, state) => {
     btn.dataset.state = state;
     btn.textContent = state === "playing" ? "⏸" : state === "loading" ? "..." : "▶️";
+  };
+
+  const setTitlePlaying = (titleEl, isPlaying) => {
+    if (!titleEl) return;
+    titleEl.classList.toggle("is-playing", isPlaying);
+  };
+
+  const updateTitleScroll = (titleEl) => {
+    if (!titleEl) return;
+    const textEl = titleEl.querySelector(".sc-track__title-text");
+    if (!textEl) return;
+    const overflow = textEl.scrollWidth - titleEl.clientWidth;
+    if (overflow > 4) {
+      titleEl.dataset.scroll = "true";
+      titleEl.style.setProperty("--scroll-distance", `${overflow}px`);
+    } else {
+      titleEl.dataset.scroll = "false";
+      titleEl.style.removeProperty("--scroll-distance");
+    }
   };
 
   const resetButton = (btn) => setButtonState(btn, "idle");
@@ -2296,9 +2317,13 @@ function renderSoundCloudPlayer(container, tracks, playlistUrl) {
     if (currentButton) {
       resetButton(currentButton);
     }
+    if (currentTitleEl) {
+      setTitlePlaying(currentTitleEl, false);
+    }
     currentTrackId = null;
     currentButton = null;
     currentIndex = null;
+    currentTitleEl = null;
   };
 
   audio.addEventListener("ended", () => {
@@ -2312,6 +2337,9 @@ function renderSoundCloudPlayer(container, tracks, playlistUrl) {
   audio.addEventListener("pause", () => {
     if (currentButton && audio.currentTime < (audio.duration || Infinity)) {
       resetButton(currentButton);
+    }
+    if (currentTitleEl) {
+      setTitlePlaying(currentTitleEl, false);
     }
   });
 
@@ -2343,6 +2371,11 @@ function renderSoundCloudPlayer(container, tracks, playlistUrl) {
       currentButton = button;
       currentTrackId = track?.id ?? index;
       currentIndex = index;
+      if (currentTitleEl && currentTitleEl !== titleEls[index]) {
+        setTitlePlaying(currentTitleEl, false);
+      }
+      currentTitleEl = titleEls[index] || null;
+      setTitlePlaying(currentTitleEl, true);
       setButtonState(button, "playing");
     } catch (err) {
       console.error("Failed to play SoundCloud track", err);
@@ -2366,7 +2399,11 @@ function renderSoundCloudPlayer(container, tracks, playlistUrl) {
 
     const titleEl = document.createElement("div");
     titleEl.className = "sc-track__title";
-    titleEl.textContent = track?.title || `Track ${index + 1}`;
+    const titleText = document.createElement("span");
+    titleText.className = "sc-track__title-text";
+    titleText.textContent = track?.title || `Track ${index + 1}`;
+    titleEl.append(titleText);
+    titleEls.push(titleEl);
 
     trackEl.append(button, titleEl);
     list.append(trackEl);
@@ -2378,6 +2415,9 @@ function renderSoundCloudPlayer(container, tracks, playlistUrl) {
 
   container.innerHTML = "";
   container.append(list, audio);
+  requestAnimationFrame(() => {
+    titleEls.forEach((titleEl) => updateTitleScroll(titleEl));
+  });
   // Attribution block removed to avoid double attribution; now handled in header row
   container.dataset.soundcloudReady = "true";
 }
