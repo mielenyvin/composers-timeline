@@ -1078,4 +1078,4 @@ export function initTimeline(options = {}) {
   };
 }
 
-export { composers, getComposerImage };
+export { composers, getComposerImage, ERAS };
