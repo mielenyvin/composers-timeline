@@ -77,6 +77,10 @@
           </li>
         </ul>
       </div>
+      <br />
+      <p class="about__text">
+        {{ copyrightLabel }}
+      </p>
     </div>
   </section>
 </template>
@@ -178,6 +182,11 @@ const testFeaturesLabel = computed(
     ABOUT_COPY.en.testFeaturesLabel ||
     "Test functions"
 );
+
+const copyrightLabel = computed(() => {
+  const year = new Date().getFullYear();
+  return `© 2015 - ${year}`;
+});
 
 const localTestFeatures = computed({
   get: () => props.testFeaturesEnabled,
@@ -349,6 +358,7 @@ const localTestFeatures = computed({
   width: 14px;
   height: 14px;
 }
+
 
 @media (max-width: 700px) {
   .about__card {

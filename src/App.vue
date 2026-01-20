@@ -25,6 +25,10 @@
           @click="selectView('composers')">
           {{ navigationLabels.composers }}
         </button>
+        <button class="menu-item" :class="{ 'menu-item--active': currentView === 'radio' }"
+          @click="selectView('radio')">
+          {{ navigationLabels.radio }}
+        </button>
         <button class="menu-item" :class="{ 'menu-item--active': currentView === 'quiz' }"
           @click="selectView('quiz')">
           {{ navigationLabels.quiz }}
@@ -94,6 +98,12 @@
 
         <ComposersTimeline :composers="sortedComposers" :settings="timelineSettings" :era-labels="eraLabels" />
       </section>
+
+      <RadioPage
+        v-else-if="currentView === 'radio'"
+        :language="language"
+        :composer-names="composerNames"
+      />
 
       <AboutPage
         v-else-if="currentView === 'about'"
@@ -213,6 +223,7 @@ import { computed, nextTick, onBeforeUnmount, onMounted, reactive, ref, watch } 
 import ComposersTimeline from "./components/ComposersTimeline.vue";
 import AboutPage from "./components/AboutPage.vue";
 import QuizPage from "./components/QuizPage.vue";
+import RadioPage from "./components/RadioPage.vue";
 import { composers, getComposerImage } from "./timeline-core";
 import composerFactsRaw from "../composers.md?raw";
 
@@ -223,6 +234,7 @@ const LOCALES = {
     languageLabel: "Language",
     navigation: {
       composers: "Composers Timeline",
+      radio: "Radio",
       about: "About",
       quiz: "Check your knowledge",
     },
@@ -260,6 +272,7 @@ const LOCALES = {
     languageLabel: "Sprache",
     navigation: {
       composers: "Zeitstrahl der Komponisten",
+      radio: "Radio",
       about: "Über das Projekt",
       quiz: "Wissen testen",
     },
@@ -297,6 +310,7 @@ const LOCALES = {
     languageLabel: "Язык",
     navigation: {
       composers: "Таймлайн композиторов",
+      radio: "Радио",
       about: "О проекте",
       quiz: "Проверьте знания",
     },
@@ -1139,6 +1153,10 @@ function updateViewFromLocation(pathname = window.location.pathname) {
     currentView.value = "about";
     return;
   }
+  if (pathname === "/radio") {
+    currentView.value = "radio";
+    return;
+  }
   if (pathname === "/quiz") {
     currentView.value = "quiz";
     return;
@@ -1159,6 +1177,10 @@ function navigateTo(path) {
 function selectView(view) {
   if (view === "about") {
     navigateTo("/about");
+    return;
+  }
+  if (view === "radio") {
+    navigateTo("/radio");
     return;
   }
   if (view === "quiz") {
@@ -1863,6 +1885,8 @@ watch(currentIndex, (laneIndex) => {
   const fallbackPath =
     currentView.value === "about"
       ? "/about"
+      : currentView.value === "radio"
+        ? "/radio"
       : currentView.value === "quiz"
         ? "/quiz"
         : "/";
@@ -2079,9 +2103,11 @@ async function resolveSoundCloudStreamUrl(track) {
 }
 
 async function fetchSoundCloudPlaylist(playlistUrl) {
-  const url =
-    buildProxyUrl("/api/soundcloud/playlist") +
-    `?url=${encodeURIComponent(playlistUrl)}`;
+  const params = new URLSearchParams({ url: playlistUrl });
+  if (testFeaturesEnabled.value) {
+    params.set("test_features", "1");
+  }
+  const url = buildProxyUrl("/api/soundcloud/playlist") + `?${params.toString()}`;
   const resp = await fetch(url);
   if (!resp.ok) {
     const err = new Error(`SoundCloud playlist error: ${resp.status}`);
@@ -2223,8 +2249,10 @@ function renderSoundCloudPlayer(container, tracks, playlistUrl) {
   const updateTitleScroll = (titleEl) => {
     if (!titleEl) return;
     const textEl = titleEl.querySelector(".sc-track__title-text");
+    const textWrap = titleEl.querySelector(".sc-track__title-text-wrap");
     if (!textEl) return;
-    const overflow = textEl.scrollWidth - titleEl.clientWidth;
+    const availableWidth = textWrap ? textWrap.clientWidth : titleEl.clientWidth;
+    const overflow = textEl.scrollWidth - availableWidth;
     if (overflow > 4) {
       titleEl.dataset.scroll = "true";
       titleEl.style.setProperty("--scroll-distance", `${overflow}px`);
@@ -2322,10 +2350,20 @@ function renderSoundCloudPlayer(container, tracks, playlistUrl) {
 
     const titleEl = document.createElement("div");
     titleEl.className = "sc-track__title";
+    const titleWrap = document.createElement("span");
+    titleWrap.className = "sc-track__title-text-wrap";
     const titleText = document.createElement("span");
     titleText.className = "sc-track__title-text";
     titleText.textContent = track?.title || `Track ${index + 1}`;
-    titleEl.append(titleText);
+    titleWrap.append(titleText);
+    titleEl.append(titleWrap);
+    const durationMs = track?.full_duration ?? track?.duration;
+    if (durationMs) {
+      const durationEl = document.createElement("span");
+      durationEl.className = "sc-track__duration";
+      durationEl.textContent = formatDuration(durationMs);
+      titleEl.append(durationEl);
+    }
     titleEls.push(titleEl);
 
     trackEl.append(button, titleEl);
@@ -2360,11 +2398,23 @@ function updateMediaSessionMetadata(track) {
     album,
     artwork: [
       {
-        src: "/images/about_music_logo.png",
+        src: "/images/about_music_logo_padding.png",
         type: "image/png",
       },
     ],
   });
+}
+
+function formatDuration(durationMs) {
+  const totalSeconds = Math.max(0, Math.floor((durationMs || 0) / 1000));
+  const hours = Math.floor(totalSeconds / 3600);
+  const minutes = Math.floor((totalSeconds % 3600) / 60);
+  const seconds = totalSeconds % 60;
+  const pad = (value) => String(value).padStart(2, "0");
+  if (hours > 0) {
+    return `${hours}:${pad(minutes)}:${pad(seconds)}`;
+  }
+  return `${minutes}:${pad(seconds)}`;
 }
 </script>
 
@@ -2679,11 +2729,30 @@ function updateMediaSessionMetadata(track) {
 }
 
 :deep(.sc-track__title) {
+  display: flex;
+  align-items: center;
+  gap: 10px;
   flex: 1 1 auto;
   min-width: 0;
   max-width: 100%;
   overflow: hidden;
   text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+:deep(.sc-track__title-text-wrap) {
+  flex: 1 1 auto;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+:deep(.sc-track__duration) {
+  margin-left: auto;
+  font-size: 12px;
+  color: #6b7280;
+  font-variant-numeric: tabular-nums;
   white-space: nowrap;
 }
 

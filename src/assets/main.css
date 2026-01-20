@@ -271,6 +271,7 @@
 .sc-player {
   margin-top: 8px;
   width: 100%;
+  border: 1px #dddddd solid;
 }
 
 .sc-player__status {

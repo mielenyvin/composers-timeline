@@ -20,6 +20,8 @@ if (!SOUND_CLOUD_PUBLIC_CLIENT_ID) {
 }
 
 const WIDGET_BASE = "https://api-widget.soundcloud.com";
+const TRACK_AUTH_TTL_MS = 10 * 24 * 60 * 60 * 1000;
+const trackAuthCache = new Map();
 
 function createError(status, message) {
   const err = new Error(message);
@@ -57,23 +59,113 @@ function extractPlaylistSlug(playlistUrl) {
   }
 }
 
+function getLocalPlaylistDirs() {
+  const env = process.env.LOCAL_PLAYLIST_DIR;
+  if (env) {
+    return env
+      .split(path.delimiter)
+      .map((entry) => entry.trim())
+      .filter(Boolean);
+  }
+
+  return [
+    path.resolve(process.cwd(), "public", "playlists"),
+    "/var/www/html/playlists",
+  ];
+}
+
 async function loadLocalPlaylist(playlistUrl) {
   const slug = extractPlaylistSlug(playlistUrl);
   if (!slug) return null;
-  const filePath = path.resolve(
-    process.cwd(),
-    "public",
-    "playlists",
-    `${slug}.json`
-  );
-  try {
-    const raw = await fs.readFile(filePath, "utf8");
-    return JSON.parse(raw);
-  } catch (err) {
-    if (err.code === "ENOENT") return null;
-    console.error("Local playlist read error", { filePath, err });
-    throw createError(500, "Local playlist read error");
+  const dirs = getLocalPlaylistDirs();
+
+  for (const dir of dirs) {
+    const filePath = path.join(dir, `${slug}.json`);
+    try {
+      const raw = await fs.readFile(filePath, "utf8");
+      return JSON.parse(raw);
+    } catch (err) {
+      if (err.code === "ENOENT") continue;
+      console.error("Local playlist read error", { filePath, err });
+      throw createError(500, "Local playlist read error");
+    }
   }
+
+  return null;
+}
+
+function getCachedTrackAuth(trackId) {
+  if (!trackId) return null;
+  const entry = trackAuthCache.get(String(trackId));
+  if (!entry) return null;
+  if (Date.now() - entry.updatedAt > TRACK_AUTH_TTL_MS) {
+    trackAuthCache.delete(String(trackId));
+    return null;
+  }
+  return entry.track_authorization || null;
+}
+
+function setCachedTrackAuth(trackId, trackAuth) {
+  if (!trackId || !trackAuth) return;
+  trackAuthCache.set(String(trackId), {
+    track_authorization: trackAuth,
+    updatedAt: Date.now(),
+  });
+}
+
+async function refreshPlaylistTracks(
+  data,
+  { trustExistingAuth = false, useCache = false } = {}
+) {
+  if (!data || !Array.isArray(data.tracks) || !data.tracks.length) {
+    return data;
+  }
+
+  const tracks = [];
+  for (const track of data.tracks) {
+    const trackId = track?.id;
+    if (!trackId) {
+      tracks.push(track);
+      continue;
+    }
+
+    if (useCache) {
+      const cachedAuth = getCachedTrackAuth(trackId);
+      if (cachedAuth) {
+        tracks.push({ ...track, track_authorization: cachedAuth });
+        continue;
+      }
+    }
+
+    const hasTitle = track?.title && String(track.title).trim();
+    const hasTranscodings = Array.isArray(track?.media?.transcodings);
+    if (
+      trustExistingAuth &&
+      track?.track_authorization &&
+      hasTitle &&
+      hasTranscodings
+    ) {
+      if (useCache) {
+        setCachedTrackAuth(trackId, track.track_authorization);
+      }
+      tracks.push(track);
+      continue;
+    }
+
+    try {
+      const resolved = await fetchTrackDetails(trackId, track?.track_authorization);
+      const merged = resolved ? { ...track, ...resolved } : track;
+      if (useCache && merged?.track_authorization) {
+        setCachedTrackAuth(trackId, merged.track_authorization);
+      }
+      tracks.push(merged);
+    } catch (err) {
+      console.error("SoundCloud track refresh failed", err);
+      tracks.push(track);
+    }
+  }
+
+  return { ...data, tracks };
 }
 
 async function resolveWithWidget(targetUrl, trackAuth) {
@@ -305,40 +397,26 @@ app.get("/api/soundcloud/playlist", async (req, res) => {
       return res.status(400).json({ error: "Missing url parameter" });
     }
 
+    const disableTrackAuthCache =
+      req.query.test_features === "1" || req.query.test_features === "true";
+    const useTrackAuthCache = !disableTrackAuthCache;
+
     const localPlaylist = await loadLocalPlaylist(playlistUrl);
     if (localPlaylist) {
-      return res.json(localPlaylist);
+      const refreshed = await refreshPlaylistTracks(localPlaylist, {
+        trustExistingAuth: false,
+        useCache: useTrackAuthCache,
+      });
+      return res.json(refreshed);
     }
 
     const data = await resolveWithWidget(playlistUrl);
-    if (Array.isArray(data?.tracks) && data.tracks.length) {
-      const tracks = [];
-      for (const track of data.tracks) {
-        if (
-          !track ||
-          (track.title &&
-            String(track.title).trim() &&
-            track.media?.transcodings?.length)
-        ) {
-          tracks.push(track);
-          continue;
-        }
+    const refreshed = await refreshPlaylistTracks(data, {
+      trustExistingAuth: true,
+      useCache: useTrackAuthCache,
+    });
 
-        try {
-          const resolved = await fetchTrackDetails(
-            track?.id,
-            track?.track_authorization
-          );
-          tracks.push(resolved || track);
-        } catch (err) {
-          console.error("SoundCloud track detail fetch failed", err);
-          tracks.push(track);
-        }
-      }
-      data.tracks = tracks;
-    }
-
-    res.json(data);
+    res.json(refreshed);
   } catch (err) {
     console.error("SoundCloud playlist proxy error", err);
     if (err.status === 429) {
