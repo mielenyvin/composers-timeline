@@ -1,5 +1,5 @@
 <template>
-  <section class="quiz">
+  <section class="quiz" ref="quizEl">
     <div class="quiz__card">
       <header class="quiz__header">
         <h1 class="quiz__title">{{ quizContent.title }}</h1>
@@ -70,11 +70,27 @@
               {{ quizContent.shareLinkedIn }}
             </a>
             -->
-            <a class="quiz__share-button" :href="shareLinks.telegram" target="_blank" rel="noopener noreferrer">
-              {{ quizContent.shareTelegram }}
+            <a
+              class="quiz__share-button"
+              :href="shareLinks.telegram"
+              target="_blank"
+              rel="noopener noreferrer"
+              :aria-label="quizContent.shareTelegram"
+              :title="quizContent.shareTelegram"
+            >
+              <img class="quiz__share-icon" src="/images/telegram.svg" alt="" aria-hidden="true" />
+              <span class="sr-only">{{ quizContent.shareTelegram }}</span>
             </a>
-            <a class="quiz__share-button" :href="shareLinks.whatsApp" target="_blank" rel="noopener noreferrer">
-              {{ quizContent.shareWhatsApp }}
+            <a
+              class="quiz__share-button"
+              :href="shareLinks.whatsApp"
+              target="_blank"
+              rel="noopener noreferrer"
+              :aria-label="quizContent.shareWhatsApp"
+              :title="quizContent.shareWhatsApp"
+            >
+              <img class="quiz__share-icon" src="/images/whatsapp.svg" alt="" aria-hidden="true" />
+              <span class="sr-only">{{ quizContent.shareWhatsApp }}</span>
             </a>
           </div>
         </div>
@@ -123,7 +139,11 @@
 
         <div class="quiz__question">{{ quizContent.chooseComposerPrompt }}</div>
         <div class="quiz__options">
-          <button v-for="(option, index) in currentRound.composerOptions" :key="option" class="quiz__option"
+          <button
+            v-for="(option, index) in currentRound.composerOptions"
+            :key="option"
+            class="quiz__option"
+            :ref="(el) => { if (index === 0) firstComposerButtonEl = el; }"
             type="button" :disabled="isComposerAnswered" :aria-pressed="option === currentRound.selectedComposer"
             :class="{
               'is-selected': option === currentRound.selectedComposer,
@@ -137,7 +157,7 @@
           </button>
         </div>
 
-        <div class="quiz__question">{{ quizContent.chooseEraPrompt }}</div>
+        <div ref="eraQuestionEl" class="quiz__question">{{ quizContent.chooseEraPrompt }}</div>
         <div class="quiz__options quiz__options--era">
           <button v-for="(option, index) in currentRound.eraOptions" :key="option" class="quiz__option" type="button"
             :disabled="isEraAnswered" :aria-pressed="option === currentRound.selectedEra" :class="{
@@ -180,7 +200,7 @@
         </div>
 
         <div class="quiz__actions">
-          <button class="quiz__secondary" type="button" :disabled="!isAnswered" @click="nextRound">
+          <button ref="nextButtonEl" class="quiz__secondary" type="button" :disabled="!isAnswered" @click="nextRound">
             {{ nextLabel }}
           </button>
         </div>
@@ -208,6 +228,8 @@ const props = defineProps({
   },
 });
 
+const EASY_PLAYLIST_JSON = "/playlist_easy.json";
+const HARD_PLAYLIST_JSON = "/playlist_hard.json";
 const EASY_PLAYLIST_URL =
   "https://soundcloud.com/dmitry-kotikov/sets/quizeasy";
 const HARD_PLAYLIST_URL =
@@ -496,7 +518,7 @@ const QUIZ_COPY = {
     next: "Next",
     finish: "Finish",
     scoreLabel: "Score",
-    resultLine: "Final score",
+    resultLine: "Final score:",
     resultModeLabel: "Mode:",
     resultWin: "Sharp ear - well done.",
     resultLose: "Worth another listen to sharpen your ear.",
@@ -547,7 +569,7 @@ const QUIZ_COPY = {
     next: "Weiter",
     finish: "Fertig",
     scoreLabel: "Punkte",
-    resultLine: "Endstand",
+    resultLine: "Endstand:",
     resultModeLabel: "Modus:",
     resultWin: "Starkes Gehoer - gut gemacht.",
     resultLose: "Ein zweiter Durchlauf hilft dem Gehoer.",
@@ -564,7 +586,7 @@ const QUIZ_COPY = {
     shareCopied: "Kopiert",
   },
   ru: {
-    retry: "Сыграть еще раз",
+    retry: "Пройти еще раз",
     abort: "Прервать викторину",
     confirmAbort: "Действительно ли вы хотите прервать викторину?",
     title: "Угадайте композитора",
@@ -595,7 +617,7 @@ const QUIZ_COPY = {
     next: "Дальше",
     finish: "Узнать результат",
     scoreLabel: "Счет",
-    resultLine: "Итоговый счет",
+    resultLine: "Результат:",
     resultModeLabel: "Режим:",
     resultWin: "Вы - настоящий знаток академической музыки.",
     resultLose: "Стоит прослушать еще раз всех композиторов на таймлайне и результат будет лучше.",
@@ -629,6 +651,11 @@ const hasStarted = ref(false);
 const isComplete = ref(false);
 const currentRoundIndex = ref(0);
 const audioEl = ref(null);
+const quizEl = ref(null);
+const eraQuestionEl = ref(null);
+const nextButtonEl = ref(null);
+
+let firstComposerButtonEl = null;
 const isPlaying = ref(false);
 const isLoadingAudio = ref(false);
 const hasAudioError = ref(false);
@@ -676,13 +703,15 @@ const shareTextWithUrl = computed(() => {
 });
 
 const shareLinks = computed(() => {
-  const textWithUrl = encodeURIComponent(shareTextWithUrl.value);
+  const encodedUrl = encodeURIComponent(shareUrl.value || "");
+  const encodedTextNoUrl = encodeURIComponent(shareTextNoUrl.value || "");
+  const encodedTextWithUrl = encodeURIComponent(shareTextWithUrl.value || "");
+
   return {
-    // x: `https://twitter.com/intent/tweet?text=${textWithUrl}`,
-    // facebook: `https://www.facebook.com/sharer/sharer.php?u=${url}`,
-    // linkedIn: `https://www.linkedin.com/sharing/share-offsite/?url=${url}`,
-    telegram: `https://t.me/share/url?text=${textWithUrl}`,
-    whatsApp: `https://wa.me/?text=${textWithUrl}`,
+    // Вариант 1: Telegram получает ссылку отдельно и может подтянуть OG-превью (картинку)
+    telegram: `https://t.me/share/url?url=${encodedUrl}&text=${encodedTextNoUrl}`,
+    // WhatsApp обычно норм, когда ссылка прямо в тексте
+    whatsApp: `https://wa.me/?text=${encodedTextWithUrl}`,
   };
 });
 const totalRounds = computed(() => rounds.value.length);
@@ -816,11 +845,13 @@ function buildRounds(tracks) {
 function getPlaylistConfig(mode) {
   if (mode === "hard") {
     return {
+      source: HARD_PLAYLIST_JSON,
       url: HARD_PLAYLIST_URL,
       map: HARD_TITLE_COMPOSER_MAP,
     };
   }
   return {
+    source: EASY_PLAYLIST_JSON,
     url: EASY_PLAYLIST_URL,
     map: EASY_TITLE_COMPOSER_MAP,
   };
@@ -838,13 +869,19 @@ async function loadPlaylistTracks(mode) {
   }
   isLoadingQuiz.value = true;
   quizError.value = "";
-  const { url, map } = getPlaylistConfig(mode);
+  const { source, url, map } = getPlaylistConfig(mode);
   try {
-    const response = await fetch(buildPlaylistProxyUrl(url));
-    if (!response.ok) {
-      throw new Error(`Playlist error ${response.status}`);
+    let response = await fetch(source);
+    let data = null;
+    if (response.ok) {
+      data = await response.json();
+    } else {
+      response = await fetch(buildPlaylistProxyUrl(url));
+      if (!response.ok) {
+        throw new Error(`Playlist error ${response.status}`);
+      }
+      data = await response.json();
     }
-    const data = await response.json();
     const mapped = (data?.tracks || [])
       .map((track) => {
         const key = normalizeKey(track?.title);
@@ -891,6 +928,141 @@ function stopAudio() {
   audio.currentTime = 0;
 }
 
+function scrollToElement(el, offset = -12) {
+  const target = el?.value || el;
+  if (!target) return;
+
+  const container = quizEl.value;
+
+  // Prefer scrolling inside the quiz container (it has overflow-y: auto)
+  if (container && typeof container.scrollTo === "function") {
+    const containerRect = container.getBoundingClientRect();
+    const targetRect = target.getBoundingClientRect();
+    const delta = targetRect.top - containerRect.top;
+    container.scrollTo({
+      top: container.scrollTop + delta + offset,
+      behavior: "smooth",
+    });
+    return;
+  }
+
+  // Fallback for cases where the container scrolling is not available
+  if (typeof target.scrollIntoView === "function") {
+    target.scrollIntoView({ behavior: "smooth", block: "center" });
+    return;
+  }
+
+  if (typeof window !== "undefined" && typeof window.scrollTo === "function") {
+    window.scrollTo({ top: 0, behavior: "smooth" });
+  }
+}
+
+function scrollToTop({ behavior = "smooth", duration = 700 } = {}) {
+  const container = quizEl.value;
+
+  const prefersReduced =
+    typeof window !== "undefined" &&
+    typeof window.matchMedia === "function" &&
+    window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+
+  const easeOutCubic = (t) => 1 - Math.pow(1 - t, 3);
+
+  const animate = (getter, setter, to, ms) => {
+    const from = getter();
+    if (!Number.isFinite(from) || from === to) {
+      setter(to);
+      return;
+    }
+
+    const start = performance.now();
+    const step = (now) => {
+      const t = Math.min(1, (now - start) / ms);
+      const value = from + (to - from) * easeOutCubic(t);
+      setter(value);
+      if (t < 1) requestAnimationFrame(step);
+    };
+    requestAnimationFrame(step);
+  };
+
+  const scrollElToTop = (el) => {
+    if (!el) return;
+    try {
+      if (prefersReduced || behavior !== "smooth" || duration <= 0) {
+        el.scrollTop = 0;
+        if (typeof el.scrollTo === "function") el.scrollTo({ top: 0, behavior: "auto" });
+        return;
+      }
+
+      // Manual animation gives consistent speed across browsers.
+      animate(
+        () => el.scrollTop,
+        (v) => {
+          el.scrollTop = v;
+        },
+        0,
+        duration
+      );
+    } catch (_) {
+      // ignore
+    }
+  };
+
+  const scrollWindowToTop = () => {
+    if (typeof window === "undefined") return;
+
+    const set = (v) => {
+      try {
+        window.scrollTo(0, v);
+      } catch (_) {
+        // ignore
+      }
+    };
+
+    if (prefersReduced || behavior !== "smooth" || duration <= 0) {
+      try {
+        window.scrollTo({ top: 0, behavior: "auto" });
+      } catch (_) {
+        window.scrollTo(0, 0);
+      }
+      return;
+    }
+
+    animate(
+      () => window.scrollY || 0,
+      (v) => set(v),
+      0,
+      duration
+    );
+  };
+
+  // First pass
+  scrollElToTop(container);
+  scrollWindowToTop();
+
+  if (typeof document !== "undefined") {
+    scrollElToTop(document.documentElement);
+    scrollElToTop(document.body);
+  }
+
+  // Second + third passes help with mobile scroll anchoring / layout shifts.
+  requestAnimationFrame(() => {
+    scrollElToTop(container);
+    if (typeof document !== "undefined") {
+      scrollElToTop(document.documentElement);
+      scrollElToTop(document.body);
+    }
+    requestAnimationFrame(() => {
+      // Force absolute top, no animation, to guarantee the final position.
+      if (container) container.scrollTop = 0;
+      if (typeof document !== "undefined") {
+        document.documentElement.scrollTop = 0;
+        document.body.scrollTop = 0;
+      }
+      if (typeof window !== "undefined") window.scrollTo(0, 0);
+    });
+  });
+}
+
 async function startQuiz() {
   if (isLoadingQuiz.value) return;
   quizError.value = "";
@@ -934,6 +1106,11 @@ function selectComposerOption(option) {
   round.selectedComposer = option;
   round.composerCorrect = option === round.composer;
   stopAudio();
+
+  // After choosing the composer, scroll so the first composer button is fully visible at the top.
+  nextTick(() => {
+    scrollToElement(firstComposerButtonEl, -3);
+  });
 }
 
 function selectEraOption(option) {
@@ -941,16 +1118,29 @@ function selectEraOption(option) {
   if (!round || round.selectedEra) return;
   round.selectedEra = option;
   round.eraCorrect = option === round.eraLabel;
+
+  // After choosing the era, scroll down to the Next button.
+  nextTick(() => {
+    scrollToElement(nextButtonEl, -24);
+  });
 }
 
 function nextRound() {
   if (!isAnswered.value) return;
-  if (currentRoundIndex.value >= totalRounds.value - 1) {
+
+  const isLast = currentRoundIndex.value >= totalRounds.value - 1;
+
+  if (isLast) {
     isComplete.value = true;
     stopAudio();
-    return;
+  } else {
+    currentRoundIndex.value += 1;
   }
-  currentRoundIndex.value += 1;
+
+  // Scroll after the view has updated; slower scroll.
+  nextTick(() => {
+    scrollToTop({ behavior: "smooth", duration: 200 });
+  });
 }
 
 async function togglePlay() {
@@ -1049,6 +1239,7 @@ onBeforeUnmount(() => {
   align-items: flex-start;
   justify-content: center;
   background: #ffffff;
+  overflow-anchor: none;
 }
 
 .quiz__card {
@@ -1112,7 +1303,7 @@ onBeforeUnmount(() => {
   margin: 0;
   color: var(--muted);
   line-height: 1.5;
-  font-size: 14px;
+  font-size: 15px;
 }
 
 .quiz__intro-list {
@@ -1144,9 +1335,9 @@ onBeforeUnmount(() => {
 .quiz__difficulty-option {
   padding: 8px 16px;
   border-radius: 6px;
-  font-size: 14px;
+  font-size: 15px;
   border: 1px solid transparent;
-  background: #f8fafc;
+  background: #eff0f7;
   color: var(--ink);
   font-weight: 500;
   cursor: pointer;
@@ -1165,11 +1356,11 @@ onBeforeUnmount(() => {
 
 .quiz__error {
   color: var(--danger);
-  font-size: 14px;
+  font-size: 15px;
 }
 
 .quiz__primary {
-  font-size: 14px;
+  font-size: 15px;
   justify-self: start;
   padding: 12px 20px;
   border-radius: 6px;
@@ -1233,7 +1424,7 @@ onBeforeUnmount(() => {
   border: 1px solid #e5e7eb;
   border-radius: 6px;
   padding: 12px;
-  background: #f8fafc;
+  background: #eff0f7;
   display: grid;
   gap: 8px;
 }
@@ -1247,7 +1438,7 @@ onBeforeUnmount(() => {
 
 .quiz__share-preview-body {
   color: #111827;
-  font-size: 14px;
+  font-size: 15px;
   line-height: 1.5;
   white-space: pre-wrap;
   word-break: break-word;
@@ -1272,11 +1463,30 @@ onBeforeUnmount(() => {
   cursor: pointer;
   text-decoration: none;
   transition: background 0.2s ease, transform 0.2s ease;
+  gap: 8px;
 }
 
 .quiz__share-button:hover {
-  background: #f8fafc;
+  background: #eff0f7;
   transform: translateY(-1px);
+}
+
+.quiz__share-icon {
+  width: 18px;
+  height: 18px;
+  display: block;
+}
+
+.sr-only {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  padding: 0;
+  margin: -1px;
+  overflow: hidden;
+  clip: rect(0, 0, 0, 0);
+  white-space: nowrap;
+  border: 0;
 }
 
 
@@ -1304,7 +1514,7 @@ onBeforeUnmount(() => {
 }
 
 .quiz__score-pill {
-  font-size: 14px;
+  font-size: 15px;
   color: #1f2937;
 }
 
@@ -1359,7 +1569,7 @@ onBeforeUnmount(() => {
 .quiz__play-icon {
   width: 0;
   height: 0;
-  font-size: 14px;
+  font-size: 15px;
   border-top: 7px solid transparent;
   border-bottom: 7px solid transparent;
   border-left: 12px solid currentColor;
@@ -1438,12 +1648,13 @@ onBeforeUnmount(() => {
   padding: 12px 14px;
   border-radius: 6px;
   border: 0;
-  background: #f8fafc;
+  background: #eff0f7;
   font-weight: 500;
   color: #111827;
   cursor: pointer;
   transition: background 0.2s ease, border 0.2s ease;
   animation: none;
+  font-size: 15px;
 }
 
 .quiz__option:hover:not(:disabled) {}
@@ -1500,12 +1711,12 @@ onBeforeUnmount(() => {
   padding: 10px 18px;
   border-radius: 6px;
   border: 0;
-  background: #f8fafc;
+  background: #eff0f7;
   color: var(--ink);
   font-weight: 500;
   cursor: pointer;
   transition: background 0.2s ease, transform 0.2s ease;
-  font-size: 14px;
+  font-size: 15px;
 }
 
 .quiz__secondary--ghost {
@@ -1542,7 +1753,7 @@ onBeforeUnmount(() => {
 }
 
 .quiz__secondary:hover:not(:disabled) {
-  background: #f8fafc;
+  background: #eff0f7;
   transform: translateY(-1px);
 }
 
@@ -1590,7 +1801,7 @@ onBeforeUnmount(() => {
 
   .quiz__play {
     width: 100%;
-    font-size: 14px;
+    font-size: 15px;
     justify-content: center;
   }
 

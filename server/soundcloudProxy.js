@@ -2,6 +2,9 @@
 import express from "express";
 import fetch from "node-fetch";
 import dotenv from "dotenv";
+import { promises as fs } from "node:fs";
+import path from "node:path";
+import { pipeline } from "node:stream";
 
 dotenv.config();
 
@@ -32,6 +35,45 @@ function withQuery(urlString, params = {}) {
     }
   });
   return url.toString();
+}
+
+function extractPlaylistSlug(playlistUrl) {
+  try {
+    const url = new URL(playlistUrl);
+    const parts = url.pathname.split("/").filter(Boolean);
+    if (!parts.length) return null;
+    const setsIndex = parts.indexOf("sets");
+    const raw =
+      setsIndex !== -1 && parts[setsIndex + 1]
+        ? parts[setsIndex + 1]
+        : parts[parts.length - 1];
+    const slug = decodeURIComponent(String(raw)).replace(
+      /[^a-zA-Z0-9-_]/g,
+      ""
+    );
+    return slug || null;
+  } catch (err) {
+    return null;
+  }
+}
+
+async function loadLocalPlaylist(playlistUrl) {
+  const slug = extractPlaylistSlug(playlistUrl);
+  if (!slug) return null;
+  const filePath = path.resolve(
+    process.cwd(),
+    "public",
+    "playlists",
+    `${slug}.json`
+  );
+  try {
+    const raw = await fs.readFile(filePath, "utf8");
+    return JSON.parse(raw);
+  } catch (err) {
+    if (err.code === "ENOENT") return null;
+    console.error("Local playlist read error", { filePath, err });
+    throw createError(500, "Local playlist read error");
+  }
 }
 
 async function resolveWithWidget(targetUrl, trackAuth) {
@@ -173,8 +215,38 @@ app.get("/api/soundcloud/audio/:trackId", async (req, res) => {
     // Status 206 for ranged responses, 200 otherwise
     res.status(upstream.status);
 
-    // Stream body
-    upstream.body.pipe(res);
+    if (!upstream.body) {
+      return res
+        .status(502)
+        .json({ error: "SoundCloud audio stream missing body" });
+    }
+
+    const cleanup = () => {
+      if (upstream.body && !upstream.body.destroyed) {
+        upstream.body.destroy();
+      }
+    };
+
+    res.on("close", cleanup);
+    res.on("error", cleanup);
+
+    pipeline(upstream.body, res, (err) => {
+      res.off("close", cleanup);
+      res.off("error", cleanup);
+      if (!err) return;
+      if (
+        err.code === "ERR_STREAM_PREMATURE_CLOSE" ||
+        err.code === "ECONNRESET"
+      ) {
+        return;
+      }
+      console.error("SoundCloud audio stream pipeline error", err);
+      if (!res.headersSent) {
+        res.status(502).json({ error: "SoundCloud audio stream error" });
+      } else {
+        res.destroy(err);
+      }
+    });
   } catch (err) {
     console.error("SoundCloud audio proxy error", err);
     const status = err.status || 500;
@@ -231,6 +303,11 @@ app.get("/api/soundcloud/playlist", async (req, res) => {
     const playlistUrl = req.query.url;
     if (!playlistUrl) {
       return res.status(400).json({ error: "Missing url parameter" });
+    }
+
+    const localPlaylist = await loadLocalPlaylist(playlistUrl);
+    if (localPlaylist) {
+      return res.json(localPlaylist);
     }
 
     const data = await resolveWithWidget(playlistUrl);
