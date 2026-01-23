@@ -228,17 +228,17 @@ Name (ru): Гектор Берлиоз
 Name (ru): Михаил Глинка
 
 - Who he was: Russian composer often called the father of Russian classical music and the founder of the Russian national school.
-- Operatic pioneer: His operas A Life for the Tsar and Ruslan and Lyudmila were among the first to use Russian history and folklore in a distinctively Russian musical language.
-- Folk roots: He drew on Russian folk songs and dances, blending them with Western techniques to create something new for his country's audiences.
+- Operatic pioneer: His operas A Life for the Tsar (also known as Ivan Susanin) and Ruslan and Lyudmila were among the first to use Russian history and folklore in a distinctly Russian musical language.
+- Folk roots: He drew on Russian folk songs and dances, blending them with Western techniques to create something new for his country’s audiences.
 - Influence: Later Russian composers, especially the group known as "The Five", took his music as a starting point for their own national style.
 
 
 ## Mikhail Glinka essentials (ru) {#mikhail-glinka}
 
 - Кем он был: Русский композитор, которого часто называют отцом русской классической музыки и основателем национальной школы.
-- Оперный первопроходец: Его оперы A Life for the Tsar и Ruslan and Lyudmila - одни из первых, где русская история и фольклор звучат на собственном музыкальном языке.
+- Оперный первопроходец: Его оперы «Жизнь за царя» (также известна как «Иван Сусанин») и «Руслан и Людмила» были среди первых произведений, где русская история и фольклор звучали на собственном, узнаваемом музыкальном языке.
 - Народные корни: Он опирался на русские народные песни и танцы, соединяя их с западными приемами и создавая новое для отечественной аудитории.
-- Влияние: Позднейшие русские композиторы, особенно из содружества "Могучая кучка", воспринимали его музыку как отправную точку для развития национального стиля.
+- Влияние: Позднейшие русские композиторы, особенно из содружества «Могучая кучка», воспринимали его музыку как отправную точку для развития национального стиля.
 
 ## Felix Mendelssohn essentials {#felix-mendelssohn}
 
@@ -844,9 +844,9 @@ Name (ru): Дмитрий Шостакович
 ## Mikhail Glinka essentials (de) {#mikhail-glinka}
 
 - Wer er war: Russischer Komponist, oft als Vater der russischen klassischen Musik und Begruender der russischen Nationalschule bezeichnet.
-- Opernpionier: Seine Opern A Life for the Tsar und Ruslan and Lyudmila gehoeren zu den ersten, die russische Geschichte und Folklore in einer deutlich russischen Musiksprache nutzten.
+- Opernpionier: Seine Opern Ein Leben fuer den Zaren (auch bekannt als Iwan Sussanin) und Ruslan und Ljudmila gehoeren zu den ersten Werken, die russische Geschichte und Folklore in einer deutlich russischen Musiksprache nutzten.
 - Volksmusik-Wurzeln: Er griff russische Volkslieder und Taenze auf und verband sie mit westlichen Techniken zu etwas Neuem fuer sein Publikum.
-- Einfluss: Spaetere russische Komponisten - besonders die Gruppe "Das maechtige Haeuflein" ("Die Fuenf") - nahmen seine Musik als Ausgangspunkt fuer ihren nationalen Stil.
+- Einfluss: Spaetere russische Komponisten, besonders die Gruppe „Das maechtige Haeuflein“ („Die Fuenf“), nahmen seine Musik als Ausgangspunkt fuer ihren nationalen Stil.
 
 ## Felix Mendelssohn essentials (de) {#felix-mendelssohn}
 

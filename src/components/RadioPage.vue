@@ -2,7 +2,14 @@
   <section class="radio">
     <div class="radio__card">
       <header class="radio__header">
-        <h1 class="radio__title">{{ radioContent.title }}</h1>
+        <div class="radio__title-row">
+          <h1 class="radio__title">{{ radioContent.title }}</h1>
+          <a class="sc-powered" href="https://soundcloud.com" target="_blank" rel="noopener noreferrer"
+            aria-label="Powered by SoundCloud">
+            <img class="sc-powered__img" src="/images/powered_by_black-4339b4c3c9cf88da9bfb15a16c4f6914.png"
+              alt="Powered by SoundCloud" />
+          </a>
+        </div>
       </header>
 
       <div class="radio__filters">
@@ -137,6 +144,10 @@ const props = defineProps({
     type: Object,
     default: () => ({}),
   },
+  useProxy: {
+    type: Boolean,
+    default: false,
+  },
 });
 
 const RADIO_CONTENT = {
@@ -232,7 +243,7 @@ const SOUND_CLOUD_PROXY_BASE = (
   ""
 ).replace(/\/$/, "");
 
-const shouldUseSoundCloudAudioProxy = true;
+const shouldUseSoundCloudAudioProxy = computed(() => props.useProxy);
 
 const radioContent = computed(() => RADIO_CONTENT[props.language] || RADIO_CONTENT.en);
 const playlists = ref([]);
@@ -932,12 +943,31 @@ watch(
   margin-top: 20px;
 }
 
+.radio__title-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+}
+
 .radio__title {
   margin: 0;
   font-size: 32px;
   font-weight: 600;
   letter-spacing: -0.02em;
   color: #101419;
+}
+
+.sc-powered {
+  display: inline-flex;
+  align-items: center;
+  justify-content: flex-end;
+  flex: 0 0 auto;
+}
+
+.sc-powered__img {
+  height: 28px;
+  display: block;
 }
 
 .radio__filters {

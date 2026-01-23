@@ -28,6 +28,10 @@
               :aria-pressed="difficulty === 'hard'" :disabled="isLoadingQuiz" @click="difficulty = 'hard'">
               {{ quizContent.difficultyHard }}
             </button>
+            <button type="button" class="quiz__difficulty-option" :class="{ 'is-active': difficulty === 'veryHard' }"
+              :aria-pressed="difficulty === 'veryHard'" :disabled="isLoadingQuiz" @click="difficulty = 'veryHard'">
+              {{ quizContent.difficultyVeryHard }}
+            </button>
           </div>
         </div>
         <div v-if="quizError" class="quiz__error" role="status">
@@ -137,67 +141,111 @@
           @waiting="handleWaiting" @canplay="handleCanPlay" @loadeddata="handleLoadedData"
           @error="handleAudioError"></audio>
 
-        <div class="quiz__question">{{ quizContent.chooseComposerPrompt }}</div>
-        <div class="quiz__options">
-          <button
-            v-for="(option, index) in currentRound.composerOptions"
-            :key="option"
-            class="quiz__option"
-            :ref="(el) => { if (index === 0) firstComposerButtonEl = el; }"
-            type="button" :disabled="isComposerAnswered" :aria-pressed="option === currentRound.selectedComposer"
-            :class="{
-              'is-selected': option === currentRound.selectedComposer,
-              'is-correct': isComposerAnswered && option === currentRound.composer,
-              'is-wrong':
-                isComposerAnswered &&
-                option === currentRound.selectedComposer &&
-                option !== currentRound.composer,
-            }" :style="{ '--index': index }" @click="selectComposerOption(option)">
-            {{ option }}
-          </button>
-        </div>
+        <template v-if="isTitleMode">
+          <div class="quiz__question">{{ quizContent.chooseTitlePrompt }}</div>
+          <div class="quiz__options">
+            <button
+              v-for="(option, index) in currentRound.titleOptions"
+              :key="option"
+              class="quiz__option"
+              :ref="(el) => { if (index === 0) firstTitleButtonEl = el; }"
+              type="button"
+              :disabled="isTitleAnswered"
+              :aria-pressed="option === currentRound.selectedTitle"
+              :class="{
+                'is-selected': option === currentRound.selectedTitle,
+                'is-correct': isTitleAnswered && option === currentRound.title,
+                'is-wrong':
+                  isTitleAnswered &&
+                  option === currentRound.selectedTitle &&
+                  option !== currentRound.title,
+              }"
+              :style="{ '--index': index }"
+              @click="selectTitleOption(option)"
+            >
+              {{ option }}
+            </button>
+          </div>
 
-        <div ref="eraQuestionEl" class="quiz__question">{{ quizContent.chooseEraPrompt }}</div>
-        <div class="quiz__options quiz__options--era">
-          <button v-for="(option, index) in currentRound.eraOptions" :key="option" class="quiz__option" type="button"
-            :disabled="isEraAnswered" :aria-pressed="option === currentRound.selectedEra" :class="{
-              'is-selected': option === currentRound.selectedEra,
-              'is-correct': isEraAnswered && option === currentRound.eraLabel,
-              'is-wrong':
-                isEraAnswered &&
-                option === currentRound.selectedEra &&
-                option !== currentRound.eraLabel,
-            }" :style="{ '--index': index }" @click="selectEraOption(option)">
-            {{ option }}
-          </button>
-        </div>
-
-        <div v-if="isComposerAnswered || isEraAnswered" class="quiz__feedback" role="status">
-          <div v-if="isComposerAnswered" class="quiz__feedback-block">
-            <div class="quiz__feedback-title">
-              {{
-                isCurrentCorrect
-                  ? quizContent.composerCorrect
-                  : quizContent.composerWrong
-              }}
-            </div>
-            <div class="quiz__feedback-body">
-              {{ quizContent.composerAnswerLabel }} {{ currentRound.composer }}
+          <div v-if="isTitleAnswered" class="quiz__feedback" role="status">
+            <div class="quiz__feedback-block">
+              <div class="quiz__feedback-title">
+                {{
+                  isCurrentTitleCorrect
+                    ? quizContent.titleCorrect
+                    : quizContent.titleWrong
+                }}
+              </div>
+              <div class="quiz__feedback-body">
+                {{ quizContent.titleAnswerLabel }} {{ currentRound.title }}
+              </div>
             </div>
           </div>
-          <div v-if="isEraAnswered" class="quiz__feedback-block">
-            <div class="quiz__feedback-title">
-              {{
-                isCurrentEraCorrect
-                  ? quizContent.eraCorrect
-                  : quizContent.eraWrong
-              }}
+        </template>
+
+        <template v-else>
+          <div class="quiz__question">{{ quizContent.chooseComposerPrompt }}</div>
+          <div class="quiz__options">
+            <button
+              v-for="(option, index) in currentRound.composerOptions"
+              :key="option"
+              class="quiz__option"
+              :ref="(el) => { if (index === 0) firstComposerButtonEl = el; }"
+              type="button" :disabled="isComposerAnswered" :aria-pressed="option === currentRound.selectedComposer"
+              :class="{
+                'is-selected': option === currentRound.selectedComposer,
+                'is-correct': isComposerAnswered && option === currentRound.composer,
+                'is-wrong':
+                  isComposerAnswered &&
+                  option === currentRound.selectedComposer &&
+                  option !== currentRound.composer,
+              }" :style="{ '--index': index }" @click="selectComposerOption(option)">
+              {{ option }}
+            </button>
+          </div>
+
+          <div ref="eraQuestionEl" class="quiz__question">{{ quizContent.chooseEraPrompt }}</div>
+          <div class="quiz__options quiz__options--era">
+            <button v-for="(option, index) in currentRound.eraOptions" :key="option" class="quiz__option" type="button"
+              :disabled="isEraAnswered" :aria-pressed="option === currentRound.selectedEra" :class="{
+                'is-selected': option === currentRound.selectedEra,
+                'is-correct': isEraAnswered && option === currentRound.eraLabel,
+                'is-wrong':
+                  isEraAnswered &&
+                  option === currentRound.selectedEra &&
+                  option !== currentRound.eraLabel,
+              }" :style="{ '--index': index }" @click="selectEraOption(option)">
+              {{ option }}
+            </button>
+          </div>
+
+          <div v-if="isComposerAnswered || isEraAnswered" class="quiz__feedback" role="status">
+            <div v-if="isComposerAnswered" class="quiz__feedback-block">
+              <div class="quiz__feedback-title">
+                {{
+                  isCurrentCorrect
+                    ? quizContent.composerCorrect
+                    : quizContent.composerWrong
+                }}
+              </div>
+              <div class="quiz__feedback-body">
+                {{ quizContent.composerAnswerLabel }} {{ currentRound.composer }}
+              </div>
             </div>
-            <div class="quiz__feedback-body">
-              {{ quizContent.eraAnswerLabel }} {{ currentRound.eraLabel }}
+            <div v-if="isEraAnswered" class="quiz__feedback-block">
+              <div class="quiz__feedback-title">
+                {{
+                  isCurrentEraCorrect
+                    ? quizContent.eraCorrect
+                    : quizContent.eraWrong
+                }}
+              </div>
+              <div class="quiz__feedback-body">
+                {{ quizContent.eraAnswerLabel }} {{ currentRound.eraLabel }}
+              </div>
             </div>
           </div>
-        </div>
+        </template>
 
         <div class="quiz__actions">
           <button ref="nextButtonEl" class="quiz__secondary" type="button" :disabled="!isAnswered" @click="nextRound">
@@ -467,6 +515,12 @@ function normalizeNameForLookup(name) {
     .trim();
 }
 
+function slugifyForPlaylist(text) {
+  return normalizeNameForLookup(text)
+    .replace(/\s+/g, "-")
+    .replace(/-+/g, "-");
+}
+
 function getLocalizedComposerName(name) {
   const normalized = normalizeNameForLookup(name);
   return props.composerNames?.[normalized] || name;
@@ -491,12 +545,13 @@ const QUIZ_COPY = {
     subtitle: "Press Play, listen to the excerpt, and guess who wrote it.",
     start: "Start the quiz",
     rulesTitle: "How it works",
-    rule1: "Listen to the excerpt and choose the composer.",
-    rule2: "Pick the era for a bonus half-point.",
-    rule3: "Simple uses famous pieces. Hard uses rarer ones. Your total shows up at the end.",
+    rule1: "Listen to the excerpt and choose the right answer.",
+    rule2: "Pick the era for a bonus half-point (simple/hard only).",
+    rule3: "Simple uses famous pieces. Hard uses rarer ones. Very hard asks for the title from the tracks of composer.",
     difficultyLabel: "Mode",
     difficultySimple: "Simple",
     difficultyHard: "Hard",
+    difficultyVeryHard: "Very hard",
     loadingQuiz: "Loading quiz...",
     playlistError: "Quiz data is unavailable right now.",
     round: "Round",
@@ -506,15 +561,19 @@ const QUIZ_COPY = {
     listenPrompt: "Listen to the excerpt",
     listenHelp: "Replay as many times as you need.",
     loading: "Loading audio...",
-    audioError: "Audio is unavailable. Try again in a moment.",
+    audioError: "Audio is unavailable. Please try to click on Play button again.",
     chooseComposerPrompt: "Who is the composer?",
     chooseEraPrompt: "Which era fits best?",
+    chooseTitlePrompt: "Which piece is playing?",
     composerCorrect: "Correct composer!",
     composerWrong: "Not quite.",
     eraCorrect: "Era bonus!",
     eraWrong: "Not quite.",
+    titleCorrect: "Correct title!",
+    titleWrong: "Not quite.",
     composerAnswerLabel: "Composer:",
     eraAnswerLabel: "Era:",
+    titleAnswerLabel: "Title:",
     next: "Next",
     finish: "Finish",
     scoreLabel: "Score",
@@ -542,12 +601,13 @@ const QUIZ_COPY = {
     subtitle: "Abspielen druecken, anhoeren und den Komponisten erraten.",
     start: "Quiz starten",
     rulesTitle: "So geht's",
-    rule1: "Hoere den Ausschnitt und waehle den Komponisten.",
-    rule2: "Waehle auch die Epoche - das gibt einen halben Bonuspunkt.",
-    rule3: "Einfach = bekannte Stuecke. Schwer = seltenere Stuecke. Die Gesamtpunktzahl kommt am Ende.",
+    rule1: "Hoere den Ausschnitt und waehle die richtige Antwort.",
+    rule2: "Waehle auch die Epoche - das gibt einen halben Bonuspunkt (nur Einfach/Schwer).",
+    rule3: "Einfach = bekannte Stuecke. Schwer = seltenere Stuecke. Sehr schwer fragt nach dem Titel aus den Tracks je Komponist.",
     difficultyLabel: "Modus",
     difficultySimple: "Einfach",
     difficultyHard: "Schwer",
+    difficultyVeryHard: "Sehr schwer",
     loadingQuiz: "Quiz wird geladen...",
     playlistError: "Quizdaten sind gerade nicht verfuegbar.",
     round: "Runde",
@@ -557,15 +617,19 @@ const QUIZ_COPY = {
     listenPrompt: "Ausschnitt anhoeren",
     listenHelp: "Du kannst beliebig oft neu starten.",
     loading: "Audio wird geladen...",
-    audioError: "Audio ist gerade nicht verfuegbar. Versuch's gleich nochmal.",
+    audioError: "Audio ist gerade nicht verfuegbar. Versuch's gleich nochmal 'Abspielen' klicken.",
     chooseComposerPrompt: "Wer ist der Komponist?",
     chooseEraPrompt: "Welche Epoche passt am besten?",
+    chooseTitlePrompt: "Welche Komposition hoerst du?",
     composerCorrect: "Komponist stimmt!",
     composerWrong: "Nicht ganz.",
     eraCorrect: "Epoche-Bonus!",
     eraWrong: "Nicht ganz.",
+    titleCorrect: "Titel stimmt!",
+    titleWrong: "Nicht ganz.",
     composerAnswerLabel: "Komponist:",
     eraAnswerLabel: "Epoche:",
+    titleAnswerLabel: "Titel:",
     next: "Weiter",
     finish: "Fertig",
     scoreLabel: "Punkte",
@@ -593,9 +657,9 @@ const QUIZ_COPY = {
     subtitle: "Нажмите \"Слушать\", прослушайте фрагмент и угадайте автора.",
     start: "Начать виктотрину",
     rulesTitle: "Как играть",
-    rule1: "Прослушайте фрагмент и выберите композитора.",
-    rule2: "Угадайте эпоху - это дает полбалла бонусом.",
-    rule3: "\"Просто\" - более известные произведения. \"Сложно\" - более редкие. Итоговый счет будет в конце.",
+    rule1: "Прослушайте фрагмент и выберите правильный вариант.",
+    rule2: "Угадайте эпоху - это дает полбалла бонусом (только в простом/сложном).",
+    rule3: "\"Просто\" - более известные произведения. \"Сложно\" - более редкие. \"Очень сложно\" - угадайте название из произведений композитора.",
     loadingQuiz: "Загружаем викторину...",
     playlistError: "Викторина сейчас недоступна.",
     round: "Раунд",
@@ -605,15 +669,19 @@ const QUIZ_COPY = {
     listenPrompt: "Слушайте фрагмент",
     listenHelp: "Можно переслушивать сколько угодно раз.",
     loading: "Загружаем аудио...",
-    audioError: "Аудио сейчас недоступно. Попробуйте еще раз чуть позже.",
+    audioError: "Аудио сейчас недоступно. Попробуйте нажать кнопку 'Слушать' еще раз.",
     chooseComposerPrompt: "Кто это?",
     chooseEraPrompt: "К какой эпохе это ближе?",
+    chooseTitlePrompt: "Какая композиция звучит?",
     composerCorrect: "Композитор угадан верно!",
     composerWrong: "Композитор угадан неверно.",
     eraCorrect: "Бонус за эпоху!",
     eraWrong: "Не совсем.",
+    titleCorrect: "Название угадано!",
+    titleWrong: "Не совсем.",
     composerAnswerLabel: "Композитор:",
     eraAnswerLabel: "Эпоха:",
+    titleAnswerLabel: "Название:",
     next: "Дальше",
     finish: "Узнать результат",
     scoreLabel: "Счет",
@@ -627,6 +695,7 @@ const QUIZ_COPY = {
     difficultyLabel: "Режим",
     difficultySimple: "Простой",
     difficultyHard: "Сложный",
+    difficultyVeryHard: "Очень сложный",
     shareTemplate: "Мой результат в викторине по классической музыке на {mode} уровне: {score}/{total}. Проверьте себя здесь",
     shareX: "X",
     shareFacebook: "Facebook",
@@ -656,9 +725,11 @@ const eraQuestionEl = ref(null);
 const nextButtonEl = ref(null);
 
 let firstComposerButtonEl = null;
+let firstTitleButtonEl = null;
 const isPlaying = ref(false);
 const isLoadingAudio = ref(false);
 const hasAudioError = ref(false);
+const hasRetriedAudio = ref(false);
 const difficulty = ref("simple");
 const isLoadingQuiz = ref(false);
 const quizError = ref("");
@@ -668,14 +739,19 @@ const playedMode = ref("simple");
 const quizContent = computed(() => QUIZ_COPY[props.language] || QUIZ_COPY.en);
 const playedModeLabel = computed(() => {
   const mode = playedMode.value || difficulty.value;
-  return mode === "hard"
-    ? quizContent.value.difficultyHard
-    : quizContent.value.difficultySimple;
+  if (mode === "hard") return quizContent.value.difficultyHard;
+  if (mode === "veryHard") return quizContent.value.difficultyVeryHard;
+  return quizContent.value.difficultySimple;
 });
+const isVeryHardMode = computed(
+  () => (playedMode.value || difficulty.value) === "veryHard"
+);
 const shareModeText = computed(() => {
   const mode = playedMode.value || difficulty.value;
   if ((props.language || "en") === "ru") {
-    return mode === "hard" ? "сложном" : "легком";
+    if (mode === "hard") return "сложном";
+    if (mode === "veryHard") return "очень сложном";
+    return "легком";
   }
   return playedModeLabel.value;
 });
@@ -718,27 +794,46 @@ const totalRounds = computed(() => rounds.value.length);
 const currentRound = computed(
   () => rounds.value[currentRoundIndex.value] || null
 );
+const isTitleMode = computed(() => currentRound.value?.mode === "veryHard");
 const isComposerAnswered = computed(() =>
   Boolean(currentRound.value?.selectedComposer)
 );
 const isEraAnswered = computed(() =>
   Boolean(currentRound.value?.selectedEra)
 );
-const isAnswered = computed(() => isComposerAnswered.value && isEraAnswered.value);
+const isTitleAnswered = computed(() =>
+  Boolean(currentRound.value?.selectedTitle)
+);
+const isAnswered = computed(() =>
+  isTitleMode.value
+    ? isTitleAnswered.value
+    : isComposerAnswered.value && isEraAnswered.value
+);
 const isCurrentCorrect = computed(
   () => currentRound.value?.selectedComposer === currentRound.value?.composer
 );
 const isCurrentEraCorrect = computed(
   () => currentRound.value?.selectedEra === currentRound.value?.eraLabel
 );
-const score = computed(() =>
-  rounds.value.reduce(
+const isCurrentTitleCorrect = computed(
+  () => currentRound.value?.selectedTitle === currentRound.value?.title
+);
+const score = computed(() => {
+  if (isVeryHardMode.value) {
+    return rounds.value.reduce(
+      (sum, round) => sum + (round.titleCorrect ? 1 : 0),
+      0
+    );
+  }
+  return rounds.value.reduce(
     (sum, round) =>
       sum + (round.composerCorrect ? 1 : 0) + (round.eraCorrect ? 0.5 : 0),
     0
-  )
+  );
+});
+const totalPoints = computed(() =>
+  totalRounds.value * (isVeryHardMode.value ? 1 : 1.5)
 );
-const totalPoints = computed(() => totalRounds.value * 1.5);
 const scoreText = computed(() => formatScore(score.value));
 const totalPointsText = computed(() => formatScore(totalPoints.value));
 const roundLabel = computed(() => {
@@ -823,13 +918,14 @@ function buildComposerOptions(correct) {
   return shuffle([correct, ...picks].map(getLocalizedComposerName));
 }
 
-function buildRounds(tracks) {
+function buildRounds(tracks, mode = "simple") {
   return tracks.map((track) => {
     const composerName = canonicalizeComposer(track.composer);
     const eraLabel = getComposerEraLabel(composerName) || "";
     const composerLabel = getLocalizedComposerName(composerName);
     return {
       ...track,
+      mode,
       composer: composerLabel,
       eraLabel,
       composerOptions: buildComposerOptions(composerName),
@@ -840,6 +936,42 @@ function buildRounds(tracks) {
       eraCorrect: false,
     };
   });
+}
+
+function normalizeSoundCloudTracks(tracks = []) {
+  if (!Array.isArray(tracks)) return [];
+  return tracks
+    .map((track, idx) => {
+      if (!track) return null;
+      const fallbackTitle = `Track ${idx + 1}`;
+      const titleCandidates = [
+        track.title,
+        track.publisher_metadata?.release_title,
+        track.permalink,
+        track.permalink_url,
+        track.id ? String(track.id) : null,
+      ]
+        .map((value) => (typeof value === "string" ? value.trim() : ""))
+        .filter(Boolean);
+      const title = titleCandidates[0] || fallbackTitle;
+      return { ...track, title };
+    })
+    .filter((track) => track?.id && track?.title);
+}
+
+async function fetchComposerPlaylist(slug) {
+  const resp = await fetch(`/playlists/${slug}.json`);
+  const contentType = resp.headers.get("content-type") || "";
+  if (!resp.ok || !contentType.includes("application/json")) {
+    const err = new Error(`Playlist fetch error: ${resp.status}`);
+    if (!resp.ok) {
+      err.status = resp.status;
+    } else {
+      err.status = 404;
+    }
+    throw err;
+  }
+  return resp.json();
 }
 
 function getPlaylistConfig(mode) {
@@ -908,11 +1040,84 @@ async function loadPlaylistTracks(mode) {
   }
 }
 
+async function loadVeryHardRounds() {
+  const mode = "veryHard";
+  if (playlistCache.has(mode)) {
+    const cached = playlistCache.get(mode) || [];
+    return cached.map((round) => ({
+      ...round,
+      selectedTitle: null,
+      titleCorrect: false,
+    }));
+  }
+  isLoadingQuiz.value = true;
+  quizError.value = "";
+  try {
+    const slugs = timelineComposers.map((composer) =>
+      slugifyForPlaylist(composer.name)
+    );
+    const results = await Promise.allSettled(
+      slugs.map((slug) => fetchComposerPlaylist(slug))
+    );
+    const roundsList = [];
+    results.forEach((result, index) => {
+      if (result.status !== "fulfilled") {
+        const reason = result.reason;
+        if (reason?.status && reason.status === 404) {
+          return;
+        }
+        console.error("Failed to load playlist", slugs[index], reason);
+        return;
+      }
+      const playlist = result.value;
+      const tracks = normalizeSoundCloudTracks(playlist?.tracks || []);
+      const lastTracks = tracks.slice(-4);
+      if (lastTracks.length < 4) return;
+      const composer = timelineComposers[index];
+      const picks = shuffle(lastTracks);
+      const correctTrack = picks[0];
+      const titleOptions = shuffle(lastTracks.map((track) => track.title));
+      roundsList.push({
+        id: correctTrack.id,
+        title: correctTrack.title,
+        composer: getLocalizedComposerName(composer?.name || ""),
+        titleOptions,
+        selectedTitle: null,
+        titleCorrect: false,
+        mode,
+      });
+    });
+    if (!roundsList.length) {
+      throw new Error("Playlist mapping empty");
+    }
+    const selectedRounds = pickRandomItems(roundsList, 10);
+    const baseRounds = selectedRounds.map((round) => ({
+      ...round,
+      selectedTitle: null,
+      titleCorrect: false,
+    }));
+    playlistCache.set(mode, baseRounds);
+    return baseRounds.map((round) => ({
+      ...round,
+      selectedTitle: null,
+      titleCorrect: false,
+    }));
+  } catch (err) {
+    console.error("Quiz playlist load failed", err);
+    quizError.value = quizContent.value.playlistError;
+    return [];
+  } finally {
+    isLoadingQuiz.value = false;
+  }
+}
+
 function resetAudioState() {
   const audio = audioEl.value;
   isPlaying.value = false;
   isLoadingAudio.value = false;
   hasAudioError.value = false;
+  hasRetriedAudio.value = false;
+  clearAudioRetry();
   if (!audio) return;
   audio.pause();
   audio.currentTime = 0;
@@ -923,6 +1128,8 @@ function stopAudio() {
   const audio = audioEl.value;
   isPlaying.value = false;
   isLoadingAudio.value = false;
+  hasRetriedAudio.value = false;
+  clearAudioRetry();
   if (!audio) return;
   audio.pause();
   audio.currentTime = 0;
@@ -1066,11 +1273,20 @@ function scrollToTop({ behavior = "smooth", duration = 700 } = {}) {
 async function startQuiz() {
   if (isLoadingQuiz.value) return;
   quizError.value = "";
-  const playlistTracks = await loadPlaylistTracks(difficulty.value);
-  if (!playlistTracks.length) return;
-  const selected = pickRandomItems(playlistTracks, 10);
+  let selected = [];
+  if (difficulty.value === "veryHard") {
+    selected = await loadVeryHardRounds();
+  } else {
+    const playlistTracks = await loadPlaylistTracks(difficulty.value);
+    if (!playlistTracks.length) return;
+    selected = pickRandomItems(playlistTracks, 10);
+  }
+  if (!selected.length) return;
   playedMode.value = difficulty.value;
-  rounds.value = buildRounds(selected);
+  rounds.value =
+    difficulty.value === "veryHard"
+      ? selected
+      : buildRounds(selected, difficulty.value);
   currentRoundIndex.value = 0;
   hasStarted.value = true;
   isComplete.value = false;
@@ -1113,6 +1329,18 @@ function selectComposerOption(option) {
   });
 }
 
+function selectTitleOption(option) {
+  const round = currentRound.value;
+  if (!round || round.selectedTitle) return;
+  round.selectedTitle = option;
+  round.titleCorrect = option === round.title;
+  stopAudio();
+
+  nextTick(() => {
+    scrollToElement(nextButtonEl, -24);
+  });
+}
+
 function selectEraOption(option) {
   const round = currentRound.value;
   if (!round || round.selectedEra) return;
@@ -1147,6 +1375,8 @@ async function togglePlay() {
   const audio = audioEl.value;
   if (!audio) return;
   hasAudioError.value = false;
+  hasRetriedAudio.value = false;
+  clearAudioRetry();
   try {
     if (audio.paused) {
       isLoadingAudio.value = true;
@@ -1156,19 +1386,22 @@ async function togglePlay() {
     }
   } catch (err) {
     console.error("Audio playback failed", err);
-    hasAudioError.value = true;
-    isLoadingAudio.value = false;
+    scheduleAudioRetry();
   }
 }
 
 function handlePlay() {
   isPlaying.value = true;
   isLoadingAudio.value = false;
+  hasRetriedAudio.value = false;
+  clearAudioRetry();
 }
 
 function handlePlaying() {
   isPlaying.value = true;
   isLoadingAudio.value = false;
+  hasRetriedAudio.value = false;
+  clearAudioRetry();
 }
 
 function handlePause() {
@@ -1193,9 +1426,48 @@ function handleLoadedData() {
 }
 
 function handleAudioError() {
-  hasAudioError.value = true;
-  isLoadingAudio.value = false;
-  isPlaying.value = false;
+  scheduleAudioRetry();
+}
+
+let audioRetryTimer = null;
+
+function clearAudioRetry() {
+  if (!audioRetryTimer) return;
+  clearTimeout(audioRetryTimer);
+  audioRetryTimer = null;
+}
+
+function scheduleAudioRetry() {
+  if (hasRetriedAudio.value) {
+    hasAudioError.value = true;
+    isLoadingAudio.value = false;
+    isPlaying.value = false;
+    return;
+  }
+
+  hasRetriedAudio.value = true;
+  hasAudioError.value = false;
+  isLoadingAudio.value = true;
+  clearAudioRetry();
+
+  audioRetryTimer = setTimeout(async () => {
+    const audio = audioEl.value;
+    if (!audio) {
+      hasAudioError.value = true;
+      isLoadingAudio.value = false;
+      isPlaying.value = false;
+      return;
+    }
+
+    try {
+      await audio.play();
+    } catch (err) {
+      console.error("Audio playback retry failed", err);
+      hasAudioError.value = true;
+      isLoadingAudio.value = false;
+      isPlaying.value = false;
+    }
+  }, 1000);
 }
 
 watch(currentAudioSrc, async () => {

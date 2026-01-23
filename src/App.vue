@@ -103,6 +103,7 @@
         v-else-if="currentView === 'radio'"
         :language="language"
         :composer-names="composerNames"
+        :use-proxy="shouldUseSoundCloudAudioProxy"
       />
 
       <AboutPage
@@ -396,8 +397,11 @@ const FACTS_TITLE_BY_LOCALE = {
   ru: "ключевые факты",
 };
 const language = ref(DEFAULT_LANGUAGE);
+const detectedCountry = ref(null);
 const testFeaturesEnabled = ref(false);
-const shouldUseSoundCloudAudioProxy = computed(() => !testFeaturesEnabled.value);
+const shouldUseSoundCloudAudioProxy = computed(
+  () => testFeaturesEnabled.value || detectedCountry.value === "RU"
+);
 const activeLocale = computed(() => LOCALES[language.value] || LOCALES.en);
 const languageOptions = computed(() =>
   SUPPORTED_LANGUAGES.map((code) => ({
@@ -1623,7 +1627,6 @@ function initializeLanguage() {
     hasUserSetLanguage.value = true;
     applyLanguage(stored);
     showDetectionAlert("STORED", stored);
-    return;
   }
 
   // Otherwise, keep English first, then try geo detection.
@@ -1641,6 +1644,7 @@ async function detectPreferredLanguage() {
     const country = await detector();
     if (country) {
       const normalizedCountry = String(country).toUpperCase();
+      detectedCountry.value = normalizedCountry;
       if (!allowLanguageSwitch) {
         return;
       }
@@ -1656,6 +1660,7 @@ async function detectPreferredLanguage() {
     }
   }
 
+  detectedCountry.value = null;
   if (!allowLanguageSwitch) {
     return;
   }
