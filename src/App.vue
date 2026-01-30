@@ -5,34 +5,38 @@
       <button class="menu-button" @click="toggleMenu" aria-label="Toggle navigation menu">
         <span class="menu-icon"></span>
       </button>
-      <img class="logo" src="/favicon.png" alt="Logo" @click="returnToTitle" />
-      <div class="app-title" role="button" @click="returnToTitle">{{ appTitle }}</div>
-      <nav class="topbar-nav" aria-label="Primary navigation">
-        <button class="topbar-nav__item" :class="{ 'topbar-nav__item--active': currentView === 'composers' }"
-          @click="selectView('composers')">
-          {{ navigationLabels.composers }}
-        </button>
-        <button class="topbar-nav__item" :class="{ 'topbar-nav__item--active': currentView === 'radio' }"
-          @click="selectView('radio')">
-          {{ navigationLabels.radio }}
-        </button>
-        <button class="topbar-nav__item" :class="{ 'topbar-nav__item--active': currentView === 'quiz' }"
-          @click="selectView('quiz')">
-          {{ navigationLabels.quiz }}
-        </button>
-        <button class="topbar-nav__item" :class="{ 'topbar-nav__item--active': currentView === 'about' }"
-          @click="selectView('about')">
-          {{ navigationLabels.about }}
-        </button>
-      </nav>
-      <div class="language-switcher">
-        <label class="visually-hidden" for="language-select">{{ languageLabel }}</label>
-        <select id="language-select" class="language-select" v-model="language" :aria-label="languageLabel"
-          @change="handleLanguageChange">
-          <option v-for="option in languageOptions" :key="option.value" :value="option.value">
-            {{ option.label }}
-          </option>
-        </select>
+      <div class="topbar-brand">
+        <img class="logo" src="/favicon.png" alt="Logo" @click="returnToTitle" />
+        <div class="app-title" role="button" @click="returnToTitle">{{ appTitle }}</div>
+      </div>
+      <div class="topbar-actions">
+        <nav class="topbar-nav" aria-label="Primary navigation">
+          <button v-if="showTopbarNavItem('composers')" class="topbar-nav__item"
+            :class="{ 'topbar-nav__item--active': currentView === 'composers' }" @click="selectView('composers')">
+            {{ navigationLabels.composers }}
+          </button>
+          <button v-if="showTopbarNavItem('radio')" class="topbar-nav__item"
+            :class="{ 'topbar-nav__item--active': currentView === 'radio' }" @click="selectView('radio')">
+            {{ navigationLabels.radio }}
+          </button>
+          <button v-if="showTopbarNavItem('quiz')" class="topbar-nav__item"
+            :class="{ 'topbar-nav__item--active': currentView === 'quiz' }" @click="selectView('quiz')">
+            {{ navigationLabels.quiz }}
+          </button>
+          <button v-if="showTopbarNavItem('about')" class="topbar-nav__item"
+            :class="{ 'topbar-nav__item--active': currentView === 'about' }" @click="selectView('about')">
+            {{ navigationLabels.about }}
+          </button>
+        </nav>
+        <div class="language-switcher">
+          <label class="visually-hidden" for="language-select">{{ languageLabel }}</label>
+          <select id="language-select" class="language-select" v-model="language" :aria-label="languageLabel"
+            @change="handleLanguageChange">
+            <option v-for="option in languageOptions" :key="option.value" :value="option.value">
+              {{ option.label }}
+            </option>
+          </select>
+        </div>
       </div>
     </header>
 
@@ -430,6 +434,7 @@ const soundCloudLoadingText = computed(
   () => soundCloudLabels.value.loading || "Loading tracks from SoundCloud..."
 );
 const composerLocale = computed(() => activeLocale.value.composers || {});
+const showTopbarNavItem = (view) => currentView.value !== view;
 const namesFromLocale = computed(() => {
   const raw = composerLocale.value.names || {};
   const mapped = {};
