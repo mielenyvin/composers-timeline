@@ -79,6 +79,37 @@ body {
   font-size: 22px;
 }
 
+.topbar-nav {
+  display: none;
+  align-items: center;
+  justify-content: center;
+  gap: 10px;
+  margin-left: 14px;
+  white-space: nowrap;
+  flex: 1;
+}
+
+.topbar-nav__item {
+  border: none;
+  background: transparent;
+  color: #111111;
+  font-size: 14px;
+  font-family: "Source Sans 3", sans-serif;
+  padding: 6px 8px;
+  border-radius: 8px;
+  cursor: pointer;
+  transition: background-color 0.15s ease;
+}
+
+.topbar-nav__item:hover {
+  background-color: rgba(15, 23, 42, 0.08);
+}
+
+.topbar-nav__item--active {
+  background-color: transparent;
+  font-weight: 600;
+}
+
 .language-switcher {
   margin-left: auto;
   display: flex;
@@ -265,5 +296,15 @@ body {
   .app-title {
     font-size: 16px;
     position: relative;
+  }
+}
+
+@media (min-width: 900px) {
+  .menu-button {
+    display: none;
+  }
+
+  .topbar-nav {
+    display: inline-flex;
   }
 }

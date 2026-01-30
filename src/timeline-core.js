@@ -18,11 +18,12 @@ const composers = [
   { name: "Robert Schumann", birth: 1810, death: 1856 },
   { name: "Franz Liszt", birth: 1811, death: 1886 },
   { name: "Giuseppe Verdi", birth: 1813, death: 1901 },
+  { name: "Richard Wagner", birth: 1813, death: 1883 },
+  { name: "Jacques Offenbach", birth: 1819, death: 1880 },
   { name: "Johann Strauss II", birth: 1825, death: 1899 },
   { name: "Johannes Brahms", birth: 1833, death: 1897 },
   { name: "Alexander Borodin", birth: 1833, death: 1887 },
   { name: "Camille Saint-Saëns", birth: 1835, death: 1921 },
-  { name: "Jacques Offenbach", birth: 1819, death: 1880 },
   { name: "Georges Bizet", birth: 1838, death: 1875 },
   { name: "Modest Mussorgsky", birth: 1839, death: 1881 },
   { name: "Pyotr Ilyich Tchaikovsky", birth: 1840, death: 1893 },
@@ -239,17 +240,17 @@ function applySettings(next = {}) {
     barHeight: clamp(
       next.barHeight ?? settings.barHeight ?? DEFAULT_SETTINGS.barHeight,
       SETTINGS_LIMITS.barHeight.min,
-      SETTINGS_LIMITS.barHeight.max
+      SETTINGS_LIMITS.barHeight.max,
     ),
     widthScale: clamp(
       next.widthScale ?? settings.widthScale ?? DEFAULT_SETTINGS.widthScale,
       SETTINGS_LIMITS.widthScale.min,
-      SETTINGS_LIMITS.widthScale.max
+      SETTINGS_LIMITS.widthScale.max,
     ),
     fontScale: clamp(
       next.fontScale ?? settings.fontScale ?? DEFAULT_SETTINGS.fontScale,
       SETTINGS_LIMITS.fontScale.min,
-      SETTINGS_LIMITS.fontScale.max
+      SETTINGS_LIMITS.fontScale.max,
     ),
   };
 }
@@ -344,7 +345,7 @@ function barGradient(progress) {
   const highlight = mixColors(base, WHITE, 0.14);
   const accent = mixColors(base, ACCENT, 0.035);
   return `linear-gradient(145deg, ${rgbToHex(highlight)} 0%, ${rgbToHex(
-    base
+    base,
   )} 52%, ${rgbToHex(accent)} 100%)`;
 }
 
@@ -362,11 +363,7 @@ function eraColor(eraId) {
 
 function getEraLabel(eraId) {
   if (!eraId) return "";
-  return (
-    eraLabels[eraId] ||
-    ERAS.find((e) => e.id === eraId)?.label ||
-    eraId
-  );
+  return eraLabels[eraId] || ERAS.find((e) => e.id === eraId)?.label || eraId;
 }
 
 function setEraLabels(next = {}) {
@@ -397,7 +394,7 @@ function getEraIdForLifeSpan(birthYear, deathYear) {
   ERAS.forEach((era) => {
     const overlap = Math.max(
       0,
-      Math.min(end, era.to) - Math.max(start, era.from)
+      Math.min(end, era.to) - Math.max(start, era.from),
     );
     if (overlap > bestOverlap) {
       bestOverlap = overlap;
@@ -415,7 +412,7 @@ function barGradientForEra(eraId) {
   const highlight = mixColors(base, WHITE, 0.12);
   const shade = mixColors(base, ACCENT, 0.04);
   return `linear-gradient(145deg, ${rgbToHex(highlight)} 0%, ${rgbToHex(
-    base
+    base,
   )} 58%, ${rgbToHex(shade)} 100%)`;
 }
 
@@ -702,7 +699,7 @@ function buildGantt() {
       window.dispatchEvent(
         new CustomEvent("composer-select", {
           detail: { composer: c, laneIndex },
-        })
+        }),
       );
     });
     bar.addEventListener("mouseenter", () => setHoveredLane(laneIndex));
@@ -716,7 +713,7 @@ function buildGantt() {
         bar.dataset.touchStartY = String(touch.clientY);
         setHoveredLane(laneIndex);
       },
-      { passive: true }
+      { passive: true },
     );
     bar.addEventListener(
       "touchmove",
@@ -731,21 +728,21 @@ function buildGantt() {
           setHoveredLane(null);
         }
       },
-      { passive: true }
+      { passive: true },
     );
     bar.addEventListener(
       "touchend",
       () => {
         setHoveredLane(null);
       },
-      { passive: true }
+      { passive: true },
     );
     bar.addEventListener(
       "touchcancel",
       () => {
         setHoveredLane(null);
       },
-      { passive: true }
+      { passive: true },
     );
   });
 
@@ -921,7 +918,7 @@ function enablePanning() {
   const onTouchEnd = (e) => {
     if (touchId === null) return;
     const ended = Array.from(e.changedTouches).some(
-      (tt) => tt.identifier === touchId
+      (tt) => tt.identifier === touchId,
     );
     if (!ended) return;
     touchId = null;
@@ -965,7 +962,7 @@ function enableVerticalSnapOnRelease() {
     const barViewportBottom = containerRect.bottom;
 
     const firstVisible = bars.find((bar) =>
-      isBarVerticallyVisible(bar, barViewportTop, barViewportBottom)
+      isBarVerticallyVisible(bar, barViewportTop, barViewportBottom),
     );
     if (!firstVisible) return;
 
@@ -993,7 +990,7 @@ function enableVerticalSnapOnRelease() {
 
 function smoothScrollTo(timeline, { left = 0, top = 0, behavior = "smooth" }) {
   const prefersReducedMotion = window.matchMedia?.(
-    "(prefers-reduced-motion: reduce)"
+    "(prefers-reduced-motion: reduce)",
   ).matches;
 
   const finalBehavior = prefersReducedMotion ? "auto" : behavior;

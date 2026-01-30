@@ -278,6 +278,27 @@ Name (ru): Фредерик Шопен
 - Личный почерк: Певучие мелодии в правой руке, богатая гармония и тонкое rubato - главные приметы его интимного, внутреннего стиля.
 - Жизнь и легенда: Хрупкое здоровье, вынужденная разлука с Польшей и долгие отношения с писательницей Жорж Санд влияют на то, как слушатели воспринимают его музыку.
 
+## Richard Wagner essentials {#richard-wagner}
+
+name (ru): Рихард Вагнер
+
+- German composer and music dramatist who reshaped opera through the idea of the Gesamtkunstwerk ("total work of art").
+- Best known for the Ring cycle (Der Ring des Nibelungen), Tristan und Isolde, and Parsifal.
+- Expanded harmony and orchestration; his approach strongly influenced late Romantic music.
+- Developed the use of leitmotifs - recurring musical ideas linked to characters, objects, or concepts.
+- Founded the Bayreuth Festival and designed the Bayreuth Festspielhaus for his works.
+- Key works: The Ring cycle, Tristan und Isolde, The Flying Dutchman, Tannhauser, Lohengrin.
+
+## Richard Wagner essentials (ru) {#richard-wagner}
+
+- Немецкий композитор и реформатор оперы, связанный с идеей Gesamtkunstwerk - "целостного произведения искусства".
+- Наиболее известен циклом "Кольцо нибелунга", операми "Тристан и Изольда" и "Парсифаль".
+- Радикально расширил гармонический язык и роль оркестра, повлияв на поздний романтизм.
+- Активно использовал лейтмотивы - музыкальные темы, связанные с персонажами, предметами и идеями.
+- Основал Байройтский фестиваль и построил театр в Байройте под свои постановки.
+- Ключевые произведения: "Кольцо нибелунга", "Тристан и Изольда", "Летучий голландец", "Тангейзер", "Лоэнгрин".
+
+
 ## Robert Schumann essentials {#robert-schumann}
 
 Name (ru): Роберт Шуман
@@ -1228,3 +1249,12 @@ Name (ru): Карл Орф
 - Archaische Energie: Sein Stil betont oft Rhythmus, Schlagwerk, gesangnahe Linien und eine rituell-theatralische Atmosphaere.
 - Szenische Kantaten: Er schrieb weitere szenische Kantaten wie Catulli Carmina und Trionfo di Afrodite, haeufig zusammen mit Carmina Burana genannt.
 - Orff-Schulwerk: Sein paedagogisches Konzept Orff-Schulwerk praegte Musikunterricht weltweit - Bewegung, Sprache und Perkussion als Basis.
+
+## Richard Wagner essentials (de) {#richard-wagner}
+
+- Deutscher Komponist und Musikdramatiker, der die Oper mit dem Konzept des Gesamtkunstwerks neu pragte.
+- Beruhmt fur den Ring des Nibelungen, Tristan und Isolde und Parsifal.
+- Erweiterte Harmonik und Orchesterklang - pragte die Spatromantik nachhaltig.
+- Arbeitete mit Leitmotiven - wiederkehrenden Motiven fur Figuren, Dinge oder Ideen.
+- Grundete die Bayreuther Festspiele und baute das Festspielhaus speziell fur seine Werke.
+- Hauptwerke: Ring, Tristan und Isolde, Der fliegende Hollander, Tannhauser, Lohengrin.

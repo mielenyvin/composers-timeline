@@ -1,41 +1,21 @@
 <template>
   <section class="about">
     <div class="about__card">
-      <img
-        class="about__logo"
-        src="/images/about_music_logo.png"
-        alt="Music logo"
-        loading="lazy"
-      />
+      <img class="about__logo" src="/images/about_music_logo.png" alt="Music logo" loading="lazy" />
 
       <h1 class="about__title">{{ content.title }}</h1>
       <p class="about__text">{{ content.intro }}</p>
       <p class="about__text">{{ content.goal }}</p>
 
       <div class="about__author">
-        <img
-          class="about__photo"
-          src="/images/dk3-min.jpg"
-          alt="Dmitrii Kotikov"
-          loading="lazy"
-        />
+        <img class="about__photo" src="/images/dk3-min.jpg" alt="Dmitrii Kotikov" loading="lazy" />
         <div class="about__author-body">
           <div class="about__author-label">{{ content.authorLabel }}</div>
           <div class="about__author-name">{{ content.authorName }}</div>
-          <a
-            class="about__link"
-            href="https://www.linkedin.com/in/dmitrykotikov/"
-            target="_blank"
-            rel="noreferrer"
-          >
+          <a class="about__link" href="https://www.linkedin.com/in/dmitrykotikov/" target="_blank" rel="noreferrer">
             LinkedIn
           </a>
-          <a
-            class="about__link"
-            href="https://thequot.es/"
-            target="_blank"
-            rel="noreferrer"
-          >
+          <a class="about__link" href="https://thequot.es/" target="_blank" rel="noreferrer">
             thequot.es
           </a>
         </div>
@@ -46,42 +26,37 @@
           {{ content.contributorsTitle }}
         </div>
         <ul class="about__contributors-list">
-          <li
-            v-for="person in contributors"
-            :key="person.url"
-            class="about__contributors-item"
-          >
+          <li v-for="person in contributors" :key="person.url" class="about__contributors-item">
             <span class="about__contributors-name">{{ person.name }}</span>
-            <a
-              class="about__contributors-link"
-              :href="person.url"
-              target="_blank"
-              rel="noreferrer"
-            >
+            <a class="about__contributors-link" :href="person.url" target="_blank" rel="noreferrer">
               {{ person.linkText }}
             </a>
-            <div
-              v-if="person.url === 'https://www.linkedin.com/in/olga-shibanova'"
-              class="about__contributors-toggle"
-            >
+            <div v-if="person.url === 'https://www.linkedin.com/in/olga-shibanova'" class="about__contributors-toggle">
               <label class="about__contributors-toggle-label">
-                <input
-                  v-model="localTestFeatures"
-                  class="about__contributors-toggle-input"
-                  type="checkbox"
-                  aria-label="Toggle test features"
-                />
+                <input v-model="localTestFeatures" class="about__contributors-toggle-input" type="checkbox"
+                  aria-label="Toggle test features" />
                 <span>{{ testFeaturesLabel }}</span>
               </label>
             </div>
           </li>
         </ul>
       </div>
+      <!--
+      <div class="about__stats">
+        <div class="about__author-label">{{ content.statsTitle }}</div>
+        <ul class="about__stats-list">
+          <li class="about__stats-item">{{ content.statsTotal }}</li>
+          <li class="about__stats-item">{{ content.statsDomainTotal }}</li>
+          <li class="about__stats-item">{{ content.statsMonthTotal }}</li>
+        </ul>
+      </div>
+          -->
       <br />
       <p class="about__text">
         {{ copyrightLabel }}
       </p>
     </div>
+
   </section>
 </template>
 
@@ -99,6 +74,10 @@ const ABOUT_COPY = {
     authorName: "Dmitrii Kotikov",
     contributorsTitle: "Project collaborators",
     testFeaturesLabel: "Turn on test functions",
+    statsTitle: "Visit statistics",
+    statsTotal: "Total",
+    statsDomainTotal: "This domain total",
+    statsMonthTotal: "Total this month",
     contributors: [
       {
         name: "Timofey Muhortov",
@@ -122,6 +101,10 @@ const ABOUT_COPY = {
     authorName: "Dmitrii Kotikov",
     contributorsTitle: "Projektpartner",
     testFeaturesLabel: "Testfunktionen einschalten",
+    statsTitle: "Besuchsstatistik",
+    statsTotal: "Insgesamt",
+    statsDomainTotal: "Insgesamt für diese Domain",
+    statsMonthTotal: "Insgesamt diesen Monat",
     contributors: [
       {
         name: "Timofey Muhortov",
@@ -145,6 +128,10 @@ const ABOUT_COPY = {
     authorName: "Дмитрий Котиков",
     contributorsTitle: "Соавторы проекта",
     testFeaturesLabel: "Включить тестовые функции",
+    statsTitle: "Статистика посещений",
+    statsTotal: "Всего",
+    statsDomainTotal: "Всего для этого домена",
+    statsMonthTotal: "Всего в этом месяце",
     contributors: [
       {
         name: "Тимофей Мухортов",
@@ -196,6 +183,7 @@ const localTestFeatures = computed({
 
 <style scoped>
 .about__card {
+  width: min(980px, 100%);
   background: none;
   border-radius: 0;
   padding: 0px 36px;
@@ -206,6 +194,8 @@ const localTestFeatures = computed({
 .about {
   height: 100%;
   overflow-y: auto;
+  display: flex;
+  justify-content: center;
 }
 
 .about,
@@ -359,6 +349,23 @@ const localTestFeatures = computed({
   height: 14px;
 }
 
+.about__stats {
+  margin-top: 22px;
+}
+
+.about__stats-list {
+  list-style: none;
+  margin: 10px 0 0 0;
+  padding: 0;
+  display: grid;
+  gap: 6px;
+  font-size: 15px;
+  color: #1f2937;
+}
+
+.about__stats-item {
+  font-weight: 500;
+}
 
 @media (max-width: 700px) {
   .about__card {

@@ -7,6 +7,24 @@
       </button>
       <img class="logo" src="/favicon.png" alt="Logo" @click="returnToTitle" />
       <div class="app-title" role="button" @click="returnToTitle">{{ appTitle }}</div>
+      <nav class="topbar-nav" aria-label="Primary navigation">
+        <button class="topbar-nav__item" :class="{ 'topbar-nav__item--active': currentView === 'composers' }"
+          @click="selectView('composers')">
+          {{ navigationLabels.composers }}
+        </button>
+        <button class="topbar-nav__item" :class="{ 'topbar-nav__item--active': currentView === 'radio' }"
+          @click="selectView('radio')">
+          {{ navigationLabels.radio }}
+        </button>
+        <button class="topbar-nav__item" :class="{ 'topbar-nav__item--active': currentView === 'quiz' }"
+          @click="selectView('quiz')">
+          {{ navigationLabels.quiz }}
+        </button>
+        <button class="topbar-nav__item" :class="{ 'topbar-nav__item--active': currentView === 'about' }"
+          @click="selectView('about')">
+          {{ navigationLabels.about }}
+        </button>
+      </nav>
       <div class="language-switcher">
         <label class="visually-hidden" for="language-select">{{ languageLabel }}</label>
         <select id="language-select" class="language-select" v-model="language" :aria-label="languageLabel"
@@ -29,8 +47,7 @@
           @click="selectView('radio')">
           {{ navigationLabels.radio }}
         </button>
-        <button class="menu-item" :class="{ 'menu-item--active': currentView === 'quiz' }"
-          @click="selectView('quiz')">
+        <button class="menu-item" :class="{ 'menu-item--active': currentView === 'quiz' }" @click="selectView('quiz')">
           {{ navigationLabels.quiz }}
         </button>
         <button class="menu-item" :class="{ 'menu-item--active': currentView === 'about' }"
@@ -99,25 +116,14 @@
         <ComposersTimeline :composers="sortedComposers" :settings="timelineSettings" :era-labels="eraLabels" />
       </section>
 
-      <RadioPage
-        v-else-if="currentView === 'radio'"
-        :language="language"
-        :composer-names="composerNames"
-        :use-proxy="shouldUseSoundCloudAudioProxy"
-      />
+      <RadioPage v-else-if="currentView === 'radio'" :language="language" :composer-names="composerNames"
+        :use-proxy="shouldUseSoundCloudAudioProxy" />
 
-      <AboutPage
-        v-else-if="currentView === 'about'"
-        :language="language"
-        v-model:test-features-enabled="testFeaturesEnabled"
-      />
+      <AboutPage v-else-if="currentView === 'about'" :language="language"
+        v-model:test-features-enabled="testFeaturesEnabled" />
 
-      <QuizPage
-        v-else-if="currentView === 'quiz'"
-        :language="language"
-        :composer-names="composerNames"
-        :era-labels="eraLabels"
-      />
+      <QuizPage v-else-if="currentView === 'quiz'" :language="language" :composer-names="composerNames"
+        :era-labels="eraLabels" />
     </main>
 
     <!-- Composer modal -->
@@ -592,6 +598,7 @@ const filterGroups = [
       "Nikolai Rimsky-Korsakov",
       "Erik Satie",
       "Joseph Haydn",
+      "Richard Wagner",
     ],
   },
   {
@@ -1892,9 +1899,9 @@ watch(currentIndex, (laneIndex) => {
       ? "/about"
       : currentView.value === "radio"
         ? "/radio"
-      : currentView.value === "quiz"
-        ? "/quiz"
-        : "/";
+        : currentView.value === "quiz"
+          ? "/quiz"
+          : "/";
   if (window.location.pathname !== fallbackPath) {
     history.replaceState({}, "", fallbackPath);
     updateViewFromLocation(fallbackPath);
@@ -3155,5 +3162,4 @@ function formatDuration(durationMs) {
     font-size: 14px;
   }
 }
-
 </style>
